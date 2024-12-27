@@ -57,28 +57,236 @@ void MapEditor::Update()
 	isOnEditorCursor |= UpdateEditorSelect(posCursor.cursorZ, GetMousePosX(), GetMousePosY());
 	onEditorCursor = isOnEditorCursor;
 
-	if (deltaX != 0 || deltaY != 0)
-	{
-		PrintDebugProc("deltaX:%f deltaY:%f\n", deltaX, deltaY);
-	}
 
 	const DoubleLinkedList<Enemy*>* enemyList = EnemyManager::get_instance().GetEnemy();
 	
+	CAMERA* camera = GetCamera();
+	PrintDebugProc("roty: %f\n", abs(cosf(camera->rot.y)));
+
+	Node<Enemy*>* cur = enemyList->getHead();
+	while (cur != nullptr)
+	{
+		if (cur->data->GetEditorIndex() == curSelectedModelIdx)
+		{
+			XMMATRIX mtxScl, mtxRot, mtxTranslate, mtxWorld;
+
+			// ƒ[ƒ‹ƒhƒ}ƒgƒŠƒbƒNƒX‚Ì‰Šú‰»
+			mtxWorld = XMMatrixIdentity();
+
+			XMVECTOR minPoint = XMLoadFloat3(&cur->data->GetModel()->GetBondingBox().minPoint);
+			XMVECTOR maxPoint = XMLoadFloat3(&cur->data->GetModel()->GetBondingBox().maxPoint);
+			XMMATRIX worldMatrix = cur->data->GetTransform().mtxWorld;
+			XMVECTOR corners[8];
+			corners[0] = XMVectorSet(minPoint.m128_f32[0], minPoint.m128_f32[1], minPoint.m128_f32[2], 1.0f);
+			corners[1] = XMVectorSet(maxPoint.m128_f32[0], minPoint.m128_f32[1], minPoint.m128_f32[2], 1.0f);
+			corners[2] = XMVectorSet(minPoint.m128_f32[0], maxPoint.m128_f32[1], minPoint.m128_f32[2], 1.0f);
+			corners[3] = XMVectorSet(maxPoint.m128_f32[0], maxPoint.m128_f32[1], minPoint.m128_f32[2], 1.0f);
+			corners[4] = XMVectorSet(minPoint.m128_f32[0], minPoint.m128_f32[1], maxPoint.m128_f32[2], 1.0f);
+			corners[5] = XMVectorSet(maxPoint.m128_f32[0], minPoint.m128_f32[1], maxPoint.m128_f32[2], 1.0f);
+			corners[6] = XMVectorSet(minPoint.m128_f32[0], maxPoint.m128_f32[1], maxPoint.m128_f32[2], 1.0f);
+			corners[7] = XMVectorSet(maxPoint.m128_f32[0], maxPoint.m128_f32[1], maxPoint.m128_f32[2], 1.0f);
+
+			XMVECTOR minWorld = XMVectorSet(FLT_MAX, FLT_MAX, FLT_MAX, 1.0f);
+			XMVECTOR maxWorld = XMVectorSet(-FLT_MAX, -FLT_MAX, -FLT_MAX, 1.0f);
+
+			for (int i = 0; i < 8; ++i) {
+				XMVECTOR worldCorner = XMVector3TransformCoord(corners[i], worldMatrix);
+				minWorld = XMVectorMin(minWorld, worldCorner);
+				maxWorld = XMVectorMax(maxWorld, worldCorner);
+			}
+			XMVECTOR centerWorld = XMVectorScale(XMVectorAdd(minWorld, maxWorld), 0.5f);
+
+			CAMERA* camera = GetCamera();
+			XMFLOAT3 worldPosition = XMFLOAT3(cur->data->GetTransform().pos.x, cur->data->GetTransform().pos.y, cur->data->GetTransform().pos.z);
+			XMVECTOR modelPosition = XMLoadFloat3(&worldPosition);
+			XMVECTOR cameraPosition = XMLoadFloat3(&camera->pos);
+			XMVECTOR distanceVector = XMVectorSubtract(modelPosition, cameraPosition);
+			float cameraDistance = XMVectorGetX(XMVector3Length(distanceVector));
+
+			float projectionFactor = SCREEN_HEIGHT / tanf(camera->fov * 0.5f) * 30;
+
+			float desiredScreenSize = 100.0f;
+			float modelScale = desiredScreenSize * (cameraDistance / projectionFactor);
+			mtxScl = XMMatrixScaling(modelScale, modelScale, modelScale);
+
+			// •½ˆÚŒü—Ê‚ð’Ç‰Ái—áFY•ûŒü‚É5’PˆÊ•½ˆÚj
+			XMVECTOR offset = XMVectorSet(0.0f, -5.0f, 0.0f, 0.0f);
+			XMVECTOR newCenterWorld = XMVectorAdd(centerWorld, offset);
+
+			mtxTranslate = XMMatrixTranslationFromVector(newCenterWorld);
+
+			// ƒXƒP[ƒ‹‚ð”½‰f
+			mtxWorld = XMMatrixMultiply(mtxWorld, mtxScl);
+
+			// ‰ñ“]‚ð”½‰f
+			mtxRot = XMMatrixRotationRollPitchYaw(0.0f, 0.0f, 0.0f);
+			mtxWorld = XMMatrixMultiply(mtxWorld, mtxRot);
+
+			// ˆÚ“®‚ð”½‰f
+			mtxWorld = XMMatrixMultiply(mtxWorld, mtxTranslate);
+
+			posCursor.cursorY->SetWorldMatrix(mtxWorld);
+
+			offset = XMVectorSet(0.0f, 0.0f, 15.0f, 0.0f);
+			newCenterWorld = XMVectorAdd(centerWorld, offset);
+
+			mtxTranslate = XMMatrixTranslationFromVector(newCenterWorld);
+
+			mtxWorld = XMMatrixIdentity();
+			// ƒXƒP[ƒ‹‚ð”½‰f
+			mtxWorld = XMMatrixMultiply(mtxWorld, mtxScl);
+
+			// ‰ñ“]‚ð”½‰f
+			mtxRot = XMMatrixRotationRollPitchYaw(0.0f, 0.0f, XM_PI * 0.5f);
+			mtxWorld = XMMatrixMultiply(mtxWorld, mtxRot);
+
+			// ˆÚ“®‚ð”½‰f
+			mtxWorld = XMMatrixMultiply(mtxWorld, mtxTranslate);
+
+			posCursor.cursorX->SetWorldMatrix(mtxWorld);
+
+			offset = XMVectorSet(15.0f, 0.0f, 0.0f, 0.0f);
+			newCenterWorld = XMVectorAdd(centerWorld, offset);
+
+			mtxTranslate = XMMatrixTranslationFromVector(newCenterWorld);
+
+			mtxWorld = XMMatrixIdentity();
+			// ƒXƒP[ƒ‹‚ð”½‰f
+			mtxWorld = XMMatrixMultiply(mtxWorld, mtxScl);
+
+			// ‰ñ“]‚ð”½‰f
+			mtxRot = XMMatrixRotationRollPitchYaw(-XM_PI * 0.5f, 0.0f, 0.0f);
+			mtxWorld = XMMatrixMultiply(mtxWorld, mtxRot);
+
+			// ˆÚ“®‚ð”½‰f
+			mtxWorld = XMMatrixMultiply(mtxWorld, mtxTranslate);
+
+			posCursor.cursorZ->SetWorldMatrix(mtxWorld);
+
+			if (posCursor.cursorX->GetIsDragging() == TRUE)
+			{
+				CAMERA* camera = GetCamera();
+				XMMATRIX P = XMLoadFloat4x4(&camera->mtxProjection);
+
+				// Compute picking ray in view space.
+				float vx = (+2.0f * currentX / SCREEN_WIDTH - 1.0f) / P.r[0].m128_f32[0];
+				float vy = (-2.0f * currentY / SCREEN_HEIGHT + 1.0f) / P.r[1].m128_f32[1];
+
+				// Ray definition in view space.
+				XMVECTOR rayOrigin = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
+				XMVECTOR rayDirStart = XMVectorSet(vx, vy, 1.0f, 0.0f);
+
+				// Tranform ray to local space of Mesh.
+				XMMATRIX V = XMLoadFloat4x4(&camera->mtxView);
+				XMMATRIX invView = XMLoadFloat4x4(&camera->mtxInvView);
+
+				rayOrigin = XMVector3TransformCoord(rayOrigin, invView);
+				rayDirStart = XMVector3TransformNormal(rayDirStart, invView);
+
+				rayDirStart = XMVector3Normalize(rayDirStart);
+
+				Transform trans = cur->data->GetTransform();
+
+				XMVECTOR diff = XMVectorSubtract(XMLoadFloat3(&camera->pos), XMLoadFloat3(&cur->data->GetTransform().pos));
+				float distance = XMVectorGetX(XMVector3Length(diff));
+				//float dy = camera->pos.y - cur->data->GetTransform().pos.y;
+				//float dz = camera->pos.z - cur->data->GetTransform().pos.z;
+				//float distance = sqrt(dy * dy + dz * dz);
+
+				DirectX::XMVECTOR pos = DirectX::XMLoadFloat3(&cur->data->GetTransform().pos);
+				DirectX::XMVECTOR viewSpacePos = DirectX::XMVector3TransformCoord(pos, V);
+
+
+				DirectX::XMVECTOR clipSpacePos = DirectX::XMVector3TransformCoord(viewSpacePos, P);
+
+
+				clipSpacePos = DirectX::XMVectorDivide(clipSpacePos, DirectX::XMVectorSet(clipSpacePos.m128_f32[3], clipSpacePos.m128_f32[3], clipSpacePos.m128_f32[3], 1.0f));
+
+				DirectX::XMFLOAT2 screenPos;
+				
+				screenPos.x = ((clipSpacePos.m128_f32[0] + 1.0f) * 0.5f * SCREEN_WIDTH);
+				screenPos.y = ((1.0f - clipSpacePos.m128_f32[1]) * 0.5f * SCREEN_HEIGHT);
+
+				vx = (+2.0f * screenPos.x / SCREEN_WIDTH - 1.0f) / P.r[0].m128_f32[0];
+				vy = (-2.0f * screenPos.y / SCREEN_HEIGHT + 1.0f) / P.r[1].m128_f32[1];
+				XMVECTOR rayDirModel = XMVectorSet(vx, vy, 1.0f, 0.0f);
+				rayDirModel = XMVector3TransformNormal(rayDirStart, invView);
+				rayDirModel = XMVector3Normalize(rayDirModel);
+				XMVECTOR rayOffSet = rayDirModel - rayDirStart;
+				XMVECTOR endPoint = XMLoadFloat4(&originDraggingRay) + distance * rayDirModel;
+
+				trans.pos.x = XMVectorGetX(endPoint);
+				cur->data->SetPosition(trans.pos);
+				PrintDebugProc("diff PosX:%f\n", distance);
+				PrintDebugProc("startDraggingRay PosX:%f\n", startDraggingRay.x);
+				PrintDebugProc("endPoint X:%f, Y:%f, Z:%f\n", XMVectorGetX(endPoint), XMVectorGetY(endPoint), XMVectorGetZ(endPoint));
+				PrintDebugProc("enemy pos X:%f, Y:%f, Z:%f", cur->data->GetTransform().pos.x, cur->data->GetTransform().pos.y, cur->data->GetTransform().pos.z);
+				break;
+			}
+			else if (posCursor.cursorY->GetIsDragging() == TRUE)
+			{
+				Transform trans = cur->data->GetTransform();
+
+				XMVECTOR diff = XMVectorSubtract(XMLoadFloat3(&camera->pos), XMLoadFloat3(&cur->data->GetTransform().pos));// posCursor.cursorY->GetTransform().mtxWorld.r[3]);
+				//float dx = camera->pos.x - cur->data->GetTransform().pos.x;
+				//float dz = camera->pos.z - cur->data->GetTransform().pos.z;
+				//float distance = sqrt(dx * dx + dz * dz);
+				float distance =XMVectorGetY(XMVector3Length(diff));
+				XMVECTOR endPoint = XMLoadFloat4(&originDraggingRay) + distance * XMLoadFloat4(&startDraggingRay);
+
+				trans.pos.y = XMVectorGetY(endPoint);
+				cur->data->SetPosition(trans.pos);
+				PrintDebugProc("diff PosX:%f\n", distance);
+				PrintDebugProc("endPoint X:%f, Y:%f, Z:%f\n", XMVectorGetX(endPoint), XMVectorGetY(endPoint), XMVectorGetZ(endPoint));
+				PrintDebugProc("enemy pos X:%f, Y:%f, Z:%f", cur->data->GetTransform().pos.x, cur->data->GetTransform().pos.y, cur->data->GetTransform().pos.z);
+
+				break;
+			}
+			else if (posCursor.cursorZ->GetIsDragging() == TRUE)
+			{
+				Transform trans = cur->data->GetTransform();
+
+				XMVECTOR diff = XMVectorSubtract(XMLoadFloat3(&camera->pos), XMLoadFloat3(&cur->data->GetTransform().pos));// posCursor.cursorZ->GetTransform().mtxWorld.r[3]);
+				float distance = XMVectorGetX(XMVector3Length(diff));
+				XMVECTOR endPoint = XMLoadFloat4(&originDraggingRay) + distance * XMLoadFloat4(&startDraggingRay);
+
+				trans.pos.z = XMVectorGetZ(endPoint);
+				cur->data->SetPosition(trans.pos);
+
+				break;
+			}
+		}
+		cur = cur->next;
+	}
 
 	if (posCursor.cursorX->GetIsDragging() == TRUE)
 	{
-		Node<Enemy*>* cur = enemyList->getHead();
-		while (cur != nullptr)
-		{
-			if (cur->data->GetEditorIndex() == curSelectedModelIdx)
-			{
-				Transform trans = cur->data->GetTransform();
-				trans.pos.x += deltaX;
-				cur->data->SetPosition(trans.pos);
-				PrintDebugProc("enemy PosX:%f", cur->data->GetTransform().pos.x);
-			}
-			cur = cur->next;
-		}
+		//Node<Enemy*>* cur = enemyList->getHead();
+		//while (cur != nullptr)
+		//{
+		//	if (cur->data->GetEditorIndex() == curSelectedModelIdx)
+		//	{
+		//		Transform trans = cur->data->GetTransform();
+
+		//		XMVECTOR diff = XMVectorSubtract(XMLoadFloat3(&camera->pos), XMLoadFloat3(&trans.pos));
+		//		float distance = XMVectorGetX(XMVector3Length(diff));
+		//		XMVECTOR startPoint = XMLoadFloat4(&originDraggingRay) + distance * XMLoadFloat4(&startDraggingRay);
+		//		XMVECTOR endPoint = XMLoadFloat4(&originDraggingRay) + distance * XMLoadFloat4(&endDraggingRay);
+
+		//		PrintDebugProc("diff X: %f\n", XMVectorGetX(XMVectorSubtract(endPoint, startPoint)));
+		//		trans.pos.x += XMVectorGetX(XMVectorSubtract(endPoint, startPoint)) / abs(cosf(camera->rot.y));
+		//		//trans.pos.x = XMVectorGetX(endPoint);
+		//		//trans.pos.y = XMVectorGetY(endPoint);
+		//		//trans.pos.z = XMVectorGetZ(endPoint);
+		//		cur->data->SetPosition(trans.pos);
+
+		//		PrintDebugProc("enemy PosX:%f\n", cur->data->GetTransform().pos.x);
+		//		PrintDebugProc("endPoint X:%f, Y:%f, Z:%f", XMVectorGetX(endPoint), XMVectorGetY(endPoint), XMVectorGetZ(endPoint));
+
+		//		break;
+		//	}
+		//	cur = cur->next;
+		//}
 	}
 	else if (posCursor.cursorY->GetIsDragging() == TRUE)
 	{
@@ -90,7 +298,6 @@ void MapEditor::Update()
 				Transform trans = cur->data->GetTransform();
 				trans.pos.y -= deltaY;
 				cur->data->SetPosition(trans.pos);
-				PrintDebugProc("enemy PosX:%f", cur->data->GetTransform().pos.x);
 			}
 			cur = cur->next;
 		}
@@ -106,7 +313,6 @@ void MapEditor::Update()
 				Transform trans = cur->data->GetTransform();
 				trans.pos.z -= deltaX;
 				cur->data->SetPosition(trans.pos);
-				PrintDebugProc("enemy PosX:%f", cur->data->GetTransform().pos.x);
 			}
 			cur = cur->next;
 		}
@@ -160,8 +366,42 @@ void MapEditor::UpdateMouseDrag()
 			long newY = GetMousePosY();
 			deltaX = newX - currentX;
 			deltaY = newY - currentY;
+
+			CAMERA* camera = GetCamera();
+			XMMATRIX P = XMLoadFloat4x4(&camera->mtxProjection);
+
+			// Compute picking ray in view space.
+			float vx = (+2.0f * currentX / SCREEN_WIDTH - 1.0f) / P.r[0].m128_f32[0];
+			float vy = (-2.0f * currentY / SCREEN_HEIGHT + 1.0f) / P.r[1].m128_f32[1];
+
+			// Ray definition in view space.
+			XMVECTOR rayOrigin = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
+			XMVECTOR rayDirStart = XMVectorSet(vx, vy, 1.0f, 0.0f);
+
+			vx = (+2.0f * newX / SCREEN_WIDTH - 1.0f) / P.r[0].m128_f32[0];
+			vy = (-2.0f * newY / SCREEN_HEIGHT + 1.0f) / P.r[1].m128_f32[1];
+			XMVECTOR rayDirEnd = XMVectorSet(vx, vy, 1.0f, 0.0f);
+
+			// Tranform ray to local space of Mesh.
+			XMMATRIX V = XMLoadFloat4x4(&camera->mtxView);
+			XMMATRIX invView = XMLoadFloat4x4(&camera->mtxInvView);
+
+			rayOrigin = XMVector3TransformCoord(rayOrigin, invView);
+			rayDirStart = XMVector3TransformNormal(rayDirStart, invView);
+			rayDirEnd = XMVector3TransformNormal(rayDirEnd, invView);
+
+			rayDirStart = XMVector3Normalize(rayDirStart);
+			rayDirEnd = XMVector3Normalize(rayDirEnd);
+
+			XMStoreFloat4(&originDraggingRay, rayOrigin);
+			XMStoreFloat4(&startDraggingRay, rayDirStart);
+			XMStoreFloat4(&endDraggingRay, rayDirEnd);
+
+
 			currentX = newX;
 			currentY = newY;
+
+
 		}
 
 	}
@@ -183,11 +423,6 @@ void MapEditor::Draw()
 	{
 		SetDepthEnable(FALSE);
 
-		XMMATRIX mtxScl, mtxRot, mtxTranslate, mtxWorld;
-
-		// ƒ[ƒ‹ƒhƒ}ƒgƒŠƒbƒNƒX‚Ì‰Šú‰»
-		mtxWorld = XMMatrixIdentity();
-
 		// ƒJƒŠƒ“ƒO–³Œø
 		SetCullingMode(CULL_MODE_NONE);
 
@@ -198,62 +433,10 @@ void MapEditor::Draw()
 			if (cur->data->GetEditorIndex() == curSelectedModelIdx)
 			{
 
-				XMVECTOR minPoint = XMLoadFloat3(&cur->data->GetModel()->GetBondingBox().minPoint);
-				XMVECTOR maxPoint = XMLoadFloat3(&cur->data->GetModel()->GetBondingBox().maxPoint);
-				XMMATRIX worldMatrix = cur->data->GetTransform().mtxWorld;
-				XMVECTOR corners[8];
-				corners[0] = XMVectorSet(minPoint.m128_f32[0], minPoint.m128_f32[1], minPoint.m128_f32[2], 1.0f);
-				corners[1] = XMVectorSet(maxPoint.m128_f32[0], minPoint.m128_f32[1], minPoint.m128_f32[2], 1.0f);
-				corners[2] = XMVectorSet(minPoint.m128_f32[0], maxPoint.m128_f32[1], minPoint.m128_f32[2], 1.0f);
-				corners[3] = XMVectorSet(maxPoint.m128_f32[0], maxPoint.m128_f32[1], minPoint.m128_f32[2], 1.0f);
-				corners[4] = XMVectorSet(minPoint.m128_f32[0], minPoint.m128_f32[1], maxPoint.m128_f32[2], 1.0f);
-				corners[5] = XMVectorSet(maxPoint.m128_f32[0], minPoint.m128_f32[1], maxPoint.m128_f32[2], 1.0f);
-				corners[6] = XMVectorSet(minPoint.m128_f32[0], maxPoint.m128_f32[1], maxPoint.m128_f32[2], 1.0f);
-				corners[7] = XMVectorSet(maxPoint.m128_f32[0], maxPoint.m128_f32[1], maxPoint.m128_f32[2], 1.0f);
-
-				XMVECTOR minWorld = XMVectorSet(FLT_MAX, FLT_MAX, FLT_MAX, 1.0f);
-				XMVECTOR maxWorld = XMVectorSet(-FLT_MAX, -FLT_MAX, -FLT_MAX, 1.0f);
-
-				for (int i = 0; i < 8; ++i) {
-					XMVECTOR worldCorner = XMVector3TransformCoord(corners[i], worldMatrix);
-					minWorld = XMVectorMin(minWorld, worldCorner);
-					maxWorld = XMVectorMax(maxWorld, worldCorner);
-				}
-				XMVECTOR centerWorld = XMVectorScale(XMVectorAdd(minWorld, maxWorld), 0.5f);
-
-				CAMERA* camera = GetCamera();
-				XMFLOAT3 worldPosition = XMFLOAT3(cur->data->GetTransform().pos.x, cur->data->GetTransform().pos.y, cur->data->GetTransform().pos.z);
-				XMVECTOR modelPosition = XMLoadFloat3(&worldPosition);
-				XMVECTOR cameraPosition = XMLoadFloat3(&camera->pos);
-				XMVECTOR distanceVector = XMVectorSubtract(modelPosition, cameraPosition);
-				float cameraDistance = XMVectorGetX(XMVector3Length(distanceVector));
-
-				float projectionFactor = SCREEN_HEIGHT / tanf(camera->fov * 0.5f) * 30;
-
-				float desiredScreenSize = 100.0f;
-				float modelScale = desiredScreenSize * (cameraDistance / projectionFactor);
-				mtxScl = XMMatrixScaling(modelScale, modelScale, modelScale);
-
-				// •½ˆÚŒü—Ê‚ð’Ç‰Ái—áFY•ûŒü‚É5’PˆÊ•½ˆÚj
-				XMVECTOR offset = XMVectorSet(0.0f, 15.0f, 0.0f, 0.0f);
-				XMVECTOR newCenterWorld = XMVectorAdd(centerWorld, offset);
-
-				mtxTranslate = XMMatrixTranslationFromVector(newCenterWorld);
-
-				// ƒXƒP[ƒ‹‚ð”½‰f
-				mtxWorld = XMMatrixMultiply(mtxWorld, mtxScl);
-
-				// ‰ñ“]‚ð”½‰f
-				mtxRot = XMMatrixRotationRollPitchYaw(0.0f, 0.0f, 0.0f);
-				mtxWorld = XMMatrixMultiply(mtxWorld, mtxRot);
-
-				// ˆÚ“®‚ð”½‰f
-				mtxWorld = XMMatrixMultiply(mtxWorld, mtxTranslate);
-
 
 				// ƒ[ƒ‹ƒhƒ}ƒgƒŠƒbƒNƒX‚ÌÝ’è
-				SetCurrentWorldMatrix(&mtxWorld);
-				posCursor.cursorY->SetWorldMatrix(mtxWorld);
+				SetCurrentWorldMatrix(&posCursor.cursorY->GetTransform().mtxWorld);
+				
 				if (posCursor.cursorY->GetIsCursorIn() == TRUE)
 				{
 					MATERIAL material;
@@ -266,24 +449,8 @@ void MapEditor::Draw()
 					SetMaterial(posCursor.cursorY->GetMaterial());
 				posCursor.cursorY->GetModel()->DrawModel();
 
-				offset = XMVectorSet(15.0f, 0.0f, 0.0f, 0.0f);
-				newCenterWorld = XMVectorAdd(centerWorld, offset);
+				SetCurrentWorldMatrix(&posCursor.cursorZ->GetTransform().mtxWorld);
 
-				mtxTranslate = XMMatrixTranslationFromVector(newCenterWorld);
-
-				mtxWorld = XMMatrixIdentity();
-				// ƒXƒP[ƒ‹‚ð”½‰f
-				mtxWorld = XMMatrixMultiply(mtxWorld, mtxScl);
-
-				// ‰ñ“]‚ð”½‰f
-				mtxRot = XMMatrixRotationRollPitchYaw(-XM_PI * 0.5f, 0.0f, 0.0f);
-				mtxWorld = XMMatrixMultiply(mtxWorld, mtxRot);
-
-				// ˆÚ“®‚ð”½‰f
-				mtxWorld = XMMatrixMultiply(mtxWorld, mtxTranslate);
-
-				SetCurrentWorldMatrix(&mtxWorld);
-				posCursor.cursorZ->SetWorldMatrix(mtxWorld);
 				if (posCursor.cursorZ->GetIsCursorIn() == TRUE)
 				{
 					MATERIAL material;
@@ -297,24 +464,8 @@ void MapEditor::Draw()
 				posCursor.cursorZ->GetModel()->DrawModel();
 				
 
-				offset = XMVectorSet(0.0f, 0.0f, 15.0f, 0.0f);
-				newCenterWorld = XMVectorAdd(centerWorld, offset);
+				SetCurrentWorldMatrix(&posCursor.cursorX->GetTransform().mtxWorld);
 
-				mtxTranslate = XMMatrixTranslationFromVector(newCenterWorld);
-
-				mtxWorld = XMMatrixIdentity();
-				// ƒXƒP[ƒ‹‚ð”½‰f
-				mtxWorld = XMMatrixMultiply(mtxWorld, mtxScl);
-
-				// ‰ñ“]‚ð”½‰f
-				mtxRot = XMMatrixRotationRollPitchYaw(0.0f, 0.0f, XM_PI * 0.5f);
-				mtxWorld = XMMatrixMultiply(mtxWorld, mtxRot);
-
-				// ˆÚ“®‚ð”½‰f
-				mtxWorld = XMMatrixMultiply(mtxWorld, mtxTranslate);
-
-				SetCurrentWorldMatrix(&mtxWorld);
-				posCursor.cursorX->SetWorldMatrix(mtxWorld);
 				if (posCursor.cursorX->GetIsCursorIn() == TRUE)
 				{
 					MATERIAL material;

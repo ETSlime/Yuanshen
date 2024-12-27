@@ -57,6 +57,10 @@ private:
 	long startX = 0, startY = 0;
 	long currentX = 0, currentY = 0;
 	long deltaX = 0, deltaY = 0;
+	
+	XMFLOAT4 originDraggingRay = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	XMFLOAT4 startDraggingRay = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	XMFLOAT4 endDraggingRay = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 };
 
 template <typename T>
