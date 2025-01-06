@@ -52,6 +52,22 @@ struct VERTEX_3D
     XMFLOAT3	Normal;
     XMFLOAT4	Diffuse;
     XMFLOAT2	TexCoord;
+
+	VERTEX_3D()
+	{
+		Position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		Normal = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+		TexCoord = XMFLOAT2(0.0f, 0.0f);
+	}
+
+	VERTEX_3D(XMFLOAT3 pos, XMFLOAT3 norm, XMFLOAT4 dif, XMFLOAT2 tex)
+	{
+		Position = pos;
+		Normal = norm;
+		Diffuse = dif;
+		TexCoord = tex;
+	}
 };
 
 // マテリアル構造体

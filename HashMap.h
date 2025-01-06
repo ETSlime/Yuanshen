@@ -7,7 +7,8 @@ struct CharPtrHash
     {
         unsigned long hash = 5381; // djb2ƒAƒ‹ƒSƒŠƒYƒ€‚Ì‰Šú’l
         int c;
-
+        if (str == nullptr)
+            return -1;
         // •¶Žš—ñ‚ðˆê•¶Žš‚¸‚Âˆ—
         while ((c = *str++))
         {
@@ -62,6 +63,7 @@ public:
             buckets[i] = nullptr;
         }
     }
+
 
     ~HashMap()
     {
@@ -125,5 +127,87 @@ public:
             current = current->next;
         }
         return false;
+    }
+
+    void clear()
+    {
+        for (int i = 0; i < size; ++i)
+        {
+            Node* current = buckets[i];
+            while (current != nullptr)
+            {
+                Node* toDelete = current;
+                current = current->next;
+                delete toDelete;
+            }
+            buckets[i] = nullptr; // Reset the bucket pointer after clearing
+        }
+    }
+
+    class Iterator
+    {
+    private:
+        Node** buckets;
+        Node* current;
+        int index;
+        int size;
+
+    public:
+        Iterator(Node** buckets, int size, int index = 0, Node* node = nullptr)
+            : buckets(buckets), size(size), index(index), current(node)
+        {
+            if (current == nullptr)
+            {
+                // Advance to the first valid node
+                for (; index < size; ++index)
+                {
+                    if (buckets[index])
+                    {
+                        current = buckets[index];
+                        break;
+                    }
+                }
+            }
+        }
+
+        bool operator!=(const Iterator& other) const
+        {
+            return current != other.current;
+        }
+
+        Iterator& operator++()
+        {
+            if (current && current->next)
+            {
+                current = current->next;
+            }
+            else
+            {
+                do {
+                    ++index;
+                    if (index >= size) {
+                        current = nullptr;
+                        break;
+                    }
+                    current = buckets[index];
+                } while (current == nullptr);
+            }
+            return *this;
+        }
+
+        Data& operator*() const
+        {
+            return current->data;
+        }
+    };
+
+    Iterator begin() const
+    {
+        return Iterator(buckets, size);
+    }
+
+    Iterator end() const
+    {
+        return Iterator(buckets, size, size);
     }
 };

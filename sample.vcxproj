@@ -148,6 +148,7 @@
     <ClInclude Include="light.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="MapEditor.h" />
+    <ClInclude Include="FBXLoader.h" />
     <ClInclude Include="model.h" />
     <ClInclude Include="offScreenRender.h" />
     <ClInclude Include="player.h" />
@@ -157,7 +158,10 @@
     <ClInclude Include="SimpleArray.h" />
     <ClInclude Include="SimpleQueue.h" />
     <ClInclude Include="SingletonBase.h" />
+    <ClInclude Include="SkinnedData.h" />
+    <ClInclude Include="SkinnedMeshModel.h" />
     <ClInclude Include="sprite.h" />
+    <ClInclude Include="TextureMgr.h" />
     <ClInclude Include="Vertex.h" />
   </ItemGroup>
   <ItemGroup>
@@ -165,6 +169,7 @@
     <ClCompile Include="collision.cpp" />
     <ClCompile Include="debugproc.cpp" />
     <ClCompile Include="enemy.cpp" />
+    <ClCompile Include="FBXLoader.cpp" />
     <ClCompile Include="field.cpp" />
     <ClCompile Include="ground.cpp" />
     <ClCompile Include="input.cpp" />
@@ -177,7 +182,9 @@
     <ClCompile Include="renderer.cpp" />
     <ClCompile Include="score.cpp" />
     <ClCompile Include="shadow.cpp" />
+    <ClCompile Include="SkinnedMeshModel.cpp" />
     <ClCompile Include="sprite.cpp" />
+    <ClCompile Include="TextureMgr.cpp" />
     <ClCompile Include="Vertex.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -20,6 +20,9 @@
 #include "score.h"
 #include "offScreenRender.h"
 #include "MapEditor.h"
+#include "FBXLoader.h"
+#include "TextureMgr.h"
+#include "SkinnedMeshModel.h"
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
@@ -44,6 +47,9 @@ long g_MouseY = 0;
 MapEditor& mapEditor = MapEditor::get_instance();
 EnemyManager& enemyManager = EnemyManager::get_instance();
 Ground* ground = nullptr;
+TextureMgr mTexMgr;
+FBXLoader& fbxLoader = FBXLoader::get_instance();
+SkinnedMeshModel model;
 
 #ifdef _DEBUG
 int		g_CountFPS;							// FPSカウンタ
@@ -233,6 +239,10 @@ HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	// フィールドの初期化
 	InitField();
 
+	mTexMgr.Init(GetDevice());
+
+	fbxLoader.LoadModel(GetDevice(), mTexMgr, model, "data/MODEL/enemy/Animation_Dead.fbx", nullptr);
+
 	// プレイヤーの初期化
 	InitPlayer();
 
@@ -294,6 +304,8 @@ void Uninit(void)
 	UninitOffScreenRender();
 
 	mapEditor.Uninit();
+
+	mTexMgr.Uninit();
 }
 
 //=============================================================================
@@ -359,13 +371,14 @@ void Draw(void)
 	}
 
 	SetRenderObject();
-	DrawScene();
+	//DrawScene();
 
 	SetLightEnable(FALSE);
 	mapEditor.Draw();
-	DrawScore();
+	//DrawScore();
 	SetLightEnable(TRUE);
 	
+	model.Draw();
 
 	//SetOffScreenRender();
 	//DrawScene();

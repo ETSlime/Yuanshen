@@ -61,6 +61,15 @@ Model::Model(char *FileName)
 		CreateBoundingBoxVertex();
 	}
 
+	char* filename = "data/MODEL/neko.jpg";
+	ID3D11ShaderResourceView* srv = nullptr;
+	D3DX11CreateShaderResourceViewFromFile(GetDevice(),
+		filename,
+		NULL,
+		NULL,
+		&srv,
+		NULL);
+
 	// インデックスバッファ生成
 	{
 		D3D11_BUFFER_DESC bd;

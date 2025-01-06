@@ -85,6 +85,8 @@ struct MODEL_POOL
 		pModel = nullptr;
 		count = 0;
 	}
+
+	void AddRef() { count++; }
 };
 
 
