@@ -49,7 +49,7 @@ static int						g_TexNo;					// テクスチャ番号
 static char* g_TextureName[] = {
 	"data/TEXTURE/shadow000.jpg",
 };
-
+static Renderer& renderer = Renderer::get_instance();
 //=============================================================================
 // 初期化処理
 //=============================================================================
@@ -61,7 +61,7 @@ HRESULT InitShadow(void)
 	// テクスチャ生成
 	for (int i = 0; i < TEXTURE_MAX; i++)
 	{
-		D3DX11CreateShaderResourceViewFromFile(GetDevice(),
+		D3DX11CreateShaderResourceViewFromFile(renderer.GetDevice(),
 			g_TextureName[i],
 			NULL,
 			NULL,
@@ -122,24 +122,24 @@ void UpdateShadow(void)
 void DrawShadow(void)
 {
 	// 減算合成
-	SetBlendState(BLEND_MODE_SUBTRACT);
+	renderer.SetBlendState(BLEND_MODE_SUBTRACT);
 
 	// Z比較なし
-	SetDepthEnable(false);
+	renderer.SetDepthEnable(false);
 
 	// フォグ無効
-	SetFogEnable(false);
+	renderer.SetFogEnable(false);
 
 	// 頂点バッファ設定
 	UINT stride = sizeof(VERTEX_3D);
 	UINT offset = 0;
-	GetDeviceContext()->IASetVertexBuffers(0, 1, &g_VertexBuffer, &stride, &offset);
+	renderer.GetDeviceContext()->IASetVertexBuffers(0, 1, &g_VertexBuffer, &stride, &offset);
 
 	// プリミティブトポロジ設定
-	GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	renderer.GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 	// テクスチャ設定
-	GetDeviceContext()->PSSetShaderResources(0, 1, &g_Texture[g_TexNo]);
+	renderer.GetDeviceContext()->PSSetShaderResources(0, 1, &g_Texture[g_TexNo]);
 
 	XMMATRIX mtxScl, mtxRot, mtxTranslate, mtxWorld;
 
@@ -163,25 +163,25 @@ void DrawShadow(void)
 			mtxWorld = XMMatrixMultiply(mtxWorld, mtxTranslate);
 
 			// ワールドマトリックスの設定
-			SetCurrentWorldMatrix(&mtxWorld);
+			renderer.SetCurrentWorldMatrix(&mtxWorld);
 
 
 			// マテリアルの設定
-			SetMaterial(g_aShadow[i].material);
+			renderer.SetMaterial(g_aShadow[i].material);
 
 			// ポリゴンの描画
-			GetDeviceContext()->Draw(4, 0);
+			renderer.GetDeviceContext()->Draw(4, 0);
 		}
 	}
 
 	// 通常ブレンド
-	SetBlendState(BLEND_MODE_ALPHABLEND);
+	renderer.SetBlendState(BLEND_MODE_ALPHABLEND);
 	
 	// Z比較あり
-	SetDepthEnable(true);
+	renderer.SetDepthEnable(true);
 
 	// フォグを元に戻す
-	SetFogEnable(GetFogEnable());
+	renderer.SetFogEnable(GetFogEnable());
 }
 
 //=============================================================================
@@ -197,11 +197,11 @@ HRESULT MakeVertexShadow()
 	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-	GetDevice()->CreateBuffer(&bd, NULL, &g_VertexBuffer);
+	renderer.GetDevice()->CreateBuffer(&bd, NULL, &g_VertexBuffer);
 
 	{//頂点バッファの中身を埋める
 		D3D11_MAPPED_SUBRESOURCE msr;
-		GetDeviceContext()->Map(g_VertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &msr);
+		renderer.GetDeviceContext()->Map(g_VertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &msr);
 
 		VERTEX_3D* vertex = (VERTEX_3D*)msr.pData;
 
@@ -229,7 +229,7 @@ HRESULT MakeVertexShadow()
 		vertex[2].TexCoord = XMFLOAT2(0.0f, 1.0f);
 		vertex[3].TexCoord = XMFLOAT2(1.0f, 1.0f);
 
-		GetDeviceContext()->Unmap(g_VertexBuffer, 0);
+		renderer.GetDeviceContext()->Unmap(g_VertexBuffer, 0);
 	}
 
 	return S_OK;

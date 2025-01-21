@@ -7,20 +7,70 @@
 #include "SimpleArray.h"
 #include "SingletonBase.h"
 //*****************************************************************************
+// マクロ定義
+//*****************************************************************************
+
+#define MAX_NODE_NUM			8192
+
+enum class FbxNodeType
+{
+	LimbNode,
+	Mesh,
+	Skin,
+	Cluster,
+	BindPose,
+	AnimationCurve,
+	AnimationCurveNode,
+	None,
+};
+
+enum class ObjectType
+{
+	Model,
+	Material,
+	Texture,
+	AnimationStack,
+	AnimationLayer,
+	Geometry,
+	Implementation,
+	BindingTable,
+	NONE
+};
+
+enum MappingInformationType
+{
+	ByPolygon,
+	ByPolygonVertex,
+	ByVertice,
+	ByEdge,
+	AllSame,
+	NoMappingInformation
+};
+
+enum ShadingModelEnum
+{
+	Phong,
+};
+
+enum ReferenceInformationType
+{
+	Direct,
+	IndexToDirect
+};
+
+enum GeometryType
+{
+	Mesh,
+	Shape,
+};
+
+//*****************************************************************************
 // 構造体定義
 //*****************************************************************************
-struct PosNormalTexTanSkinned
-{
-	XMFLOAT3 Pos;
-	XMFLOAT3 Normal;
-	XMFLOAT2 Tex;
-	XMFLOAT4 TangentU;
-	XMFLOAT3 Weights;
-	BYTE BoneIndices[4];
-};
 
 struct ModelProperty
 {
+	int			modelIdx;
 	bool		QuaternionInterpolate;
 	bool		Visibility;
 	XMFLOAT3	Translation;
@@ -97,115 +147,65 @@ struct ModelProperty
 	bool		Freeze;
 	bool		LODBox;
 	bool		VisibilityInheritance;
+
+	void Clear()
+	{
+		modelIdx = -1;
+		Translation = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		Rotation = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		Scaling = XMFLOAT3(1.0f, 1.0f, 1.0f);
+	}
 };
 
-enum class ObjectType
+struct Deformer
 {
-	Model,
-	Material,
-	Texture,
-	AnimationStack,
-	AnimationLayer,
-	Geometry,
-	Implementation,
-	BindingTable,
-	NONE
+	SimpleArray<int> Index;
+	SimpleArray<float> Weights;
+	XMFLOAT4X4 Transform;
+	XMFLOAT4X4 TransformLink;
+	int	boneIdx;
 };
 
-enum MODEL_PROPERTY
+struct AnimationCurve
 {
-	QuaternionInterpolate,
-	RotationOffset,
-	RotationPivot,
-	ScalingOffset,
-	ScalingPivot,
-	TranslationActive,
-	TranslationMin,
-	TranslationMax,
-	TranslationMinX,
-	TranslationMinY,
-	TranslationMinZ,
-	TranslationMaxX,
-	TranslationMaxY,
-	TranslationMaxZ,
-	RotationOrder,
-	RotationSpaceForLimitOnly,
-	RotationStiffnessX,
-	RotationStiffnessY,
-	RotationStiffnessZ,
-	AxisLen,
-	PreRotation,
-	PostRotation,
-	RotationActive,
-	RotationMin,
-	RotationMax,
-	RotationMinX,
-	RotationMinY,
-	RotationMinZ,
-	RotationMaxX,
-	RotationMaxY,
-	RotationMaxZ,
-	InheritType,
-	ScalingActive,
-	ScalingMin,
-	ScalingMax,
-	ScalingMinX,
-	ScalingMinY,
-	ScalingMinZ,
-	ScalingMaxX,
-	ScalingMaxY,
-	ScalingMaxZ,
-	GeometricTranslation,
-	GeometricRotation,
-	GeometricScaling,
-	MinDampRangeX,
-	MinDampRangeY,
-	MinDampRangeZ,
-	MaxDampRangeX,
-	MaxDampRangeY,
-	MaxDampRangeZ,
-	MinDampStrengthX,
-	MinDampStrengthY,
-	MinDampStrengthZ,
-	MaxDampStrengthX,
-	MaxDampStrengthY,
-	MaxDampStrengthZ,
-	PreferedAngleX,
-	PreferedAngleY,
-	PreferedAngleZ,
-	LookAtProperty,
-	UpVectorProperty,
-	Show,
-	NegativePercentShapeSupport,
-	DefaultAttributeIndex,
-	Freeze,
-	LODBox,
-	Lcl_Translation,
-	Lcl_Rotation,
-	Lcl_Scaling,
-	Visibility,
+	SimpleArray<uint64_t> KeyTime;
+	SimpleArray<float> KeyValue;
+	int KeyAttrRefCount;
+	float DefaultValue;
 };
 
-enum MappingInformationType
+struct AnimationCurveNode
 {
-	ByPolygon,
-	ByPolygonVertex,
-	ByVertice,
-	ByEdge,
-	AllSame,
-	NoMappingInformation
+	uint64_t dX;
+	uint64_t dY;
+	uint64_t dZ;
 };
 
-enum ShadingModelEnum
+struct LimbNodeAnimation
 {
-	Phong,
+	uint64_t LclTranslation;
+	uint64_t LclRot;
+	uint64_t LclScl;
 };
 
-enum ReferenceInformationType
+struct BindPoseData
 {
-	Direct,
-	IndexToDirect
+	uint64_t	ModelNodeID;
+	XMFLOAT4X4	mtxBindPose;
 };
+
+struct BindPose
+{
+	int	numePoseNodes;
+	SimpleArray<BindPoseData> bindPoseData;
+	HashMap<uint64_t, XMFLOAT4X4, HashUInt64, EqualUInt64> mtxBindPoses = 
+		HashMap<uint64_t, XMFLOAT4X4, HashUInt64, EqualUInt64>(
+		MAX_NODE_NUM,
+		HashUInt64(),
+		EqualUInt64()
+	);
+};
+
 
 struct Subset
 {
@@ -221,6 +221,58 @@ struct Subset
 	UINT VertexCount;
 	UINT FaceStart;
 	UINT FaceCount;
+};
+
+struct FbxNode
+{
+	uint64_t	nodeID;
+	char nodeName[128];
+	FbxNodeType nodeType;
+	FbxNode* parentNode;
+	SimpleArray<FbxNode*>	childNodes;
+	void*	nodeData;
+	void*	limbNodeAnimation;
+
+	FbxNode() : nodeID(MAXUINT64), nodeName(""), nodeType(FbxNodeType::None), parentNode(nullptr), nodeData(nullptr), limbNodeAnimation(nullptr) {};
+
+	FbxNode(uint64_t nodeID) : nodeName("")
+	{
+		this->nodeID = nodeID;
+		parentNode = nullptr;
+		nodeData = nullptr;
+		limbNodeAnimation = nullptr;
+		nodeType = FbxNodeType::None;
+		childNodes = SimpleArray<FbxNode*>();
+	}
+
+	FbxNode(uint64_t nodeID, char* nodeName, FbxNodeType nodeType)
+	{
+		this->nodeID = nodeID;
+		memset(nodeName, 0, sizeof(nodeName));
+		strcpy(this->nodeName, nodeName);
+		this->nodeType = nodeType;
+		nodeData = nullptr;
+		parentNode = nullptr;
+		limbNodeAnimation = nullptr;
+		childNodes = SimpleArray<FbxNode*>();
+	}
+
+	~FbxNode()
+	{
+		//if (parentNode)
+		//{
+		//	delete parentNode;
+		//	parentNode = nullptr;
+		//}
+		//	
+		if (nodeData)
+		{
+			delete nodeData;
+			nodeData = nullptr;
+		}
+		if (childNodes.getSize() > 0)
+			childNodes.clear();
+	}
 };
 
 struct Material
@@ -250,6 +302,7 @@ struct Material
 };
 
 class SkinnedMeshModel;
+struct ModelData;
 
 class FBXLoader : public SingletonBase<FBXLoader>
 {
@@ -261,15 +314,23 @@ private:
 	bool ParseObjectDefinitions(FILE* file, SkinnedMeshModel& model);
 	bool ParseObjectProperties(FILE* file, SkinnedMeshModel& model);
 	bool ParseGeometry(FILE* file, SkinnedMeshModel& model);
-	bool ParseModel(FILE* file, SkinnedMeshModel& model);
+	bool ParseModel(FILE* file, SkinnedMeshModel& model, FbxNode* node);
 	bool ParseMaterial(FILE* file, SkinnedMeshModel& model);
+	bool ParseDeformer(FILE* file, FbxNode* node);
 	bool ParseMaterialProperty(FILE* file, Material& globalMaterial);
-	bool ParseModelProperty(FILE* file, ModelProperty& modelProperty);
+	bool ParseModelProperty(FILE* file, ModelProperty& modelProperty, FbxNode* node);
 	bool ParseVertexData(FILE* file, SkinnedMeshModel& model);
 	bool ParseIndexData(FILE* file, SkinnedMeshModel& model);
 	bool ParseNormal(FILE* file, SkinnedMeshModel& model);
 	bool ParseUV(FILE* file, SkinnedMeshModel& model);
 	bool ParseTexture(FILE* file, SkinnedMeshModel& model);
 	bool ParseObjectConnections(FILE* file, SkinnedMeshModel& model);
+	bool ParseBindPose(FILE* file, SkinnedMeshModel& model, FbxNode* node);
+	bool ParseAnimationCurve(FILE* file, FbxNode* node);
+	bool CreateFbxNode(char* buffer, FbxNode* fbxNode);
 	void SkipNode(FILE* file);
+
+	void HandleDeformer(FbxNode* node, ModelData* data, SkinnedMeshModel& model, int boneCnt, int prevIdx);
+
+	Renderer& renderer = Renderer::get_instance();
 };

@@ -17,6 +17,26 @@ struct MODE
     int padding[3];
 };
 
+struct SkinnedMeshVertexInputType
+{
+    float4 position : POSITION;
+    float3 normal : NORMAL;
+    float4 color : COLOR;
+    float2 texcoord : TEXCOORD;
+    float4 weights : BLENDWEIGHT;
+    float4 boneIndices : BLENDINDICES;
+};
+
+struct PixelInputType
+{
+    float4 position : SV_POSITION;
+    float4 normal : NORMAL;
+    float2 texcoord : TEXCOORD;
+    float4 color : COLOR;
+    float4 worldPos : POSITION;
+    float4 shadowCoord[5] : TEXCOORD1;
+};
+
 // マトリクスバッファ
 cbuffer WorldBuffer : register( b0 )
 {
@@ -58,6 +78,11 @@ struct MATERIAL
 cbuffer MaterialBuffer : register( b3 )
 {
 	MATERIAL	Material;
+}
+
+cbuffer BoneTransformBuffer : register(b11)
+{
+    matrix BoneTransforms[256];
 }
 
 // ライト用バッファ
@@ -140,11 +165,46 @@ void VertexShaderPolygon( in  float4 inPosition		: POSITION0,
 
 	outDiffuse = inDiffuse;
 
-    //outshadowCoord = float4(Light.LightViewProj._43, Light.LightViewProj._42, Light.LightViewProj._43, Light.LightViewProj._44);
-    //outshadowCoord = float4(ProjView._43, ProjView._42, ProjView._13, ProjView._44);
-
 }
 
+PixelInputType SkinnedMeshVertexShaderPolygon(SkinnedMeshVertexInputType input)
+{
+    PixelInputType output;
+    matrix boneTransform = 0;
+
+    // Calculate the bone transformation matrix based on the weights and indices
+    for (int i = 0; i < 4; ++i)
+    {
+        if (input.weights[i] > 0)
+            boneTransform += input.weights[i] * BoneTransforms[input.boneIndices[i]];
+    }
+	
+    // Calculate the final world position for the vertex
+    float4 worldPosition = mul(input.position, boneTransform);
+    
+    // Transform the vertex position into the homogeneous clip space
+    matrix wvp = mul(World, View); // Assume World[0] is used for non-skinned objects
+    wvp = mul(wvp, Projection);
+    output.position = mul(worldPosition, wvp);
+    //output.position = mul(input.position, wvp);
+
+    // Normal transformation (only transform by the world matrix part)
+    output.normal = normalize(mul(float4(input.normal, 0.0), boneTransform));
+    //output.normal = normalize(mul(float4(input.normal, 0.0), World));
+
+    // Pass through the texture coordinates and color
+    output.texcoord = input.texcoord;
+    output.color = input.color;
+
+    // Compute shadow coordinates for multiple light sources
+    output.worldPos = worldPosition;
+    for (int j = 0; j < 5; ++j)
+    {
+        output.shadowCoord[j] = mul(output.worldPos, ProjView.ProjView[i]);
+    }
+
+    return output;
+}
 
 
 //*****************************************************************************

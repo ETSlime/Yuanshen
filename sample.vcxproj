@@ -182,6 +182,7 @@
     <ClCompile Include="renderer.cpp" />
     <ClCompile Include="score.cpp" />
     <ClCompile Include="shadow.cpp" />
+    <ClCompile Include="SkinnedData.cpp" />
     <ClCompile Include="SkinnedMeshModel.cpp" />
     <ClCompile Include="sprite.cpp" />
     <ClCompile Include="TextureMgr.cpp" />

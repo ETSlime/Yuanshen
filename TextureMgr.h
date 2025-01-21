@@ -71,4 +71,5 @@ private:
 private:
 	ID3D11Device* md3dDevice;
 	static HashMap<char*, SRV_POOL*, CharPtrHash, CharPtrEquals> mTextureSRV;
+	Renderer& renderer = Renderer::get_instance();
 };

@@ -29,7 +29,7 @@ HashMap<char*, MODEL_POOL, CharPtrHash, CharPtrEquals> Model::modelHashMap(
 	MAX_MODEL_NUM,
 	CharPtrHash(),
 	CharPtrEquals()
-);;
+);
 
 //=============================================================================
 // 初期化処理
@@ -52,18 +52,18 @@ Model::Model(char *FileName)
 		ZeroMemory( &sd, sizeof(sd) );
 		sd.pSysMem = model->VertexArray;
 
-		GetDevice()->CreateBuffer( &bd, &sd, &this->VertexBuffer );
+		renderer.GetDevice()->CreateBuffer( &bd, &sd, &this->VertexBuffer );
 
 
 		bd.ByteWidth = sizeof(VERTEX_3D) * 24;
-		GetDevice()->CreateBuffer(&bd, NULL, &this->BBVertexBuffer);
+		renderer.GetDevice()->CreateBuffer(&bd, NULL, &this->BBVertexBuffer);
 
 		CreateBoundingBoxVertex();
 	}
 
 	char* filename = "data/MODEL/neko.jpg";
 	ID3D11ShaderResourceView* srv = nullptr;
-	D3DX11CreateShaderResourceViewFromFile(GetDevice(),
+	D3DX11CreateShaderResourceViewFromFile(renderer.GetDevice(),
 		filename,
 		NULL,
 		NULL,
@@ -83,7 +83,7 @@ Model::Model(char *FileName)
 		ZeroMemory( &sd, sizeof(sd) );
 		sd.pSysMem = model->IndexArray;
 
-		GetDevice()->CreateBuffer( &bd, &sd, &this->IndexBuffer );
+		renderer.GetDevice()->CreateBuffer( &bd, &sd, &this->IndexBuffer );
 	}
 
 	// サブセット設定
@@ -94,7 +94,7 @@ Model::Model(char *FileName)
 			this->SubsetArray[i].IndexNum = this->SubsetArray[i].IndexNum;
 
 
-			D3DX11CreateShaderResourceViewFromFile( GetDevice(),
+			D3DX11CreateShaderResourceViewFromFile(renderer.GetDevice(),
 				this->SubsetArray[i].Material.TextureName,
 													NULL,
 													NULL,
@@ -130,28 +130,28 @@ void Model::DrawModel()
 	// 頂点バッファ設定
 	UINT stride = sizeof( VERTEX_3D );
 	UINT offset = 0;
-	GetDeviceContext()->IASetVertexBuffers( 0, 1, &this->VertexBuffer, &stride, &offset );
+	renderer.GetDeviceContext()->IASetVertexBuffers( 0, 1, &this->VertexBuffer, &stride, &offset );
 
 	// インデックスバッファ設定
-	GetDeviceContext()->IASetIndexBuffer( this->IndexBuffer, DXGI_FORMAT_R16_UINT, 0 );
+	renderer.GetDeviceContext()->IASetIndexBuffer( this->IndexBuffer, DXGI_FORMAT_R16_UINT, 0 );
 
 	// プリミティブトポロジ設定
-	GetDeviceContext()->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
+	renderer.GetDeviceContext()->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
 
 	for( unsigned short i = 0; i < this->SubsetNum; i++ )
 	{
 		// マテリアル設定
 		if (this->SubsetArray[i].Material.MaterialData.LoadMaterial)
-			SetMaterial( this->SubsetArray[i].Material.MaterialData);
+			renderer.SetMaterial( this->SubsetArray[i].Material.MaterialData);
 
 		// テクスチャ設定
 		if (this->SubsetArray[i].Material.MaterialData.noTexSampling == 0)
 		{
-			GetDeviceContext()->PSSetShaderResources(0, 1, &this->SubsetArray[i].Texture);
+			renderer.GetDeviceContext()->PSSetShaderResources(0, 1, &this->SubsetArray[i].Texture);
 		}
 
 		// ポリゴン描画
-		GetDeviceContext()->DrawIndexed( this->SubsetArray[i].IndexNum, this->SubsetArray[i].StartIndex, 0 );
+		renderer.GetDeviceContext()->DrawIndexed( this->SubsetArray[i].IndexNum, this->SubsetArray[i].StartIndex, 0 );
 	}
 
 
@@ -159,25 +159,25 @@ void Model::DrawModel()
 
 void Model::DrawBoundingBox()
 {
-	if (GetRenderMode() == RENDER_MODE_SHADOW) return;
+	if (renderer.GetRenderMode() == RENDER_MODE_SHADOW) return;
 
-	SetFillMode(D3D11_FILL_WIREFRAME);
+	renderer.SetFillMode(D3D11_FILL_WIREFRAME);
 	// 頂点バッファ設定
 	UINT stride = sizeof(VERTEX_3D);
 	UINT offset = 0;
-	GetDeviceContext()->IASetVertexBuffers(0, 1, &this->BBVertexBuffer, &stride, &offset);
+	renderer.GetDeviceContext()->IASetVertexBuffers(0, 1, &this->BBVertexBuffer, &stride, &offset);
 
 	// プリミティブトポロジ設定
-	GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	renderer.GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	MATERIAL material;
 	ZeroMemory(&material, sizeof(material));
 	material.Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	material.noTexSampling = TRUE;
-	SetMaterial(material);
+	renderer.SetMaterial(material);
 
-	GetDeviceContext()->Draw(24, 0);
-	SetFillMode(D3D11_FILL_SOLID);
+	renderer.GetDeviceContext()->Draw(24, 0);
+	renderer.SetFillMode(D3D11_FILL_SOLID);
 }
 
 
@@ -618,7 +618,7 @@ void Model::SetModelDiffuse(int mno, XMFLOAT4 diffuse)
 void Model::CreateBoundingBoxVertex()
 {
 	D3D11_MAPPED_SUBRESOURCE msr;
-	GetDeviceContext()->Map(this->BBVertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &msr);
+	renderer.GetDeviceContext()->Map(this->BBVertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &msr);
 
 	VERTEX_3D* vertex = (VERTEX_3D*)msr.pData;
 
@@ -734,7 +734,7 @@ void Model::CreateBoundingBoxVertex()
 	vertex[22].TexCoord = XMFLOAT2(0.0f, 1.0f);
 	vertex[23].TexCoord = XMFLOAT2(1.0f, 1.0f);
 
-	GetDeviceContext()->Unmap(this->BBVertexBuffer, 0);
+	renderer.GetDeviceContext()->Unmap(this->BBVertexBuffer, 0);
 }
 
 Model* Model::StoreModel(char* modelPath)

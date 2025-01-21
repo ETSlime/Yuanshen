@@ -43,6 +43,8 @@ public:
 	void SetCurSelectedModelIdx(int idx) { curSelectedModelIdx = idx; }
 	void ResetCurSelectedModelIdx() { curSelectedModelIdx = -1; }
 	BOOL GetOnEditorCursor()  { return onEditorCursor; }
+	Renderer& renderer = Renderer::get_instance();
+
 private:
 	BOOL UpdateEditorSelect(CursorInstance* cursor, int sx, int sy);
 	Model* GetCurSelectedModel();

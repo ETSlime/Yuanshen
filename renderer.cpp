@@ -18,132 +18,21 @@
 // 構造体
 //*********************************************************
 
-// マテリアル用定数バッファ構造体
-struct MATERIAL_CBUFFER
-{
-	XMFLOAT4	Ambient;
-	XMFLOAT4	Diffuse;
-	XMFLOAT4	Specular;
-	XMFLOAT4	Emission;
-	float		Shininess;
-	int			noTexSampling;
-	float		Dummy[2];				// 16byte境界用
-};
-
-// ライト用フラグ構造体
-struct LIGHTFLAGS
-{
-	int			Type;		//ライトタイプ（enum LIGHT_TYPE）
-	int         OnOff;		//ライトのオンorオフスイッチ
-	int			Dummy[2];
-};
-
-// ライト用定数バッファ構造体
-struct LIGHT_CBUFFER
-{
-	XMFLOAT4	Direction[LIGHT_MAX];	// ライトの方向
-	XMFLOAT4	Position[LIGHT_MAX];	// ライトの位置
-	XMFLOAT4	Diffuse[LIGHT_MAX];		// 拡散光の色
-	XMFLOAT4	Ambient[LIGHT_MAX];		// 環境光の色
-	XMFLOAT4	Attenuation[LIGHT_MAX];	// 減衰率
-	LIGHTFLAGS	Flags[LIGHT_MAX];		// ライト種別
-	int			Enable;					// ライティング有効・無効フラグ
-	int			Dummy[3];				// 16byte境界用
-
-	XMFLOAT4X4	LightViewProj;
-};
-
-// フォグ用定数バッファ構造体
-struct FOG_CBUFFER
-{
-	XMFLOAT4	Fog;					// フォグ量
-	XMFLOAT4	FogColor;				// フォグの色
-	int			Enable;					// フォグ有効・無効フラグ
-	float		Dummy[3];				// 16byte境界用
-};
-
-// 縁取り用バッファ
-struct FUCHI
-{
-	int			fuchi;
-	int			fill[3];
-};
 
 
-//*****************************************************************************
-// プロトタイプ宣言
-//*****************************************************************************
-static void SetLightBuffer(void);
-
-
-//*****************************************************************************
-// グローバル変数
-//*****************************************************************************
-static D3D_FEATURE_LEVEL       g_FeatureLevel = D3D_FEATURE_LEVEL_11_0;
-
-static ID3D11Device*           g_D3DDevice = NULL;
-static ID3D11DeviceContext*    g_ImmediateContext = NULL;
-static IDXGISwapChain*         g_SwapChain = NULL;
-
-static ID3D11RenderTargetView* g_RenderTargetView = NULL;
-
-static ID3D11DepthStencilView* g_ShadowDSV[LIGHT_MAX];
-static ID3D11DepthStencilView* g_SceneDepthStencilView = NULL;
-
-static ID3D11VertexShader*		g_VertexShader = NULL;
-static ID3D11VertexShader*		g_DepthVertexShader = NULL;
-static ID3D11PixelShader*		g_PixelShader = NULL;
-static ID3D11InputLayout*		g_VertexLayout = NULL;
-static ID3D11Buffer*			g_WorldBuffer = NULL;
-static ID3D11Buffer*			g_ViewBuffer = NULL;
-static ID3D11Buffer*			g_ProjectionBuffer = NULL;
-static ID3D11Buffer*			g_MaterialBuffer = NULL;
-static ID3D11Buffer*			g_LightBuffer = NULL;
-static ID3D11Buffer*			g_FogBuffer = NULL;
-static ID3D11Buffer*			g_FuchiBuffer = NULL;
-static ID3D11Buffer*			g_CameraBuffer = NULL;
-static ID3D11Buffer*			g_LightProjViewBuffer = NULL;
-
-static ID3D11ShaderResourceView* g_ShadowMapSRV[LIGHT_MAX];
-
-static ID3D11DepthStencilState* g_DepthStateEnable;
-static ID3D11DepthStencilState* g_DepthStateDisable;
-
-static ID3D11BlendState*		g_BlendStateNone;
-static ID3D11BlendState*		g_BlendStateAlphaBlend;
-static ID3D11BlendState*		g_BlendStateAdd;
-static ID3D11BlendState*		g_BlendStateSubtract;
-static BLEND_MODE				g_BlendStateParam;
-
-
-static ID3D11RasterizerState*	g_RasterStateCullOff;
-static ID3D11RasterizerState*	g_RasterStateCullCW;
-static ID3D11RasterizerState*	g_RasterStateCullCCW;
-
-
-static MATERIAL_CBUFFER	g_Material;
-static LIGHT_CBUFFER	g_Light;
-static FOG_CBUFFER		g_Fog;
-
-static FUCHI			g_Fuchi;
-static INT				g_RenderMode = RENDER_MODE_SCENE;
-
-static float g_ClearColor[4] = { 0.3f, 0.3f, 0.3f, 1.0f };	// 背景色
-
-
-ID3D11Device* GetDevice( void )
+ID3D11Device* Renderer::GetDevice( void )
 {
 	return g_D3DDevice;
 }
 
 
-ID3D11DeviceContext* GetDeviceContext( void )
+ID3D11DeviceContext* Renderer::GetDeviceContext( void )
 {
 	return g_ImmediateContext;
 }
 
 
-void SetDepthEnable( BOOL Enable )
+void Renderer::SetDepthEnable( BOOL Enable )
 {
 	if (Enable)
 	{
@@ -161,7 +50,7 @@ void SetDepthEnable( BOOL Enable )
 }
 
 
-void SetBlendState(BLEND_MODE bm)
+void Renderer::SetBlendState(BLEND_MODE bm)
 {
 	g_BlendStateParam = bm;
 
@@ -184,7 +73,7 @@ void SetBlendState(BLEND_MODE bm)
 	}
 }
 
-void SetCullingMode(CULL_MODE cm)
+void Renderer::SetCullingMode(CULL_MODE cm)
 {
 	switch (cm)
 	{
@@ -200,7 +89,7 @@ void SetCullingMode(CULL_MODE cm)
 	}
 }
 
-void SetFillMode(D3D11_FILL_MODE mode)
+void Renderer::SetFillMode(D3D11_FILL_MODE mode)
 {
 	ID3D11RasterizerState* pRasterizerState;
 	GetDeviceContext()->RSGetState(&pRasterizerState);
@@ -213,7 +102,13 @@ void SetFillMode(D3D11_FILL_MODE mode)
 
 }
 
-void SetAlphaTestEnable(BOOL flag)
+void Renderer::SetBoneMatrix(XMMATRIX matrices[BONE_MAX])
+{
+
+	GetDeviceContext()->UpdateSubresource(g_BoneMatrixBuffer, 0, NULL, matrices, 0, 0);
+}
+
+void Renderer::SetAlphaTestEnable(BOOL flag)
 {
 	D3D11_BLEND_DESC blendDesc;
 	ZeroMemory(&blendDesc, sizeof(blendDesc));
@@ -276,7 +171,7 @@ void SetAlphaTestEnable(BOOL flag)
 }
 
 
-void SetWorldViewProjection2D( void )
+void Renderer::SetWorldViewProjection2D( void )
 {
 	XMMATRIX world;
 	world = XMMatrixTranspose(XMMatrixIdentity());
@@ -293,7 +188,7 @@ void SetWorldViewProjection2D( void )
 }
 
 
-void SetCurrentWorldMatrix( XMMATRIX *WorldMatrix )
+void Renderer::SetCurrentWorldMatrix( XMMATRIX *WorldMatrix )
 {
 	XMMATRIX world;
 	world = *WorldMatrix;
@@ -302,7 +197,7 @@ void SetCurrentWorldMatrix( XMMATRIX *WorldMatrix )
 	GetDeviceContext()->UpdateSubresource(g_WorldBuffer, 0, NULL, &world, 0, 0);
 }
 
-void SetViewMatrix(XMMATRIX *ViewMatrix )
+void Renderer::SetViewMatrix(XMMATRIX *ViewMatrix )
 {
 	XMMATRIX view;
 	view = *ViewMatrix;
@@ -311,7 +206,7 @@ void SetViewMatrix(XMMATRIX *ViewMatrix )
 	GetDeviceContext()->UpdateSubresource(g_ViewBuffer, 0, NULL, &view, 0, 0);
 }
 
-void SetProjectionMatrix( XMMATRIX *ProjectionMatrix )
+void Renderer::SetProjectionMatrix( XMMATRIX *ProjectionMatrix )
 {
 	XMMATRIX projection;
 	projection = *ProjectionMatrix;
@@ -320,7 +215,7 @@ void SetProjectionMatrix( XMMATRIX *ProjectionMatrix )
 	GetDeviceContext()->UpdateSubresource(g_ProjectionBuffer, 0, NULL, &projection, 0, 0);
 }
 
-void SetMaterial( MATERIAL material )
+void Renderer::SetMaterial( MATERIAL material )
 {
 	g_Material.Diffuse = material.Diffuse;
 	g_Material.Ambient = material.Ambient;
@@ -332,12 +227,12 @@ void SetMaterial( MATERIAL material )
 	GetDeviceContext()->UpdateSubresource( g_MaterialBuffer, 0, NULL, &g_Material, 0, 0 );
 }
 
-void SetLightBuffer(void)
+void Renderer::SetLightBuffer(void)
 {
 	GetDeviceContext()->UpdateSubresource(g_LightBuffer, 0, NULL, &g_Light, 0, 0);
 }
 
-void SetLightEnable(BOOL flag)
+void Renderer::SetLightEnable(BOOL flag)
 {
 	// フラグを更新する
 	g_Light.Enable = flag;
@@ -345,7 +240,7 @@ void SetLightEnable(BOOL flag)
 	SetLightBuffer();
 }
 
-void SetLight(int index, LIGHT* pLight)
+void Renderer::SetLight(int index, LIGHT* pLight)
 {
 	g_Light.Position[index] = XMFLOAT4(pLight->Position.x, pLight->Position.y, pLight->Position.z, 0.0f);
 	g_Light.Direction[index] = XMFLOAT4(pLight->Direction.x, pLight->Direction.y, pLight->Direction.z, 0.0f);
@@ -360,18 +255,18 @@ void SetLight(int index, LIGHT* pLight)
 	SetLightBuffer();
 }
 
-void SetLightProjView(LightViewProjBuffer *lightBuffer)
+void Renderer::SetLightProjView(LightViewProjBuffer *lightBuffer)
 {
 	lightBuffer->ProjView[4] = lightBuffer->ProjView[lightBuffer->LightIndex];
 	GetDeviceContext()->UpdateSubresource(g_LightProjViewBuffer, 0, NULL, lightBuffer, 0, 0);
 }
 
-void SetFogBuffer(void)
+void Renderer::SetFogBuffer(void)
 {
 	GetDeviceContext()->UpdateSubresource(g_FogBuffer, 0, NULL, &g_Fog, 0, 0);
 }
 
-void SetFogEnable(BOOL flag)
+void Renderer::SetFogEnable(BOOL flag)
 {
 	// フラグを更新する
 	g_Fog.Enable = flag;
@@ -379,7 +274,7 @@ void SetFogEnable(BOOL flag)
 	SetFogBuffer();
 }
 
-void SetFog(FOG* pFog)
+void Renderer::SetFog(FOG* pFog)
 {
 	g_Fog.Fog.x = pFog->FogStart;
 	g_Fog.Fog.y = pFog->FogEnd;
@@ -388,21 +283,21 @@ void SetFog(FOG* pFog)
 	SetFogBuffer();
 }
 
-void SetFuchi(int flag)
+void Renderer::SetFuchi(int flag)
 {
 	g_Fuchi.fuchi = flag;
 	GetDeviceContext()->UpdateSubresource(g_FuchiBuffer, 0, NULL, &g_Fuchi, 0, 0);
 }
 
 
-void SetShaderCamera(XMFLOAT3 pos)
+void Renderer::SetShaderCamera(XMFLOAT3 pos)
 {
 	XMFLOAT4 tmp = XMFLOAT4( pos.x, pos.y, pos.z, 0.0f );
 
 	GetDeviceContext()->UpdateSubresource(g_CameraBuffer, 0, NULL, &tmp, 0, 0);
 }
 
-void SetRenderShadowMap(int lightIdx)
+void Renderer::SetRenderShadowMap(int lightIdx)
 {
 	g_RenderMode = RENDER_MODE_SHADOW;
 	ID3D11ShaderResourceView* nullSRV[1] = { nullptr };
@@ -419,7 +314,24 @@ void SetRenderShadowMap(int lightIdx)
 
 }
 
-void SetRenderObject(void)
+void Renderer::SetRenderSkinnedMeshModel(void)
+{
+	g_ImmediateContext->VSSetShader(g_SkinnedMeshVertexShader, nullptr, 0);
+	g_ImmediateContext->VSSetConstantBuffers(11, 1, &g_BoneMatrixBuffer);
+	g_ImmediateContext->PSSetConstantBuffers(11, 1, &g_BoneMatrixBuffer);
+}
+
+void Renderer::SetModelInputLayout(void)
+{
+	g_ImmediateContext->IASetInputLayout(g_VertexLayout);
+}
+
+void Renderer::SetSkinnedMeshInputLayout(void)
+{
+	g_ImmediateContext->IASetInputLayout(g_SkinnedMeshVertexLayout);
+}
+
+void Renderer::SetRenderObject(void)
 {
 	g_RenderMode = RENDER_MODE_SCENE;
 	ResetRenderTarget();
@@ -431,7 +343,7 @@ void SetRenderObject(void)
 	GetDeviceContext()->PSSetShaderResources(1, LIGHT_MAX, g_ShadowMapSRV);
 }
 
-void ResetRenderTarget(void)
+void Renderer::ResetRenderTarget(void)
 {
 	GetDeviceContext()->OMSetRenderTargets(1, &g_RenderTargetView, g_SceneDepthStencilView);
 }
@@ -439,7 +351,7 @@ void ResetRenderTarget(void)
 //=============================================================================
 // 初期化処理
 //=============================================================================
-HRESULT InitRenderer(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
+HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 {
 	HRESULT hr = S_OK;
 
@@ -708,6 +620,18 @@ HRESULT InitRenderer(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 
 	g_D3DDevice->CreateVertexShader(pVSBlob2->GetBufferPointer(), pVSBlob2->GetBufferSize(), NULL, &g_DepthVertexShader);
 
+	pVSBlob2->Release();
+
+	ID3DBlob* pErrorBlob3;
+	ID3DBlob* pVSBlob3 = NULL;
+	hr = D3DX11CompileFromFile("shader.hlsl", NULL, NULL, "SkinnedMeshVertexShaderPolygon", "vs_4_0", 0, 0, NULL, &pVSBlob3, &pErrorBlob3, NULL);
+	if (FAILED(hr))
+	{
+		MessageBox(NULL, (char*)pErrorBlob3->GetBufferPointer(), "VS", MB_OK | MB_ICONERROR);
+	}
+
+	g_D3DDevice->CreateVertexShader(pVSBlob3->GetBufferPointer(), pVSBlob3->GetBufferSize(), NULL, &g_SkinnedMeshVertexShader);
+
 
 	ID3DBlob* pErrorBlob;
 	ID3DBlob* pVSBlob = NULL;
@@ -724,6 +648,8 @@ HRESULT InitRenderer(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	}
 
 	g_D3DDevice->CreateVertexShader( pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), NULL, &g_VertexShader );
+
+	pVSBlob->Release();
 
 	// 入力レイアウト生成
 	D3D11_INPUT_ELEMENT_DESC layout[] =
@@ -743,6 +669,24 @@ HRESULT InitRenderer(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 
 	pVSBlob->Release();
 
+	D3D11_INPUT_ELEMENT_DESC skinnedMeshLayout[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(SKINNED_VERTEX_3D, Position), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(SKINNED_VERTEX_3D, Normal), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(SKINNED_VERTEX_3D, Diffuse), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(SKINNED_VERTEX_3D, TexCoord), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "BLENDWEIGHT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(SKINNED_VERTEX_3D, Weights), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "BLENDINDICES", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(SKINNED_VERTEX_3D, BoneIndices), D3D11_INPUT_PER_VERTEX_DATA, 0 }
+	};
+	numElements = ARRAYSIZE(skinnedMeshLayout);
+
+	g_D3DDevice->CreateInputLayout(skinnedMeshLayout,
+		numElements,
+		pVSBlob3->GetBufferPointer(),
+		pVSBlob3->GetBufferSize(),
+		&g_SkinnedMeshVertexLayout);
+
+	pVSBlob3->Release();
 
 	// ピクセルシェーダコンパイル・生成
 	ID3DBlob* pPSBlob = NULL;
@@ -815,6 +759,8 @@ HRESULT InitRenderer(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	g_ImmediateContext->VSSetConstantBuffers(7, 1, &g_CameraBuffer);
 	g_ImmediateContext->PSSetConstantBuffers(7, 1, &g_CameraBuffer);
 
+	hBufferDesc.ByteWidth = sizeof(BoneMatrices);
+	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_BoneMatrixBuffer);
 
 	// 入力レイアウト設定
 	g_ImmediateContext->IASetInputLayout( g_VertexLayout );
@@ -846,7 +792,7 @@ HRESULT InitRenderer(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 //=============================================================================
 // 終了処理
 //=============================================================================
-void UninitRenderer(void)
+void Renderer::Uninit(void)
 {
 	// オブジェクト解放
 	if (g_DepthStateEnable)		g_DepthStateEnable->Release();
@@ -883,7 +829,7 @@ void UninitRenderer(void)
 //=============================================================================
 // バックバッファクリア
 //=============================================================================
-void Clear(void)
+void Renderer::Clear(void)
 {
 	// バックバッファクリア
 	g_ImmediateContext->ClearRenderTargetView( g_RenderTargetView, g_ClearColor );
@@ -891,7 +837,7 @@ void Clear(void)
 }
 
 
-void SetClearColor(float* color4)
+void Renderer::SetClearColor(float* color4)
 {
 	g_ClearColor[0] = color4[0];
 	g_ClearColor[1] = color4[1];
@@ -903,7 +849,7 @@ void SetClearColor(float* color4)
 //=============================================================================
 // プレゼント
 //=============================================================================
-void Present(void)
+void Renderer::Present(void)
 {
 	g_SwapChain->Present( 0, 0 );
 }
@@ -912,7 +858,7 @@ void Present(void)
 //=============================================================================
 // デバッグ用テキスト出力
 //=============================================================================
-void DebugTextOut(char* text, int x, int y)
+void Renderer::DebugTextOut(char* text, int x, int y)
 {
 #if defined(_DEBUG) && defined(DEBUG_DISP_TEXTOUT)
 	HRESULT hr;
@@ -955,7 +901,7 @@ void DebugTextOut(char* text, int x, int y)
 #endif
 }
 
-int GetRenderMode(void)
+int Renderer::GetRenderMode(void)
 {
 	return g_RenderMode;
 }

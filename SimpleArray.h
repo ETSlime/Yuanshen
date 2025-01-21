@@ -10,6 +10,15 @@ private:
 public:
     SimpleArray() : array(nullptr), capacity(0), size(0) {}
 
+    SimpleArray(UINT initialCapacity): size(0)
+    {
+        if (initialCapacity < 0)
+            return;
+
+        capacity = initialCapacity;
+        array = new T[capacity];
+    }
+
     ~SimpleArray() 
     {
         if (array)
@@ -29,6 +38,24 @@ public:
         array[size++] = item;
     }
 
+    const T& front() const
+    {
+        if (size == 0) 
+        {
+            return T();
+        }
+        return array[0];
+    }
+
+    const T& back() const
+    {
+        if (size == 0) 
+        {
+            return T();
+        }
+        return array[size - 1]; // Returns a copy of the last element
+    }
+
     void clear()
     {
         delete[] array;
@@ -39,6 +66,20 @@ public:
 
     int getSize() const {
         return size;
+    }
+
+    void resize(int newCapacity) {
+        if (newCapacity < size) {
+            return;
+        }
+
+        T* newArray = new T[newCapacity];
+        for (int i = 0; i < size; i++) {
+            newArray[i] = array[i];
+        }
+        delete[] array;
+        array = newArray;
+        capacity = newCapacity;
     }
 
     T& operator[](int index) {

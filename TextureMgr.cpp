@@ -52,7 +52,7 @@ ID3D11ShaderResourceView* TextureMgr::CreateTexture(char* filename)
 	{
 		SRV_POOL* pSrvPool = new SRV_POOL();
 		ppSrvPool = &pSrvPool;
-		D3DX11CreateShaderResourceViewFromFile(GetDevice(),
+		D3DX11CreateShaderResourceViewFromFile(renderer.GetDevice(),
 			filename,
 			NULL,
 			NULL,

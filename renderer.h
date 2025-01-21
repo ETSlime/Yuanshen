@@ -6,11 +6,13 @@
 //=============================================================================
 #pragma once
 #include "main.h"
-
+#include "SingletonBase.h"
 //*********************************************************
 // マクロ定義
 //*********************************************************
-#define LIGHT_MAX		(5)
+#define LIGHT_MAX			(5)
+#define BONE_MAX			(256)
+#define MAX_BONE_INDICES	(4)
 
 enum LIGHT_TYPE
 {
@@ -40,6 +42,11 @@ enum CULL_MODE
 	CULL_MODE_NUM
 };
 
+enum RenderMode
+{
+	RENDER_MODE_SCENE,
+	RENDER_MODE_SHADOW,
+};
 
 //*********************************************************
 // 構造体
@@ -67,6 +74,46 @@ struct VERTEX_3D
 		Normal = norm;
 		Diffuse = dif;
 		TexCoord = tex;
+	}
+};
+
+struct SKINNED_VERTEX_3D
+{
+	XMFLOAT3	Position;
+	XMFLOAT3	Normal;
+	XMFLOAT4	Diffuse;
+	XMFLOAT2	TexCoord;
+	XMFLOAT4	Weights;// [MAX_BONE_INDICES] ;
+	XMFLOAT4	BoneIndices;// [MAX_BONE_INDICES] ;
+
+	SKINNED_VERTEX_3D()
+	{
+		Position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		Normal = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+		TexCoord = XMFLOAT2(0.0f, 0.0f);
+		//for (int i = 0; i < MAX_BONE_INDICES; i++)
+		//{
+		//	Weights[i] = 0.0f;
+		//	BoneIndices[i] = 0;
+		//}
+		Weights = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+		BoneIndices = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	}
+
+	SKINNED_VERTEX_3D(XMFLOAT3 pos, XMFLOAT3 norm, XMFLOAT4 dif, XMFLOAT2 tex)
+	{
+		Position = pos;
+		Normal = norm;
+		Diffuse = dif;
+		TexCoord = tex;
+		//for (int i = 0; i < MAX_BONE_INDICES; i++)
+		//{
+		//	Weights[i] = 0.0f;
+		//	BoneIndices[i] = 0;
+		//}
+		Weights = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+		BoneIndices = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	}
 };
 
@@ -114,7 +161,6 @@ struct FOG {
 	XMFLOAT4	FogColor;	// フォグの色
 };
 
-
 struct LightViewProjBuffer
 {
 	XMMATRIX ProjView[LIGHT_MAX];
@@ -122,51 +168,170 @@ struct LightViewProjBuffer
 	int padding[3];
 };
 
-enum RenderMode
+// マテリアル用定数バッファ構造体
+struct MATERIAL_CBUFFER
 {
-	RENDER_MODE_SCENE,
-	RENDER_MODE_SHADOW,
+	XMFLOAT4	Ambient;
+	XMFLOAT4	Diffuse;
+	XMFLOAT4	Specular;
+	XMFLOAT4	Emission;
+	float		Shininess;
+	int			noTexSampling;
+	float		Dummy[2];				// 16byte境界用
+};
+
+// ライト用フラグ構造体
+struct LIGHTFLAGS
+{
+	int			Type;		//ライトタイプ（enum LIGHT_TYPE）
+	int         OnOff;		//ライトのオンorオフスイッチ
+	int			Dummy[2];
+};
+
+// ライト用定数バッファ構造体
+struct LIGHT_CBUFFER
+{
+	XMFLOAT4	Direction[LIGHT_MAX];	// ライトの方向
+	XMFLOAT4	Position[LIGHT_MAX];	// ライトの位置
+	XMFLOAT4	Diffuse[LIGHT_MAX];		// 拡散光の色
+	XMFLOAT4	Ambient[LIGHT_MAX];		// 環境光の色
+	XMFLOAT4	Attenuation[LIGHT_MAX];	// 減衰率
+	LIGHTFLAGS	Flags[LIGHT_MAX];		// ライト種別
+	int			Enable;					// ライティング有効・無効フラグ
+	int			Dummy[3];				// 16byte境界用
+
+	XMFLOAT4X4	LightViewProj;
+};
+
+// フォグ用定数バッファ構造体
+struct FOG_CBUFFER
+{
+	XMFLOAT4	Fog;					// フォグ量
+	XMFLOAT4	FogColor;				// フォグの色
+	int			Enable;					// フォグ有効・無効フラグ
+	float		Dummy[3];				// 16byte境界用
+};
+
+// 縁取り用バッファ
+struct FUCHI
+{
+	int			fuchi;
+	int			fill[3];
+};
+
+struct BoneMatrices
+{
+	XMMATRIX bones[BONE_MAX];
 };
 
 //*****************************************************************************
 // プロトタイプ宣言
 //*****************************************************************************
-HRESULT InitRenderer(HINSTANCE hInstance, HWND hWnd, BOOL bWindow);
-void UninitRenderer(void);
 
-void Clear(void);
-void Present(void);
+class Renderer : public SingletonBase<Renderer>
+{
+public:
+	HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow);
+	void Uninit(void);
 
-ID3D11Device *GetDevice( void );
-ID3D11DeviceContext *GetDeviceContext( void );
+	void Clear(void);
+	void Present(void);
 
-void SetDepthEnable( BOOL Enable );
-void SetBlendState(BLEND_MODE bm);
-void SetCullingMode(CULL_MODE cm);
-void SetAlphaTestEnable(BOOL flag);
+	ID3D11Device* GetDevice(void);
+	ID3D11DeviceContext* GetDeviceContext(void);
 
-void SetWorldViewProjection2D( void );
-void SetCurrentWorldMatrix( XMMATRIX *WorldMatrix );
-void SetViewMatrix( XMMATRIX *ViewMatrix );
-void SetProjectionMatrix( XMMATRIX *ProjectionMatrix );
+	void SetDepthEnable(BOOL Enable);
+	void SetBlendState(BLEND_MODE bm);
+	void SetCullingMode(CULL_MODE cm);
+	void SetAlphaTestEnable(BOOL flag);
 
-void SetMaterial( MATERIAL material );
+	void SetWorldViewProjection2D(void);
+	void SetCurrentWorldMatrix(XMMATRIX* WorldMatrix);
+	void SetViewMatrix(XMMATRIX* ViewMatrix);
+	void SetProjectionMatrix(XMMATRIX* ProjectionMatrix);
 
-void SetLightEnable(BOOL flag);
-void SetLight(int index, LIGHT* light);
-void SetLightProjView(LightViewProjBuffer* lightBuffer);
+	void SetMaterial(MATERIAL material);
 
-void SetFogEnable(BOOL flag);
-void SetFog(FOG* fog);
+	void SetLightEnable(BOOL flag);
+	void SetLight(int index, LIGHT* light);
+	void SetLightProjView(LightViewProjBuffer* lightBuffer);
 
-void DebugTextOut(char* text, int x, int y);
+	void SetFogEnable(BOOL flag);
+	void SetFog(FOG* fog);
 
-void SetFuchi(int flag);
-void SetShaderCamera(XMFLOAT3 pos);
-void SetFillMode(D3D11_FILL_MODE mode);
-void SetClearColor(float* color4);
+	void DebugTextOut(char* text, int x, int y);
 
-void SetRenderShadowMap(int lightIdx);
-void SetRenderObject(void);
-void ResetRenderTarget(void);
-int GetRenderMode(void);
+	void SetFuchi(int flag);
+	void SetShaderCamera(XMFLOAT3 pos);
+	void SetFillMode(D3D11_FILL_MODE mode);
+	void SetBoneMatrix(XMMATRIX matrices[BONE_MAX]);
+	void SetClearColor(float* color4);
+
+	void SetRenderShadowMap(int lightIdx);
+	void SetRenderObject(void);
+	void SetRenderSkinnedMeshModel(void);
+	void SetModelInputLayout(void);
+	void SetSkinnedMeshInputLayout(void);
+	void ResetRenderTarget(void);
+	int GetRenderMode(void);
+
+
+private:
+
+	void SetLightBuffer(void);
+	void SetFogBuffer(void);
+
+	D3D_FEATURE_LEVEL       g_FeatureLevel = D3D_FEATURE_LEVEL_11_0;
+
+	ID3D11Device* g_D3DDevice = NULL;
+	ID3D11DeviceContext* g_ImmediateContext = NULL;
+	IDXGISwapChain* g_SwapChain = NULL;
+
+	ID3D11RenderTargetView* g_RenderTargetView = NULL;
+
+	ID3D11DepthStencilView* g_ShadowDSV[LIGHT_MAX];
+	ID3D11DepthStencilView* g_SceneDepthStencilView = NULL;
+
+	ID3D11VertexShader* g_VertexShader = NULL;
+	ID3D11VertexShader* g_SkinnedMeshVertexShader = NULL;
+	ID3D11VertexShader* g_DepthVertexShader = NULL;
+	ID3D11PixelShader* g_PixelShader = NULL;
+	ID3D11InputLayout* g_VertexLayout = NULL;
+	ID3D11InputLayout* g_SkinnedMeshVertexLayout = NULL;
+	ID3D11Buffer* g_WorldBuffer = NULL;
+	ID3D11Buffer* g_ViewBuffer = NULL;
+	ID3D11Buffer* g_ProjectionBuffer = NULL;
+	ID3D11Buffer* g_MaterialBuffer = NULL;
+	ID3D11Buffer* g_LightBuffer = NULL;
+	ID3D11Buffer* g_FogBuffer = NULL;
+	ID3D11Buffer* g_FuchiBuffer = NULL;
+	ID3D11Buffer* g_CameraBuffer = NULL;
+	ID3D11Buffer* g_LightProjViewBuffer = NULL;
+	ID3D11Buffer* g_BoneMatrixBuffer = NULL;
+
+	ID3D11ShaderResourceView* g_ShadowMapSRV[LIGHT_MAX];
+
+	ID3D11DepthStencilState* g_DepthStateEnable;
+	ID3D11DepthStencilState* g_DepthStateDisable;
+
+	ID3D11BlendState* g_BlendStateNone;
+	ID3D11BlendState* g_BlendStateAlphaBlend;
+	ID3D11BlendState* g_BlendStateAdd;
+	ID3D11BlendState* g_BlendStateSubtract;
+	BLEND_MODE				g_BlendStateParam;
+
+
+	ID3D11RasterizerState* g_RasterStateCullOff;
+	ID3D11RasterizerState* g_RasterStateCullCW;
+	ID3D11RasterizerState* g_RasterStateCullCCW;
+
+
+	MATERIAL_CBUFFER	g_Material;
+	LIGHT_CBUFFER	g_Light;
+	FOG_CBUFFER		g_Fog;
+
+	FUCHI			g_Fuchi;
+	INT				g_RenderMode = RENDER_MODE_SCENE;
+
+	float g_ClearColor[4] = { 0.3f, 0.3f, 0.3f, 1.0f };	// 背景色
+};

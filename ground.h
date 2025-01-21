@@ -45,4 +45,5 @@ public:
 	void Draw(void);
 private:
 	SimpleArray<GameObject<ModelInstance>*> groundGO;
+	Renderer& renderer = Renderer::get_instance();
 };

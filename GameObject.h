@@ -73,6 +73,8 @@ public:
 	inline int GetEditorIndex() { return instance.editorIdx; }
 	inline void SetEditorIndex(int idx) { instance.editorIdx = idx; }
 
+	Renderer& renderer = Renderer::get_instance();
+
 protected:
 	T instance;
 };
@@ -145,7 +147,7 @@ void GameObject<T>::Draw()
 {
 
 	// ワールドマトリックスの設定
-	SetCurrentWorldMatrix(&instance.transform.mtxWorld);
+	renderer.SetCurrentWorldMatrix(&instance.transform.mtxWorld);
 
 	instance.pModel->DrawModel();
 }
@@ -155,9 +157,9 @@ inline void GameObject<T>::DrawModelEditor()
 {
 	if (instance.isCursorIn == TRUE)
 	{
-		SetFillMode(D3D11_FILL_WIREFRAME);
+		renderer.SetFillMode(D3D11_FILL_WIREFRAME);
 		instance.pModel->DrawModel();
-		SetFillMode(D3D11_FILL_SOLID);
+		renderer.SetFillMode(D3D11_FILL_SOLID);
 	}
 	else
 	{

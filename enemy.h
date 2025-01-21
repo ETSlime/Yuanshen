@@ -105,6 +105,7 @@ public:
 	void Draw(void) override;
 	inline INTERPOLATION_DATA* GetMoveTbl() { return instance.moveTbl; }
 	void SetMoveTbl(MoveTable moveTbl);
+
 private:
 	void UpdateEditorSelect(int sx, int sy);
 	void PlayEnemyWalkAnim(void);
@@ -119,6 +120,7 @@ public:
 	void Draw(void);
 	void Update(void);
 	const DoubleLinkedList<Enemy*>* GetEnemy() { return &enemyList; }
+	Renderer& renderer = Renderer::get_instance();
 private:
 	void InitializeMoveTbl();
 

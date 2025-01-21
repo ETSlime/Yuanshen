@@ -27,6 +27,23 @@ struct CharPtrEquals
     }
 };
 
+struct HashUInt64
+{
+    size_t operator()(uint64_t key) const
+    {
+        return key ^ (key >> 33);
+    }
+};
+
+
+struct EqualUInt64
+{
+    bool operator()(uint64_t a, uint64_t b) const
+    {
+        return a == b;
+    }
+};
+
 template<typename Key, typename Value, typename HashFunc, typename EqualsFunc>
 class HashMap
 {

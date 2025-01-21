@@ -39,19 +39,19 @@ static XMFLOAT3					g_Pos;						// ポリゴンの座標
 static int						g_TexNo;					// テクスチャ番号
 
 static int						g_Score;					// スコア
-
+static Renderer& renderer = Renderer::get_instance();
 //=============================================================================
 // 初期化処理
 //=============================================================================
 HRESULT InitScore(void)
 {
-	ID3D11Device *pDevice = GetDevice();
+	ID3D11Device *pDevice = renderer.GetDevice();
 
 	//テクスチャ生成
 	for (int i = 0; i < TEXTURE_MAX; i++)
 	{
 		g_Texture[i] = NULL;
-		D3DX11CreateShaderResourceViewFromFile(GetDevice(),
+		D3DX11CreateShaderResourceViewFromFile(renderer.GetDevice(),
 			g_TexturName[i],
 			NULL,
 			NULL,
@@ -67,7 +67,7 @@ HRESULT InitScore(void)
 	bd.ByteWidth = sizeof(VERTEX_3D) * 4;
 	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	GetDevice()->CreateBuffer(&bd, NULL, &g_VertexBuffer);
+	renderer.GetDevice()->CreateBuffer(&bd, NULL, &g_VertexBuffer);
 
 
 	// プレイヤーの初期化
@@ -127,22 +127,22 @@ void DrawScore(void)
 	// 頂点バッファ設定
 	UINT stride = sizeof(VERTEX_3D);
 	UINT offset = 0;
-	GetDeviceContext()->IASetVertexBuffers(0, 1, &g_VertexBuffer, &stride, &offset);
+	renderer.GetDeviceContext()->IASetVertexBuffers(0, 1, &g_VertexBuffer, &stride, &offset);
 
 	// マトリクス設定
-	SetWorldViewProjection2D();
+	renderer.SetWorldViewProjection2D();
 
 	// プリミティブトポロジ設定
-	GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	renderer.GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 	// マテリアル設定
 	MATERIAL material;
 	ZeroMemory(&material, sizeof(material));
 	material.Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	SetMaterial(material);
+	renderer.SetMaterial(material);
 
 	// テクスチャ設定
-	GetDeviceContext()->PSSetShaderResources(0, 1, &g_Texture[g_TexNo]);
+	renderer.GetDeviceContext()->PSSetShaderResources(0, 1, &g_Texture[g_TexNo]);
 
 	// 桁数分処理する
 	int number = g_Score;
@@ -167,7 +167,7 @@ void DrawScore(void)
 			XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
 
 		// ポリゴン描画
-		GetDeviceContext()->Draw(4, 0);
+		renderer.GetDeviceContext()->Draw(4, 0);
 
 		// 次の桁へ
 		number /= 10;

@@ -40,6 +40,7 @@ static long startX = 0, startY = 0;
 static long currentX = 0, currentY = 0;
 static long deltaX = 0, deltaY = 0;
 
+static Renderer& renderer = Renderer::get_instance();
 //=============================================================================
 // 初期化処理
 //=============================================================================
@@ -236,7 +237,7 @@ void SetCamera(void)
 	// ビューマトリックス設定
 	XMMATRIX mtxView;
 	mtxView = XMMatrixLookAtLH(XMLoadFloat3(&g_Camera.pos), XMLoadFloat3(&g_Camera.at), XMLoadFloat3(&g_Camera.up));
-	SetViewMatrix(&mtxView);
+	renderer.SetViewMatrix(&mtxView);
 	XMStoreFloat4x4(&g_Camera.mtxView, mtxView);
 
 	XMMATRIX mtxInvView;
@@ -248,10 +249,10 @@ void SetCamera(void)
 	XMMATRIX mtxProjection;
 	mtxProjection = XMMatrixPerspectiveFovLH(VIEW_ANGLE, VIEW_ASPECT, VIEW_NEAR_Z, VIEW_FAR_Z);
 
-	SetProjectionMatrix(&mtxProjection);
+	renderer.SetProjectionMatrix(&mtxProjection);
 	XMStoreFloat4x4(&g_Camera.mtxProjection, mtxProjection);
 
-	SetShaderCamera(g_Camera.pos);
+	renderer.SetShaderCamera(g_Camera.pos);
 }
 
 
@@ -268,7 +269,7 @@ CAMERA *GetCamera(void)
 //=============================================================================
 void SetViewPort(int type)
 {
-	ID3D11DeviceContext *g_ImmediateContext = GetDeviceContext();
+	ID3D11DeviceContext *g_ImmediateContext = renderer.GetDeviceContext();
 	D3D11_VIEWPORT vp;
 
 	g_ViewPortType = type;

@@ -135,4 +135,6 @@ private:
 
 	BOUNDING_BOX	boundingBox;
 	ID3D11Buffer* BBVertexBuffer;
+
+	Renderer& renderer = Renderer::get_instance();
 };

@@ -39,7 +39,7 @@ static PLAYER						g_Player;						// プレイヤー
 static ID3D11ShaderResourceView*	g_Texture[TEXTURE_MAX] = { NULL };	// テクスチャ情報
 
 static int							g_TexNo = 0;				// テクスチャ番号
-
+static Renderer& renderer = Renderer::get_instance();
 
 static char* g_TextureName[] = {
 	"data/TEXTURE/white.png",
@@ -51,7 +51,7 @@ HRESULT InitPlayer(void)
 {
 	for (int i = 0; i < TEXTURE_MAX; i++)
 	{
-		D3DX11CreateShaderResourceViewFromFile(GetDevice(),
+		D3DX11CreateShaderResourceViewFromFile(renderer.GetDevice(),
 			g_TextureName[i],
 			NULL,
 			NULL,
@@ -825,7 +825,7 @@ void ResetAllStates(void)
 void DrawPlayer(void)
 {
 	// カリング無効
-	SetCullingMode(CULL_MODE_NONE);
+	renderer.SetCullingMode(CULL_MODE_NONE);
 
 	//{   // shadow
 	//	XMMATRIX mtxScl, mtxRot, mtxTranslate, mtxWorld;
@@ -892,17 +892,17 @@ void DrawPlayer(void)
 	//}
 
 		// プリミティブトポロジ設定
-	GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	renderer.GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 	// マテリアル設定
 	MATERIAL material;
 	ZeroMemory(&material, sizeof(material));
 	material.Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	material.Ambient = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
-	SetMaterial(material);
+	renderer.SetMaterial(material);
 
 	// テクスチャ設定
-	GetDeviceContext()->PSSetShaderResources(0, 1, &g_Texture[g_TexNo]);
+	renderer.GetDeviceContext()->PSSetShaderResources(0, 1, &g_Texture[g_TexNo]);
 
 	XMMATRIX mtxWorld = ComputeWorldMatrix(HEAD);
 
@@ -916,7 +916,7 @@ void DrawPlayer(void)
 	DrawBullet();
 
 	// カリング設定を戻す
-	SetCullingMode(CULL_MODE_BACK);
+	renderer.SetCullingMode(CULL_MODE_BACK);
 }
 
 void DrawWand(void)
@@ -1434,16 +1434,16 @@ void DrawCube(int type, float x, float y, float z, XMMATRIX mtxWorld, XMFLOAT3 r
 	mtxFinal = XMMatrixMultiply(mtxFinal, mtxWorld);
 
 	// ワールドマトリックスの設定
-	SetCurrentWorldMatrix(&mtxFinal);
+	renderer.SetCurrentWorldMatrix(&mtxFinal);
 
 	// 頂点バッファ設定
 	UINT stride = sizeof(VERTEX_3D);
 	UINT offset = 0;
 	ID3D11Buffer* vertexArrayBuffer = GetVertexArrayBuffer(type);
-	GetDeviceContext()->IASetVertexBuffers(0, 1, &vertexArrayBuffer, &stride, &offset);
+	renderer.GetDeviceContext()->IASetVertexBuffers(0, 1, &vertexArrayBuffer, &stride, &offset);
 
 	//// ポリゴン描画
-	GetDeviceContext()->Draw(4 * MAX_POLYGON, 0);
+	renderer.GetDeviceContext()->Draw(4 * MAX_POLYGON, 0);
 }
 
 XMMATRIX ComputeWorldMatrix(int part)
@@ -1563,7 +1563,7 @@ XMMATRIX ComputeWorldMatrix(int part)
 void DrawBullet(void)
 {
 	// カリング無効
-	SetCullingMode(CULL_MODE_NONE);
+	renderer.SetCullingMode(CULL_MODE_NONE);
 
 	Node<Bullet*>* cur = g_Player.bulletList.getHead();
 	while (cur != nullptr)
@@ -1574,7 +1574,7 @@ void DrawBullet(void)
 	}
 
 	// カリング設定を戻す
-	SetCullingMode(CULL_MODE_BACK);
+	renderer.SetCullingMode(CULL_MODE_BACK);
 }
 //=============================================================================
 // プレイヤー情報を取得

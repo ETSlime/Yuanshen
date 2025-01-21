@@ -15,6 +15,8 @@
 // グローバル変数
 //*****************************************************************************
 
+static Renderer& renderer = Renderer::get_instance();
+
 static ID3D11Buffer* g_VertexBuffer[MAX_COLOR];		// 頂点情報
 // 頂点配列
 static VERTEX_3D g_FaceVertexArray[4 * MAX_POLYGON] = {
@@ -1120,7 +1122,7 @@ HRESULT InitVertex(void)
 			ZeroMemory(&sd, sizeof(sd));
 			sd.pSysMem = g_Vertex[i];
 
-			GetDevice()->CreateBuffer(&bd, &sd, &g_VertexBuffer[i]);
+			renderer.GetDevice()->CreateBuffer(&bd, &sd, &g_VertexBuffer[i]);
 		}
 		else
 		{

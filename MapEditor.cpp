@@ -415,16 +415,16 @@ void MapEditor::UpdateMouseDrag()
 
 void MapEditor::Draw()
 {
-	if (GetRenderMode() == RENDER_MODE_SHADOW) return;
+	if (renderer.GetRenderMode() == RENDER_MODE_SHADOW) return;
 
 	Model* model = GetCurSelectedModel();
 
 	if (model)
 	{
-		SetDepthEnable(FALSE);
+		renderer.SetDepthEnable(FALSE);
 
 		// カリング無効
-		SetCullingMode(CULL_MODE_NONE);
+		renderer.SetCullingMode(CULL_MODE_NONE);
 
 		const DoubleLinkedList<Enemy*>* enemyList = EnemyManager::get_instance().GetEnemy();
 		Node<Enemy*>* cur = enemyList->getHead();
@@ -435,7 +435,7 @@ void MapEditor::Draw()
 
 
 				// ワールドマトリックスの設定
-				SetCurrentWorldMatrix(&posCursor.cursorY->GetTransform().mtxWorld);
+				renderer.SetCurrentWorldMatrix(&posCursor.cursorY->GetTransform().mtxWorld);
 				
 				if (posCursor.cursorY->GetIsCursorIn() == TRUE)
 				{
@@ -443,13 +443,13 @@ void MapEditor::Draw()
 					ZeroMemory(&material, sizeof(material));
 					material.Diffuse = XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f);
 					material.noTexSampling = TRUE;
-					SetMaterial(material);
+					renderer.SetMaterial(material);
 				}
 				else
-					SetMaterial(posCursor.cursorY->GetMaterial());
+					renderer.SetMaterial(posCursor.cursorY->GetMaterial());
 				posCursor.cursorY->GetModel()->DrawModel();
 
-				SetCurrentWorldMatrix(&posCursor.cursorZ->GetTransform().mtxWorld);
+				renderer.SetCurrentWorldMatrix(&posCursor.cursorZ->GetTransform().mtxWorld);
 
 				if (posCursor.cursorZ->GetIsCursorIn() == TRUE)
 				{
@@ -457,14 +457,14 @@ void MapEditor::Draw()
 					ZeroMemory(&material, sizeof(material));
 					material.Diffuse = XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f);
 					material.noTexSampling = TRUE;
-					SetMaterial(material);
+					renderer.SetMaterial(material);
 				}
 				else
-					SetMaterial(posCursor.cursorZ->GetMaterial());
+					renderer.SetMaterial(posCursor.cursorZ->GetMaterial());
 				posCursor.cursorZ->GetModel()->DrawModel();
 				
 
-				SetCurrentWorldMatrix(&posCursor.cursorX->GetTransform().mtxWorld);
+				renderer.SetCurrentWorldMatrix(&posCursor.cursorX->GetTransform().mtxWorld);
 
 				if (posCursor.cursorX->GetIsCursorIn() == TRUE)
 				{
@@ -472,17 +472,17 @@ void MapEditor::Draw()
 					ZeroMemory(&material, sizeof(material));
 					material.Diffuse = XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f);
 					material.noTexSampling = TRUE;
-					SetMaterial(material);
+					renderer.SetMaterial(material);
 				}
 				else
-					SetMaterial(posCursor.cursorX->GetMaterial());
+					renderer.SetMaterial(posCursor.cursorX->GetMaterial());
 				posCursor.cursorX->GetModel()->DrawModel();
 				break;
 			}
 			cur = cur->next;
 		}
 
-		SetDepthEnable(TRUE);
+		renderer.SetDepthEnable(TRUE);
 	}
 }
 

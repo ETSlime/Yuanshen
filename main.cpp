@@ -50,6 +50,7 @@ Ground* ground = nullptr;
 TextureMgr mTexMgr;
 FBXLoader& fbxLoader = FBXLoader::get_instance();
 SkinnedMeshModel model;
+Renderer& renderer = Renderer::get_instance();
 
 #ifdef _DEBUG
 int		g_CountFPS;							// FPSカウンタ
@@ -220,7 +221,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 {
 	// レンダラーの初期化
-	InitRenderer(hInstance, hWnd, bWindow);
+	renderer.Init(hInstance, hWnd, bWindow);
 
 	// ライトの初期化
 	InitLight();
@@ -239,9 +240,9 @@ HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	// フィールドの初期化
 	InitField();
 
-	mTexMgr.Init(GetDevice());
+	mTexMgr.Init(renderer.GetDevice());
 
-	fbxLoader.LoadModel(GetDevice(), mTexMgr, model, "data/MODEL/enemy/Animation_Dead.fbx", nullptr);
+	fbxLoader.LoadModel(renderer.GetDevice(), mTexMgr, model, "data/MODEL/enemy/xgw.fbx", nullptr);
 
 	// プレイヤーの初期化
 	InitPlayer();
@@ -260,10 +261,10 @@ HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	mapEditor.Init();
 
 	// ライトを有効化
-	SetLightEnable(TRUE);
+	renderer.SetLightEnable(TRUE);
 
 	// 背面ポリゴンをカリング
-	SetCullingMode(CULL_MODE_BACK);
+	renderer.SetCullingMode(CULL_MODE_BACK);
 
 	return S_OK;
 }
@@ -299,7 +300,7 @@ void Uninit(void)
 	UninitScore();
 
 	// レンダラーの終了処理
-	UninitRenderer();
+	renderer.Uninit();
 
 	UninitOffScreenRender();
 
@@ -331,6 +332,8 @@ void Update(void)
 	//UpdateEnemy();
 	enemyManager.Update();
 
+	model.Update();
+
 	//UpdateGround();
 	ground->Update();
 
@@ -346,7 +349,7 @@ void Update(void)
 void Draw(void)
 {
 	// バックバッファクリア
-	Clear();
+	renderer.Clear();
 
 	// プレイヤー視点
 	XMFLOAT3 pos = GetPlayer()->trans[ALL].pos;
@@ -354,12 +357,13 @@ void Draw(void)
 	SetCameraAT(pos);
 	SetCamera();
 
+	renderer.SetModelInputLayout();
 	for (int i = 2; i >= 0; i--)
 	{
 		LIGHT* light = GetLightData(i);
 		if (light->Enable == FALSE) continue;
 
-		SetRenderShadowMap(i);
+		renderer.SetRenderShadowMap(i);
 
 		//DrawPlayer();
 
@@ -367,17 +371,19 @@ void Draw(void)
 
 		//DrawGround();
 
-		DrawScene();
+		//DrawScene();
 	}
 
-	SetRenderObject();
+	renderer.SetRenderObject();
 	//DrawScene();
 
-	SetLightEnable(FALSE);
-	mapEditor.Draw();
+	renderer.SetLightEnable(FALSE);
+	//mapEditor.Draw();
 	//DrawScore();
-	SetLightEnable(TRUE);
+	renderer.SetLightEnable(TRUE);
 	
+	renderer.SetRenderSkinnedMeshModel();
+	renderer.SetSkinnedMeshInputLayout();
 	model.Draw();
 
 	//SetOffScreenRender();
@@ -393,7 +399,7 @@ void Draw(void)
 #endif
 
 	// バックバッファ、フロントバッファ入れ替え
-	Present();
+	renderer.Present();
 }
 
 void DrawScene()
@@ -403,7 +409,7 @@ void DrawScene()
 	DrawPlayer();
 
 	//DrawEnemy();
-	enemyManager.Draw();
+	//enemyManager.Draw();
 
 	//DrawGround();
 	ground->Draw();

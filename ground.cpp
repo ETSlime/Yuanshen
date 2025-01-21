@@ -82,7 +82,7 @@ void Ground::Draw(void)
 	int size = groundGO.getSize();
 
 	// カリング無効
-	SetCullingMode(CULL_MODE_NONE);
+	renderer.SetCullingMode(CULL_MODE_NONE);
 
 	for (int i = 0; i < size; i++)
 	{
@@ -92,5 +92,5 @@ void Ground::Draw(void)
 	}
 
 	// カリング設定を戻す
-	SetCullingMode(CULL_MODE_BACK);
+	renderer.SetCullingMode(CULL_MODE_BACK);
 }

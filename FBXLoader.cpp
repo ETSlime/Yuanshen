@@ -37,15 +37,69 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
         memset(buffer, 0, sizeof(buffer));
     }
 
+    model.mModelHierarchy.resize(model.ModelCount);
+    model.mModelGlobalRot.resize(model.ModelCount);
+    model.mModelLocalRot.resize(model.ModelCount);
+    model.mModelGlobalScl.resize(model.ModelCount);
+    model.mModelLocalScl.resize(model.ModelCount);
+    model.mModelTranslate.resize(model.ModelCount);
+    model.mModelLocalTranslate.resize(model.ModelCount);
+    model.mModelGlobalTrans.resize(model.ModelCount);
+    model.mModelLocalTrans.resize(model.ModelCount);
+
+    SimpleArray<FbxNode*> rootNodeChilds;
+    for (auto& node : model.fbxNodes)
+    {
+        if (node.key == 0)
+        {
+            rootNodeChilds = node.value->childNodes;
+            break;
+        }
+    }
+    if (rootNodeChilds.getSize() != 0)
+    {
+        for (int i = 0; i < rootNodeChilds.getSize(); i++)
+        {
+            if (rootNodeChilds[i]->nodeType == FbxNodeType::Mesh)
+            {
+                SimpleArray<FbxNode*> meshNodeChilds = rootNodeChilds[i]->childNodes;
+                for (int j = 0; j < meshNodeChilds.getSize(); j++)
+                {
+                    if (meshNodeChilds[j]->nodeType == FbxNodeType::Mesh)
+                    {
+                        SimpleArray<FbxNode*> geometryNodeChilds = meshNodeChilds[j]->childNodes;
+                        ModelData* modelData = static_cast<ModelData*>(meshNodeChilds[j]->nodeData);
+                        for (int k = 0; k < geometryNodeChilds.getSize(); k++)
+                        {
+                            FbxNode* armature = geometryNodeChilds[k];
+                            HandleDeformer(armature, modelData, model, 0, -1);
+                        }
+                    }
+                }
+            }
+            else if (rootNodeChilds[i]->nodeType == FbxNodeType::None || rootNodeChilds[i]->nodeType == FbxNodeType::LimbNode)
+            {
+                FbxNode* armature = rootNodeChilds[i];
+                model.armatureNode = armature;
+                int curIdx = 0;
+                int prevIdx = -1;
+                model.UpdateLimbGlobalTransform(armature, curIdx, prevIdx, model.animationTime);
+            }
+        }
+    }
+
+
     model.Texture = texMgr.CreateTexture(model.textureName);
     model.modelData->IndexNum = model.modelData->IndicesData.getSize();
     model.modelData->VertexNum = model.modelData->IndexNum;
-    model.modelData->VertexArray = new VERTEX_3D[model.modelData->VertexNum];
+    model.modelData->VertexArray = new SKINNED_VERTEX_3D[model.modelData->VertexNum];
     model.modelData->IndexArray = new unsigned short[model.modelData->IndexNum];
-    for (int i = 0; i < model.modelData->IndexNum; i++)
+    
+    for (int indexCnt = 0; indexCnt < model.modelData->IndexNum; indexCnt++)
     {
-        VERTEX_3D vertex;
-        int vertexIndex = model.modelData->IndicesData[i].Index;
+        SKINNED_VERTEX_3D vertex;
+        int vertexIndex = model.modelData->IndicesData[indexCnt].Index;
+
         if (vertexIndex < 0)
         {
             vertexIndex = -vertexIndex;
@@ -54,24 +108,84 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
 
         
         vertex.Position = model.modelData->VerticesTemp[vertexIndex].Position;
+        vertex.Position.z = -vertex.Position.z;
+        float BoneIndices[MAX_BONE_INDICES] = { 0.0f, 0.0f , 0.0f , 0.0f };
+        float Weights[MAX_BONE_INDICES] = { 0.0f, 0.0f , 0.0f , 0.0f };
+        int boneIndicesSize = model.modelData->VerticesTemp[vertexIndex].BoneIndices.getSize();
+        if (boneIndicesSize > MAX_BONE_INDICES)
+        {
+            int topWeightsIndices[MAX_BONE_INDICES] = { 0 };
+            float topWeights[MAX_BONE_INDICES] = { 0 };
+            for (int i = 0; i < boneIndicesSize; ++i)
+            {
+                float currentWeight = model.modelData->VerticesTemp[vertexIndex].Weights[i];
+                int currentIndex = model.modelData->VerticesTemp[vertexIndex].BoneIndices[i];
+                for (int j = 0; j < MAX_BONE_INDICES; ++j)
+                {
+                    if (currentWeight > topWeights[j]) 
+                    {
+                        for (int k = MAX_BONE_INDICES - 1; k > j; --k)
+                        {
+                            topWeights[k] = topWeights[k - 1];
+                            topWeightsIndices[k] = topWeightsIndices[k - 1];
+                        }
+                        topWeights[j] = currentWeight;
+                        topWeightsIndices[j] = currentIndex;
+                        break;
+                    }
+                }
+            }
 
+            float sumWeights = 0.0f;
+            for (int i = 0; i < MAX_BONE_INDICES; i++)
+            {
+                sumWeights += topWeights[i];
+            }
+            if (sumWeights > 0) 
+            {
+                for (int i = 0; i < MAX_BONE_INDICES; i++)
+                {
+                    topWeights[i] /= sumWeights;
+                }
+            }
+
+            for (int i = 0; i < MAX_BONE_INDICES; i++)
+            {
+                BoneIndices[i] = topWeightsIndices[i];
+                Weights[i] = topWeights[i];
+
+            }
+        }
+        else
+        {
+            for (int i = 0; i < boneIndicesSize; i++)
+            {
+                BoneIndices[i] = model.modelData->VerticesTemp[vertexIndex].BoneIndices[i];
+                Weights[i] = model.modelData->VerticesTemp[vertexIndex].Weights[i];
+
+            }
+        }
+
+        vertex.BoneIndices = XMFLOAT4(BoneIndices[0], BoneIndices[1], BoneIndices[2], BoneIndices[3]);
+        vertex.Weights = XMFLOAT4(Weights[0], Weights[1], Weights[2], Weights[3]);
+
+        
         if (model.normalLoc == Vertex)
             vertex.Normal = model.modelData->VerticesTemp[vertexIndex].Normal;
         else if (model.normalLoc == Index)
-            vertex.Normal = model.modelData->IndicesData[i].Normal;
+            vertex.Normal = model.modelData->IndicesData[indexCnt].Normal;
 
         if (model.texLoc == Vertex)
             vertex.TexCoord = model.modelData->VerticesTemp[vertexIndex].TexCoord;
         else if (model.texLoc == Index)
         {
-            vertex.TexCoord = model.modelData->IndicesData[i].TexCoord;
+            vertex.TexCoord = model.modelData->IndicesData[indexCnt].TexCoord;
 
             vertex.TexCoord.y = -vertex.TexCoord.y;
         }
-            
-
-        model.modelData->VertexArray[i] = vertex;
-        model.modelData->IndexArray[i] = i;
+        
+        model.modelData->VertexArray[indexCnt] = vertex;
+        model.modelData->IndexArray[indexCnt] = indexCnt;
     }
 
     // 頂点バッファ生成
@@ -79,7 +193,7 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
         D3D11_BUFFER_DESC bd;
         ZeroMemory(&bd, sizeof(bd));
         bd.Usage = D3D11_USAGE_DYNAMIC;
-        bd.ByteWidth = sizeof(VERTEX_3D) * model.modelData->VertexNum;
+        bd.ByteWidth = sizeof(SKINNED_VERTEX_3D) * model.modelData->VertexNum;
         bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
         bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
@@ -87,7 +201,7 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
         ZeroMemory(&sd, sizeof(sd));
         sd.pSysMem = model.modelData->VertexArray;
 
-        GetDevice()->CreateBuffer(&bd, &sd, &model.VertexBuffer);
+        renderer.GetDevice()->CreateBuffer(&bd, &sd, &model.VertexBuffer);
     }
 
     // インデックスバッファ生成
@@ -103,7 +217,7 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
         ZeroMemory(&sd, sizeof(sd));
         sd.pSysMem = model.modelData->IndexArray;
 
-        GetDevice()->CreateBuffer(&bd, &sd, &model.IndexBuffer);
+        renderer.GetDevice()->CreateBuffer(&bd, &sd, &model.IndexBuffer);
     }
 }
 
@@ -174,7 +288,7 @@ bool FBXLoader::ParseObjectDefinitions(FILE* file, SkinnedMeshModel& model)
                         if (strstr(buffer, "Properties70:"))
                         {
                             inProperty = true;
-                            if (!ParseModelProperty(file, model.globalModelProperty))
+                            if (!ParseModelProperty(file, model.globalModelProperty, nullptr))
                                 return false;
                             bracket--;
                         }
@@ -214,13 +328,13 @@ bool FBXLoader::ParseObjectDefinitions(FILE* file, SkinnedMeshModel& model)
                 return true;
             }
 
-            
+
         }
         else if (strstr(buffer, "Definitions:"))
             inDefinitions = true;
 
-        position = ftell(file);
-  
+            position = ftell(file);
+
     }
 
     return false;
@@ -231,7 +345,7 @@ bool FBXLoader::ParseObjectProperties(FILE* file, SkinnedMeshModel& model)
     char buffer[2048];
     bool inObjects = false;
 
-    while (fgets(buffer, sizeof(buffer), file)) 
+    while (fgets(buffer, sizeof(buffer), file))
     {
         if (inObjects == false)
         {
@@ -241,68 +355,214 @@ bool FBXLoader::ParseObjectProperties(FILE* file, SkinnedMeshModel& model)
             }
         }
 
-        if (inObjects) 
+        if (inObjects)
         {
             // Geometryフィールドを解析
             if (strstr(buffer, "NodeAttribute"))
             {
+                //FbxNode* node = new FbxNode();
+                //if (!CreateFbxNode(buffer, node))
+                //{
+                //    delete node;
+                //    return false;
+                //}
+                //model.fbxNodes.insert(node->nodeID, node);
                 SkipNode(file);
             }
-            if (strstr(buffer, "Geometry:")) 
+            if (strstr(buffer, "Geometry:"))
             {
-                char GeometryName[128], GeometryType[128];
-                if (sscanf(buffer, " Geometry: %*[^,], \"%[^\"]\", \"%[^\"]\"", GeometryName, GeometryType) != 2)
-                    return false; // Geometryの解析が失敗した
-                if (!ParseGeometry(file, model)) 
-                    return false;  // Geometryの解析が失敗した
+                FbxNode* node = new FbxNode();
+                if (!CreateFbxNode(buffer, node))
+                    return false;
+
+                char geometryNameBuffer[128], geometryTypeBuffer[128];
+                GeometryType geometryType;
+                if (sscanf(buffer, " Geometry: %*[^,], \"%[^\"]\", \"%[^\"]\"", geometryNameBuffer, geometryTypeBuffer) != 2)
+                {
+                    delete node;
+                    return false;   // Geometryの解析が失敗した
+                }
+
+                if (!ParseGeometry(file, model))
+                {
+                    delete node;
+                    return false;   // Geometryの解析が失敗した
+                }
+
+                node->nodeData = static_cast<void*>(model.modelData);
+
+                model.fbxNodes.insert(node->nodeID, node);
+
             }
             // Modelフィールドを解析
             if (strstr(buffer, "Model:"))
             {
+                FbxNode* node = new FbxNode();
+                if (!CreateFbxNode(buffer, node))
+                {
+                    delete node;
+                    return false;
+                }
+                
+
                 char modelName[128], modelType[128];
                 if (sscanf(buffer, " Model: %*[^,], \"%[^\"]\", \"%[^\"]\"", modelName, modelType) != 2)
-                    return false; // Modelの解析が失敗した
-                if (!ParseModel(file, model))
-                    return false;  // Modelの解析が失敗した
+                {
+                    delete node;
+                    return false;   // Modelの解析が失敗した
+                }
+                if (!ParseModel(file, model, node))
+                {
+                    delete node;
+                    return false;   // Modelの解析が失敗した
+                }
+
+                model.fbxNodes.insert(node->nodeID, node);
             }
+
+            // Poseフィールドを解析
             if (strstr(buffer, "Pose:"))
             {
-                SkipNode(file);
+                FbxNode* node = new FbxNode();
+                if (!CreateFbxNode(buffer, node))
+                {
+                    delete node;
+                    return false;
+                }
+                model.fbxNodes.insert(node->nodeID, node);
+                
+                ParseBindPose(file, model, node);
+                //SkipNode(file);
             }
             // Materialフィールドを解析
             if (strstr(buffer, "Material:"))
             {
+                FbxNode* node = new FbxNode();
+                if (!CreateFbxNode(buffer, node))
+                {
+                    delete node;
+                    return false;
+                }
+                model.fbxNodes.insert(node->nodeID, node);
+
                 char materialName[128];
                 if (sscanf(buffer, " Material: %*[^,], \"%[^\"]\", \"%[^\"]\"", materialName) != 1)
-                    return false; // Materialの解析が失敗した
+                {
+                    delete node;
+                    return false;   // Materialの解析が失敗した
+                }
                 if (!ParseMaterial(file, model))
-                    return false;  // Materialの解析が失敗した
+                {
+                    delete node;
+                    return false;   // Materialの解析が失敗した
+                }
             }
             if (strstr(buffer, "Deformer:"))
             {
-                SkipNode(file);
+                FbxNode* node = new FbxNode();
+                if (!CreateFbxNode(buffer, node))
+                {
+                    delete node;
+                    return false;
+                }
+                    
+
+                if (node->nodeType == FbxNodeType::Skin)
+                {
+                    Deformer* deformer = new Deformer();
+                    deformer->boneIdx = 0;
+                    XMStoreFloat4x4(&deformer->Transform, XMMatrixIdentity());
+                    XMStoreFloat4x4(&deformer->TransformLink, XMMatrixIdentity());
+                    node->nodeData = static_cast<void*>(deformer);
+                    SkipNode(file);
+                }
+                else if (!ParseDeformer(file, node))
+                {
+                    delete node;
+                    return false;
+                }
+                model.fbxNodes.insert(node->nodeID, node);
             }
             if (strstr(buffer, "Video:"))
             {
+                FbxNode* node = new FbxNode();
+                if (!CreateFbxNode(buffer, node))
+                {
+                    delete node;
+                    return false;
+                }
+                model.fbxNodes.insert(node->nodeID, node);
+
                 SkipNode(file);
             }
             // Textureフィールドを解析
             if (strstr(buffer, "Texture:"))
             {
+                FbxNode* node = new FbxNode();
+                if (!CreateFbxNode(buffer, node))
+                {
+                    delete node;
+                    return false;
+                }
+                model.fbxNodes.insert(node->nodeID, node);
+
                 if (model.textureName[0] != '\0')
                     SkipNode(file);
                 else
                 {
                     char TextureName[128];
                     if (sscanf(buffer, " Texture: %*[^,], \"%[^\"]\", \"%[^\"]\"", TextureName) != 1)
-                        return false; // Textureの解析が失敗した
+                    {
+                        delete node;
+                        return false;   // Textureの解析が失敗した
+                    }
                     if (!ParseTexture(file, model))
-                        return false;  // Textureの解析が失敗した
+                    {
+                        delete node;
+                        return false;   // Textureの解析が失敗した
+                    }
                 }
 
             }
+            if (strstr(buffer, "AnimationStack"))
+            {
+                FbxNode* node = new FbxNode();
+                if (!CreateFbxNode(buffer, node))
+                {
+                    delete node;
+                    return false;
+                }
+                model.fbxNodes.insert(node->nodeID, node);
+
+
+                SkipNode(file);
+            }
             if (strstr(buffer, "AnimationCurve"))
             {
+                FbxNode* node = new FbxNode();
+                if (!CreateFbxNode(buffer, node))
+                {
+                    delete node;
+                    return false;
+                }
+                model.fbxNodes.insert(node->nodeID, node);
+
+                if (!ParseAnimationCurve(file, node))
+                {
+                    delete node;
+                    return false;
+                }
+            }
+            if (strstr(buffer, "AnimationCurveNode"))
+            {
+                FbxNode* node = new FbxNode();
+                if (!CreateFbxNode(buffer, node))
+                {
+                    delete node;
+                    return false;
+                }
+                model.fbxNodes.insert(node->nodeID, node);
+
                 SkipNode(file);
             }
         }
@@ -349,7 +609,8 @@ bool FBXLoader::ParseGeometry(FILE* file, SkinnedMeshModel& model)
             if (!ParseVertexData(file, model))
                 return false;
         }
-        else if (strstr(buffer, "PolygonVertexIndex:"))
+        else if (strstr(buffer, "PolygonVertexIndex:")
+                || strstr(buffer, "Indexes:"))
         {
             //fseek(file, position, SEEK_SET);
 
@@ -395,7 +656,7 @@ bool FBXLoader::ParseGeometry(FILE* file, SkinnedMeshModel& model)
     return false;  // ファイルが意外に終了した場合
 }
 
-bool FBXLoader::ParseModel(FILE* file, SkinnedMeshModel& model)
+bool FBXLoader::ParseModel(FILE* file, SkinnedMeshModel& model, FbxNode* node)
 {
     char buffer[2048];
     int readCount;
@@ -405,7 +666,7 @@ bool FBXLoader::ParseModel(FILE* file, SkinnedMeshModel& model)
     {
         if (strstr(buffer, "Properties70:"))
         {
-            if (!ParseModelProperty(file, model.modelProperty))
+            if (!ParseModelProperty(file, model.modelProperty, node))
                 return false;
         }
         else if (strstr(buffer, "Culling:"))
@@ -421,6 +682,7 @@ bool FBXLoader::ParseModel(FILE* file, SkinnedMeshModel& model)
         else if (strstr(buffer, "}"))
         {
             // Modelセグメントの終わり
+            model.ModelCount++;
             return true;
         }
 
@@ -447,6 +709,199 @@ bool FBXLoader::ParseMaterial(FILE* file, SkinnedMeshModel& model)
 
         if (strstr(buffer, "}"))
             return true;
+    }
+    return false;
+}
+
+bool FBXLoader::ParseDeformer(FILE* file, FbxNode* node)
+{
+    char buffer[4096];
+    char* ptr;
+    int index;
+    int indexCount = -1;
+    float weight;
+    int weightCount = -1;
+    Deformer* deformer = new Deformer;
+    while (fgets(buffer, sizeof(buffer), file))
+    {
+        if (sscanf(buffer, " Indexes: *%d", &indexCount) == 1)
+        {
+            int IndexFound = 0;
+            while (fgets(buffer, sizeof(buffer), file))
+            {
+                ptr = buffer;
+                if (!IndexFound)
+                {
+                    ptr = strstr(buffer, "a:");
+                    if (ptr)
+                    {
+                        deformer->Index.resize(indexCount);
+                        ptr += strlen("a:");
+                        IndexFound = 1;
+                    }
+                }
+
+                if (IndexFound)
+                {
+                    while (*ptr && isspace((unsigned char)*ptr)) ptr++;
+
+                    if (!isdigit((unsigned char)*ptr) && *ptr != '-' && *ptr != '.')
+                        break;
+
+                    while (sscanf(ptr, "%d", &index) == 1)
+                    {
+                        deformer->Index.push_back(index);
+
+                        while (*ptr != ',' && *ptr != '\0') ptr++;
+                        if (*ptr == ',') ptr++;
+                    }
+                }
+            }
+        }
+        else if (sscanf(buffer, " Weights: *%d", &weightCount) == 1)
+        {
+            int WeightFound = 0;
+            while (fgets(buffer, sizeof(buffer), file))
+            {
+                ptr = buffer;
+                if (!WeightFound)
+                {
+                    ptr = strstr(buffer, "a:");
+                    if (ptr)
+                    {
+                        deformer->Weights.resize(weightCount);
+                        ptr += strlen("a:");
+                        WeightFound = 1;
+                    }
+                }
+
+                if (WeightFound)
+                {
+                    while (*ptr && isspace((unsigned char)*ptr)) ptr++;
+
+                    if (!isdigit((unsigned char)*ptr) && *ptr != '-' && *ptr != '.')
+                        break;
+
+                    while (sscanf(ptr, "%f", &weight) == 1)
+                    {
+                        deformer->Weights.push_back(weight);
+
+                        while (*ptr != ',' && *ptr != '\0') ptr++;
+                        if (*ptr == ',') ptr++;
+                    }
+                }
+            }
+        }
+        else if (strstr(buffer, "Transform:"))
+        {
+            int TransformFound = 0;
+            SimpleArray<float> transformArray;
+            while (fgets(buffer, sizeof(buffer), file))
+            {
+                ptr = buffer;
+                if (!TransformFound)
+                {
+                    ptr = strstr(buffer, "a:");
+                    if (ptr)
+                    {
+                        ptr += strlen("a:");
+                        TransformFound = 1;
+                    }
+                }
+
+                if (TransformFound)
+                {
+                    while (*ptr && isspace((unsigned char)*ptr)) ptr++;
+
+                    if (!isdigit((unsigned char)*ptr) && *ptr != '-' && *ptr != '.')
+                        break;
+
+                    while (sscanf(ptr, "%f", &weight) == 1)
+                    {
+                        transformArray.push_back(weight);
+
+                        while (*ptr != ',' && *ptr != '\0') ptr++;
+                        if (*ptr == ',') ptr++;
+                    }
+                }
+            }
+            if (transformArray.getSize() != 16)
+            {
+                delete deformer;
+                return false;
+            }
+                
+            int index = 0;
+            for (int col = 0; col < 4; col++) 
+            {
+                for (int row = 0; row < 4; row++) 
+                {
+                    deformer->Transform.m[col][row] = transformArray[index++];
+                }
+            }
+        }
+        else if (strstr(buffer, "TransformLink:"))
+        {
+            int TransformLinkFound = 0;
+            SimpleArray<float> transformArrayLink;
+            while (fgets(buffer, sizeof(buffer), file))
+            {
+                ptr = buffer;
+                if (!TransformLinkFound)
+                {
+                    ptr = strstr(buffer, "a:");
+                    if (ptr)
+                    {
+                        ptr += strlen("a:");
+                        TransformLinkFound = 1;
+                    }
+                }
+
+                if (TransformLinkFound)
+                {
+                    while (*ptr && isspace((unsigned char)*ptr)) ptr++;
+
+                    if (!isdigit((unsigned char)*ptr) && *ptr != '-' && *ptr != '.')
+                        break;
+
+                    while (sscanf(ptr, "%f", &weight) == 1)
+                    {
+                        transformArrayLink.push_back(weight);
+
+                        while (*ptr != ',' && *ptr != '\0') ptr++;
+                        if (*ptr == ',') ptr++;
+                    }
+                }
+            }
+            if (transformArrayLink.getSize() != 16)
+            {
+                delete deformer;
+                return false;
+            }
+            int index = 0;
+            for (int col = 0; col < 4; col++)
+            {
+                for (int row = 0; row < 4; row++)
+                {
+                    deformer->TransformLink.m[col][row] = transformArrayLink[index++];
+                }
+            }
+        }
+        else if (strstr(buffer, "}"))
+        {
+            if (deformer->Weights.getSize() == weightCount &&
+                deformer->Index.getSize() == indexCount)
+            {
+                node->nodeData = static_cast<void*>(deformer);
+            }
+            else
+            {
+                delete deformer;
+            }
+                
+            return true;
+        }
+            
     }
     return false;
 }
@@ -598,7 +1053,7 @@ bool FBXLoader::ParseMaterialProperty(FILE* file, Material& material)
     return false;
 }
 
-bool FBXLoader::ParseModelProperty(FILE* file, ModelProperty& modelProperty)
+bool FBXLoader::ParseModelProperty(FILE* file, ModelProperty& modelProperty, FbxNode* node)
 {
     char buffer[2048];
     double value;
@@ -1026,6 +1481,13 @@ bool FBXLoader::ParseModelProperty(FILE* file, ModelProperty& modelProperty)
         if (strstr(buffer, "}"))
         {
             // ModelPropertyセグメントの終わり
+            if (node)
+            {
+                ModelProperty* property = new ModelProperty(modelProperty);
+                modelProperty.Clear();
+                node->nodeData = static_cast<void*>(property);
+            }
+                
             return true;
         }
 
@@ -1071,7 +1533,7 @@ bool FBXLoader::ParseVertexData(FILE* file, SkinnedMeshModel& model)
                 }
                 if (count == 3) 
                 {
-                    VERTEX_3D newVertex;
+                    SKINNED_VERTEX_3D_TEMP newVertex;
                     newVertex.Position.x = vertexPos[0];
                     newVertex.Position.y = vertexPos[1];
                     newVertex.Position.z = vertexPos[2];
@@ -1520,12 +1982,308 @@ bool FBXLoader::ParseTexture(FILE* file, SkinnedMeshModel& model)
 
 bool FBXLoader::ParseObjectConnections(FILE* file, SkinnedMeshModel& model)
 {
+    char buffer[512];
+    uint64_t nodeID1, nodeID2;
+
+    while (fgets(buffer, sizeof(buffer), file))
+    {
+        char attributeType[64];
+        if (sscanf(buffer, " C: \"OO\",%llu,%llu", &nodeID1, &nodeID2) == 2)
+        {
+            FbxNode** ppChildNode = model.fbxNodes.search(nodeID1);
+            FbxNode** ppParentNode = model.fbxNodes.search(nodeID2);
+            if (ppChildNode == nullptr || ppParentNode == nullptr) continue;
+
+            (*ppChildNode)->parentNode = *ppParentNode;
+            (*ppParentNode)->childNodes.push_back(*ppChildNode);
+        }
+        else if (sscanf(buffer, " C: \"OP\",%llu,%llu, \"%[^\"]\"", &nodeID1, &nodeID2, &attributeType) == 3)
+        {
+            FbxNode** ppChildNode = model.fbxNodes.search(nodeID1);
+            FbxNode** ppParentNode = model.fbxNodes.search(nodeID2);
+            if (ppChildNode == nullptr || ppParentNode == nullptr) continue;
+
+            if (strcmp(attributeType, "d|X") == 0)
+            {
+                AnimationCurveNode* animationCurveNode = static_cast<AnimationCurveNode*>((*ppParentNode)->nodeData);
+                if (animationCurveNode == nullptr)
+                    animationCurveNode = new AnimationCurveNode();
+                animationCurveNode->dX = (*ppChildNode)->nodeID;
+                (*ppParentNode)->nodeData = static_cast<void*>(animationCurveNode);
+            }
+            else if (strcmp(attributeType, "d|Y") == 0)
+            {
+                AnimationCurveNode* animationCurveNode = static_cast<AnimationCurveNode*>((*ppParentNode)->nodeData);
+                if (animationCurveNode == nullptr)
+                    animationCurveNode = new AnimationCurveNode();
+                animationCurveNode->dY = (*ppChildNode)->nodeID;
+                (*ppParentNode)->nodeData = static_cast<void*>(animationCurveNode);
+            }
+            else if (strcmp(attributeType, "d|Z") == 0)
+            {
+                AnimationCurveNode* animationCurveNode = static_cast<AnimationCurveNode*>((*ppParentNode)->nodeData);
+                if (animationCurveNode == nullptr)
+                    animationCurveNode = new AnimationCurveNode();
+                animationCurveNode->dZ = (*ppChildNode)->nodeID;
+                (*ppParentNode)->nodeData = static_cast<void*>(animationCurveNode);
+            }
+            else if (strcmp(attributeType, "Lcl Translation") == 0)
+            {
+                LimbNodeAnimation* limbNodeAnimation = static_cast<LimbNodeAnimation*>((*ppParentNode)->limbNodeAnimation);
+                if (limbNodeAnimation == nullptr)
+                    limbNodeAnimation = new LimbNodeAnimation();
+                limbNodeAnimation->LclTranslation = (*ppChildNode)->nodeID;
+                (*ppParentNode)->limbNodeAnimation = static_cast<void*>(limbNodeAnimation);
+            }
+            else if (strcmp(attributeType, "Lcl Rotation") == 0)
+            {
+                LimbNodeAnimation* limbNodeAnimation = static_cast<LimbNodeAnimation*>((*ppParentNode)->limbNodeAnimation);
+                if (limbNodeAnimation == nullptr)
+                    limbNodeAnimation = new LimbNodeAnimation();
+                limbNodeAnimation->LclRot = (*ppChildNode)->nodeID;
+                (*ppParentNode)->limbNodeAnimation = static_cast<void*>(limbNodeAnimation);
+            }
+            else if (strcmp(attributeType, "Lcl Scaling") == 0)
+            {
+                LimbNodeAnimation* limbNodeAnimation = static_cast<LimbNodeAnimation*>((*ppParentNode)->limbNodeAnimation);
+                if (limbNodeAnimation == nullptr)
+                    limbNodeAnimation = new LimbNodeAnimation();
+                limbNodeAnimation->LclScl = (*ppChildNode)->nodeID;
+                (*ppParentNode)->limbNodeAnimation = static_cast<void*>(limbNodeAnimation);
+            }
+            (*ppChildNode)->parentNode = *ppParentNode;
+            (*ppParentNode)->childNodes.push_back(*ppChildNode);
+        }
+        else if (strstr(buffer, "}"))
+            return true;
+    }
     return true;
+}
+
+bool FBXLoader::ParseBindPose(FILE* file, SkinnedMeshModel& model, FbxNode* node)
+{
+    char buffer[4096];
+    char* ptr;
+    uint64_t modelNodeID;
+    XMFLOAT4X4 mtxBindPose{};
+    int count = 0;
+    while (fgets(buffer, sizeof(buffer), file))
+    {
+        if (strstr(buffer, "NbPoseNodes:"))
+        {
+            if (sscanf(buffer, " NbPoseNodes: %d", &model.bindPose.numePoseNodes) != 1)
+            {
+                return false;
+            }
+        }
+        else if (strstr(buffer, "PoseNode:"))
+        {
+            while (fgets(buffer, sizeof(buffer), file))
+            {
+
+                if (strstr(buffer, "Node:"))
+                {
+                    if (sscanf(buffer, " Node: %llu", &modelNodeID) != 1)
+                    {
+                        return false;
+                    }
+                }
+
+                else if (strstr(buffer, "Matrix:"))
+                {
+                    int matrixFound = 0;
+                    SimpleArray<float> matrixArray;
+                    float mtxEntry;
+                    while (fgets(buffer, sizeof(buffer), file))
+                    {
+                        ptr = buffer;
+                        if (!matrixFound)
+                        {
+                            ptr = strstr(buffer, "a:");
+                            if (ptr)
+                            {
+                                ptr += strlen("a:");
+                                matrixFound = 1;
+                            }
+                        }
+
+                        if (matrixFound)
+                        {
+                            while (*ptr && isspace((unsigned char)*ptr)) ptr++;
+
+                            if (!isdigit((unsigned char)*ptr) && *ptr != '-' && *ptr != '.')
+                                break;
+
+                            while (sscanf(ptr, "%f", &mtxEntry) == 1)
+                            {
+                                matrixArray.push_back(mtxEntry);
+
+                                while (*ptr != ',' && *ptr != '\0') ptr++;
+                                if (*ptr == ',') ptr++;
+                            }
+                        }
+                    }
+                    if (matrixArray.getSize() != 16)
+                    {
+                        return false;
+                    }
+
+                    int index = 0;
+                    for (int col = 0; col < 4; col++)
+                    {
+                        for (int row = 0; row < 4; row++)
+                        {
+                            mtxBindPose.m[col][row] = matrixArray[index++];
+                        }
+                    }
+                }
+                else if (strstr(buffer, "}"))
+                {
+                    model.bindPose.mtxBindPoses.insert(modelNodeID, mtxBindPose);
+                    count++;
+                    break;
+                }
+                    
+            }
+        }
+        else if (strstr(buffer, "}"))
+        {
+            if (count != model.bindPose.numePoseNodes)
+            {
+                model.bindPose.numePoseNodes = 0;
+                model.bindPose.mtxBindPoses.clear();
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+
+        }
+    }
+    return false;
+}
+
+bool FBXLoader::ParseAnimationCurve(FILE* file, FbxNode* node)
+{
+    char buffer[4096];
+    char* ptr;
+    AnimationCurve* animationCurve = new AnimationCurve();
+    while (fgets(buffer, sizeof(buffer), file))
+    {
+        if (strstr(buffer, "Default:"))
+        {
+            if (sscanf(buffer, " Default: %f", &animationCurve->DefaultValue) != 1)
+            {
+                delete animationCurve; 
+                return false;
+            }
+        }
+        else if (strstr(buffer, "KeyTime:"))
+        {
+            int keyTimeFound = 0;
+            uint64_t keyTime;
+            while (fgets(buffer, sizeof(buffer), file))
+            {
+                ptr = buffer;
+                if (!keyTimeFound)
+                {
+                    ptr = strstr(buffer, "a:");
+                    if (ptr)
+                    {
+                        ptr += strlen("a:");
+                        keyTimeFound = 1;
+                    }
+                }
+
+                if (keyTimeFound)
+                {
+                    while (*ptr && isspace((unsigned char)*ptr)) ptr++;
+
+                    if (!isdigit((unsigned char)*ptr) && *ptr != '-' && *ptr != '.')
+                        break;
+
+                    while (sscanf(ptr, "%llu", &keyTime) == 1)
+                    {
+                        animationCurve->KeyTime.push_back(keyTime);
+
+                        while (*ptr != ',' && *ptr != '\0') ptr++;
+                        if (*ptr == ',') ptr++;
+                    }
+                }
+            }
+        }
+        else if (strstr(buffer, "KeyValueFloat:"))
+        {
+            int keyValueFound = 0;
+            float keyValue;
+            while (fgets(buffer, sizeof(buffer), file))
+            {
+                ptr = buffer;
+                if (!keyValueFound)
+                {
+                    ptr = strstr(buffer, "a:");
+                    if (ptr)
+                    {
+                        ptr += strlen("a:");
+                        keyValueFound = 1;
+                    }
+                }
+
+                if (keyValueFound)
+                {
+                    while (*ptr && isspace((unsigned char)*ptr)) ptr++;
+
+                    if (!isdigit((unsigned char)*ptr) && *ptr != '-' && *ptr != '.')
+                        break;
+
+                    while (sscanf(ptr, "%f", &keyValue) == 1)
+                    {
+                        animationCurve->KeyValue.push_back(keyValue);
+
+                        while (*ptr != ',' && *ptr != '\0') ptr++;
+                        if (*ptr == ',') ptr++;
+                    }
+                }
+            }
+        }
+        else if (strstr(buffer, "KeyAttrFlags"))
+        {
+            if(strstr(buffer, "{"))
+                SkipNode(file);
+        }
+        else if (strstr(buffer, "KeyAttrDataFloat"))
+        {
+            if (strstr(buffer, "{"))
+                SkipNode(file);
+        }
+        else if (strstr(buffer, "KeyAttrRefCount:"))
+        {
+            SkipNode(file);
+        }
+        else if (strstr(buffer, "}"))
+        {
+            if (animationCurve->KeyTime.getSize() != animationCurve->KeyValue.getSize())
+            {
+                delete animationCurve;
+                return false;
+            }
+            else
+            {
+                animationCurve->KeyAttrRefCount = animationCurve->KeyTime.getSize();
+                node->nodeData = static_cast<void*>(animationCurve);
+                return true;
+            }
+
+        }
+
+    }
+    return false;
 }
 
 void FBXLoader::SkipNode(FILE* file)
 {
-    char buffer[512];
+    char buffer[4096];
     int bracket = 1;
     long int pos = 0;
     while (fgets(buffer, sizeof(buffer), file))
@@ -1539,4 +2297,76 @@ void FBXLoader::SkipNode(FILE* file)
 
         pos = ftell(file);
     }
+}
+
+void FBXLoader::HandleDeformer(FbxNode* node, ModelData* data, SkinnedMeshModel& model, int curIdx, int prevIdx)
+{
+    
+    Deformer* deformer = static_cast<Deformer*>(node->nodeData);
+    if (deformer)
+    {
+        deformer->boneIdx = curIdx;
+        model.mBoneHierarchy.push_back(prevIdx);
+        model.deformerHashMap.insert(curIdx, node->nodeID);
+        model.mBoneOffsets.push_back(deformer->TransformLink);
+        model.mBoneToParentTransforms.push_back(deformer->Transform);
+
+        for (int i = 0; i < deformer->Index.getSize(); i++)
+        {
+            int vertexIdx = deformer->Index[i];
+            float weight = deformer->Weights[i];
+            model.modelData->VerticesTemp[vertexIdx].BoneIndices.push_back(curIdx);
+            model.modelData->VerticesTemp[vertexIdx].Weights.push_back(weight);
+
+        }
+       
+        model.modelData->IndexNum += deformer->Index.getSize();
+
+        for (int i = 0; i < node->childNodes.getSize(); i++)
+        {
+            if (node->childNodes[i]->nodeType == FbxNodeType::Cluster)
+            {
+                int prev = deformer->boneIdx;
+                curIdx++;
+                HandleDeformer(node->childNodes[i], data, model, curIdx, prev);
+            }
+            else if (node->childNodes[i]->nodeType == FbxNodeType::LimbNode)
+            {
+                model.deformerToLimb.insert(node->nodeID, node->childNodes[i]->nodeID);
+            }
+
+        }
+    }
+}
+
+
+bool FBXLoader::CreateFbxNode(char* buffer, FbxNode* fbxNode)
+{
+    char nodeNameBuffer[128];
+    char nodeTypeBuffer[128];
+    char nodeBuffer[128];
+    FbxNodeType nodeType = FbxNodeType::None;
+    uint64_t nodeID;
+    if (sscanf(buffer, " %[^:]: %lld, \"%[^\"]\", \"%[^\"]\"", nodeBuffer, &nodeID, nodeNameBuffer, nodeTypeBuffer) < 2)
+        return false;
+    if (strcmp(nodeTypeBuffer, "LimbNode") == 0)
+        nodeType = FbxNodeType::LimbNode;
+    else if (strcmp(nodeTypeBuffer, "Mesh") == 0)
+        nodeType = FbxNodeType::Mesh;
+    else if (strcmp(nodeTypeBuffer, "Skin") == 0)
+        nodeType = FbxNodeType::Skin;
+    else if (strcmp(nodeTypeBuffer, "Cluster") == 0)
+        nodeType = FbxNodeType::Cluster;
+    else if (strcmp(nodeTypeBuffer, "BindPose") == 0)
+        nodeType = FbxNodeType::BindPose;
+    else if (strcmp(nodeBuffer, "AnimationCurve") == 0)
+        nodeType = FbxNodeType::AnimationCurve;
+    else if (strcmp(nodeBuffer, "AnimationCurveNode") == 0)
+        nodeType = FbxNodeType::AnimationCurveNode;
+
+    fbxNode->nodeID = nodeID;
+    strcpy(fbxNode->nodeName, nodeNameBuffer);
+    fbxNode->nodeType = nodeType;
+
+    return true;
 }

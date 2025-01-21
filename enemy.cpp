@@ -356,59 +356,59 @@ void Enemy::PlayEnemyWalkAnim(void)
 //=============================================================================
 // 頂点情報の作成
 //=============================================================================
-HRESULT MakeVertexHPGauge(int width, int height)
-{
-	// 頂点バッファ生成
-	D3D11_BUFFER_DESC bd;
-	ZeroMemory(&bd, sizeof(bd));
-	bd.Usage = D3D11_USAGE_DYNAMIC;
-	bd.ByteWidth = sizeof(VERTEX_3D) * 4;
-	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
-	GetDevice()->CreateBuffer(&bd, NULL, &g_VertexBuffer);
-
-	// 頂点バッファに値をセットする
-	D3D11_MAPPED_SUBRESOURCE msr;
-	GetDeviceContext()->Map(g_VertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &msr);
-
-	VERTEX_3D* vertex = (VERTEX_3D*)msr.pData;
-
-	float fWidth = width;
-	float fHeight = height;
-
-	// 頂点座標の設定
-	//vertex[0].Position = XMFLOAT3(-fWidth / 2.0f, fHeight, 0.0f);
-	//vertex[1].Position = XMFLOAT3(fWidth / 2.0f, fHeight, 0.0f);
-	//vertex[2].Position = XMFLOAT3(-fWidth / 2.0f, 0.0f, 0.0f);
-	//vertex[3].Position = XMFLOAT3(fWidth / 2.0f, 0.0f, 0.0f);
-	vertex[0].Position = XMFLOAT3(0.0f, fHeight, 0.0f);
-	vertex[1].Position = XMFLOAT3(fWidth, fHeight, 0.0f);
-	vertex[2].Position = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	vertex[3].Position = XMFLOAT3(fWidth, 0.0f, 0.0f);
-
-	// 法線の設定
-	vertex[0].Normal = XMFLOAT3(0.0f, 0.0f, -1.0f);
-	vertex[1].Normal = XMFLOAT3(0.0f, 0.0f, -1.0f);
-	vertex[2].Normal = XMFLOAT3(0.0f, 0.0f, -1.0f);
-	vertex[3].Normal = XMFLOAT3(0.0f, 0.0f, -1.0f);
-
-	// 拡散光の設定
-	vertex[0].Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	vertex[1].Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	vertex[2].Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	vertex[3].Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-
-	// テクスチャ座標の設定
-	vertex[0].TexCoord = XMFLOAT2(0.0f, 0.0f);
-	vertex[1].TexCoord = XMFLOAT2(1.0f, 0.0f);
-	vertex[2].TexCoord = XMFLOAT2(0.0f, 1.0f);
-	vertex[3].TexCoord = XMFLOAT2(1.0f, 1.0f);
-
-	GetDeviceContext()->Unmap(g_VertexBuffer, 0);
-
-	return S_OK;
-}
+//HRESULT MakeVertexHPGauge(int width, int height)
+//{
+//	// 頂点バッファ生成
+//	D3D11_BUFFER_DESC bd;
+//	ZeroMemory(&bd, sizeof(bd));
+//	bd.Usage = D3D11_USAGE_DYNAMIC;
+//	bd.ByteWidth = sizeof(VERTEX_3D) * 4;
+//	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+//	bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+//
+//	renderer.GetDevice()->CreateBuffer(&bd, NULL, &g_VertexBuffer);
+//
+//	// 頂点バッファに値をセットする
+//	D3D11_MAPPED_SUBRESOURCE msr;
+//	renderer.GetDeviceContext()->Map(g_VertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &msr);
+//
+//	VERTEX_3D* vertex = (VERTEX_3D*)msr.pData;
+//
+//	float fWidth = width;
+//	float fHeight = height;
+//
+//	// 頂点座標の設定
+//	//vertex[0].Position = XMFLOAT3(-fWidth / 2.0f, fHeight, 0.0f);
+//	//vertex[1].Position = XMFLOAT3(fWidth / 2.0f, fHeight, 0.0f);
+//	//vertex[2].Position = XMFLOAT3(-fWidth / 2.0f, 0.0f, 0.0f);
+//	//vertex[3].Position = XMFLOAT3(fWidth / 2.0f, 0.0f, 0.0f);
+//	vertex[0].Position = XMFLOAT3(0.0f, fHeight, 0.0f);
+//	vertex[1].Position = XMFLOAT3(fWidth, fHeight, 0.0f);
+//	vertex[2].Position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+//	vertex[3].Position = XMFLOAT3(fWidth, 0.0f, 0.0f);
+//
+//	// 法線の設定
+//	vertex[0].Normal = XMFLOAT3(0.0f, 0.0f, -1.0f);
+//	vertex[1].Normal = XMFLOAT3(0.0f, 0.0f, -1.0f);
+//	vertex[2].Normal = XMFLOAT3(0.0f, 0.0f, -1.0f);
+//	vertex[3].Normal = XMFLOAT3(0.0f, 0.0f, -1.0f);
+//
+//	// 拡散光の設定
+//	vertex[0].Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+//	vertex[1].Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+//	vertex[2].Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+//	vertex[3].Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+//
+//	// テクスチャ座標の設定
+//	vertex[0].TexCoord = XMFLOAT2(0.0f, 0.0f);
+//	vertex[1].TexCoord = XMFLOAT2(1.0f, 0.0f);
+//	vertex[2].TexCoord = XMFLOAT2(0.0f, 1.0f);
+//	vertex[3].TexCoord = XMFLOAT2(1.0f, 1.0f);
+//
+//	renderer.GetDeviceContext()->Unmap(g_VertexBuffer, 0);
+//
+//	return S_OK;
+//}
 
 //=============================================================================
 // 初期化処理
@@ -540,7 +540,7 @@ void Enemy::Update(void)
 void Enemy::Draw(void)
 {
 	// ワールドマトリックスの設定
-	SetCurrentWorldMatrix(&instance.transform.mtxWorld);
+	renderer.SetCurrentWorldMatrix(&instance.transform.mtxWorld);
 
 	// モデル描画
 	this->DrawModelEditor();
@@ -582,7 +582,7 @@ void EnemyManager::SpawnEnemy(char* enemyPath, Transform trans, MoveTable moveTb
 void EnemyManager::Draw(void)
 {
 	// カリング無効
-	SetCullingMode(CULL_MODE_NONE);
+	renderer.SetCullingMode(CULL_MODE_NONE);
 
 	Node<Enemy*>* cur = enemyList.getHead();
 	while (cur != nullptr)
@@ -593,7 +593,7 @@ void EnemyManager::Draw(void)
 	}
 
 	// カリング設定を戻す
-	SetCullingMode(CULL_MODE_BACK);
+	renderer.SetCullingMode(CULL_MODE_BACK);
 }
 
 void EnemyManager::Update(void)

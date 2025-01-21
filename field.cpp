@@ -22,6 +22,7 @@
 
 #define	SIZE_WH			(100.0f)				// 地面のサイズ
 
+static Renderer& renderer = Renderer::get_instance();
 //*****************************************************************************
 // プロトタイプ宣言
 //*****************************************************************************
@@ -61,7 +62,7 @@ HRESULT InitField(void)
 	// テクスチャ生成
 	for (int i = 0; i < TEXTURE_MAX; i++)
 	{
-		D3DX11CreateShaderResourceViewFromFile(GetDevice(),
+		D3DX11CreateShaderResourceViewFromFile(renderer.GetDevice(),
 			g_TextureName[i],
 			NULL,
 			NULL,
@@ -148,20 +149,20 @@ void DrawField(void)
 	// 頂点バッファ設定
 	UINT stride = sizeof(VERTEX_3D);
 	UINT offset = 0;
-	GetDeviceContext()->IASetVertexBuffers(0, 1, &g_VertexBuffer, &stride, &offset);
+	renderer.GetDeviceContext()->IASetVertexBuffers(0, 1, &g_VertexBuffer, &stride, &offset);
 
 	// プリミティブトポロジ設定
-	GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	renderer.GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 	// マテリアル設定
 	MATERIAL material;
 	ZeroMemory(&material, sizeof(material));
 	material.Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	material.Ambient = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
-	SetMaterial(material);
+	renderer.SetMaterial(material);
 
 	// テクスチャ設定
-	GetDeviceContext()->PSSetShaderResources(0, 1, &g_Texture[g_TexNo]);
+	renderer.GetDeviceContext()->PSSetShaderResources(0, 1, &g_Texture[g_TexNo]);
 
 
 	XMMATRIX mtxScl, mtxRot, mtxTranslate, mtxWorld;
@@ -182,13 +183,13 @@ void DrawField(void)
 	mtxWorld = XMMatrixMultiply(mtxWorld, mtxTranslate);
 
 	// ワールドマトリックスの設定
-	SetCurrentWorldMatrix(&mtxWorld);
+	renderer.SetCurrentWorldMatrix(&mtxWorld);
 
 	XMStoreFloat4x4(&g_Field.mtxWorld, mtxWorld);
 
 
 	// ポリゴン描画
-	GetDeviceContext()->Draw(4, 0);		// 4頂点分を0番目の頂点番号から描画
+	renderer.GetDeviceContext()->Draw(4, 0);		// 4頂点分を0番目の頂点番号から描画
 
 }
 
@@ -208,7 +209,7 @@ HRESULT MakeVertexField(void)
 	ZeroMemory(&sd, sizeof(sd));
 	sd.pSysMem = g_VertexArray;
 
-	GetDevice()->CreateBuffer(&bd, &sd, &g_VertexBuffer);
+	renderer.GetDevice()->CreateBuffer(&bd, &sd, &g_VertexBuffer);
 
 	return S_OK;
 }

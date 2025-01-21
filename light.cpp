@@ -32,7 +32,7 @@ static FOG		g_Fog;
 
 static BOOL		g_FogEnable = FALSE;
 
-
+static Renderer& renderer = Renderer::get_instance();
 //=============================================================================
 // 初期化処理
 //=============================================================================
@@ -49,7 +49,7 @@ void InitLight(void)
 		g_Light[i].Attenuation = 100.0f;	// 減衰距離
 		g_Light[i].Type = LIGHT_TYPE_NONE;	// ライトのタイプ
 		g_Light[i].Enable = FALSE;			// ON / OFF
-		SetLight(i, &g_Light[i]);
+		renderer.SetLight(i, &g_Light[i]);
 
 		g_LightViewProj.ProjView[i] = XMMatrixIdentity();
 	}
@@ -62,8 +62,8 @@ void InitLight(void)
 	g_Fog.FogStart = 100.0f;									// 視点からこの距離離れるとフォグがかかり始める
 	g_Fog.FogEnd   = 250.0f;									// ここまで離れるとフォグの色で見えなくなる
 	g_Fog.FogColor = XMFLOAT4( 0.0f, 0.0f, 0.0f, 1.0f );		// フォグの色
-	SetFog(&g_Fog);
-	SetFogEnable(g_FogEnable);				// 他の場所もチェックする shadow
+	renderer.SetFog(&g_Fog);
+	renderer.SetFogEnable(g_FogEnable);				// 他の場所もチェックする shadow
 
 }
 
@@ -92,7 +92,7 @@ void UpdateLight(void)
 	g_Light[0].Position = XMFLOAT3(0.0f, 0.0f, 0.0f); // player->trans[ALL].pos;
 	g_Light[0].Position.y += 11;
 	g_Light[0].Ambient = XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
-	SetLight(0, &g_Light[0]);
+	renderer.SetLight(0, &g_Light[0]);
 	XMFLOAT3 targetPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	XMFLOAT3 lightUp = { 0.0f, 1.0f, 0.0f };
 	XMVECTOR pos = XMLoadFloat3(&g_Light[0].Position);
@@ -127,7 +127,7 @@ void UpdateLight(void)
 	lightProj = XMMatrixOrthographicLH(SCREEN_WIDTH * 1.2f, SCREEN_HEIGHT * 1.2f, VIEW_NEAR_Z, VIEW_FAR_Z);
 	g_LightViewProj.ProjView[1] = XMMatrixTranspose(lightView * lightProj);
 
-	SetLight(1, &g_Light[1]);									// これで設定している
+	renderer.SetLight(1, &g_Light[1]);									// これで設定している
 
 	if (GetKeyboardTrigger(DIK_L))
 	{
@@ -148,7 +148,7 @@ void SetLightViewProjBuffer(int lightIdx)
 {
 	g_LightViewProj.LightIndex = lightIdx;
 	//SetLightProjView2(&g_LightViewProj.ProjView[lightIdx]);
-	SetLightProjView(&g_LightViewProj);
+	renderer.SetLightProjView(&g_LightViewProj);
 }
 
 
@@ -158,7 +158,7 @@ void SetLightViewProjBuffer(int lightIdx)
 //=============================================================================
 void SetLightData(int index, LIGHT *light)
 {
-	SetLight(index, light);
+	renderer.SetLight(index, light);
 }
 
 
@@ -173,7 +173,7 @@ LIGHT *GetLightData(int index)
 //=============================================================================
 void SetFogData(FOG *fog)
 {
-	SetFog(fog);
+	renderer.SetFog(fog);
 }
 
 

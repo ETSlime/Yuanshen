@@ -27,6 +27,7 @@ static ID3D11Buffer* g_OffScreenCBuffer = NULL;
 static ID3D11RenderTargetView* g_OffScreenRTV = NULL;
 
 static float g_ClearColor[4] = { 0.3f, 0.3f, 0.3f, 1.0f };	// 背景色
+static Renderer& renderer = Renderer::get_instance();
 //=============================================================================
 // 初期化処理
 //=============================================================================
@@ -43,11 +44,11 @@ HRESULT InitOffScreenRender()
 	textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 
 	ID3D11Texture2D* renderTargetTexture = nullptr;
-	GetDevice()->CreateTexture2D(&textureDesc, nullptr, &renderTargetTexture);
+	renderer.GetDevice()->CreateTexture2D(&textureDesc, nullptr, &renderTargetTexture);
 
-	GetDevice()->CreateRenderTargetView(renderTargetTexture, nullptr, &g_OffScreenRTV);
+	renderer.GetDevice()->CreateRenderTargetView(renderTargetTexture, nullptr, &g_OffScreenRTV);
 
-	GetDevice()->CreateShaderResourceView(renderTargetTexture, nullptr, &g_OffScreenSRV);
+	renderer.GetDevice()->CreateShaderResourceView(renderTargetTexture, nullptr, &g_OffScreenSRV);
 
 	float centerX = SCREEN_WIDTH / 2.0f;
 	float centerY = SCREEN_HEIGHT / 2.0f;
@@ -63,11 +64,11 @@ HRESULT InitOffScreenRender()
 	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-	GetDevice()->CreateBuffer(&bd, NULL, &g_VertexBuffer);
+	renderer.GetDevice()->CreateBuffer(&bd, NULL, &g_VertexBuffer);
 
 	SetSprite(g_VertexBuffer, centerX * 1.75f, centerY * .25, smallScreenWidth, smallScreenHeight, 0.0f, 0.0f, 1.0f, 1.0f);
 
-	GetDeviceContext()->Unmap(g_VertexBuffer, 0);
+	renderer.GetDeviceContext()->Unmap(g_VertexBuffer, 0);
 
 	// 定数バッファ生成
 	D3D11_BUFFER_DESC hBufferDesc;
@@ -79,9 +80,9 @@ HRESULT InitOffScreenRender()
 	hBufferDesc.StructureByteStride = sizeof(float);
 
 	//ワールドマトリクス
-	GetDevice()->CreateBuffer(&hBufferDesc, NULL, &g_OffScreenCBuffer);
-	GetDeviceContext()->VSSetConstantBuffers(10, 1, &g_OffScreenCBuffer);
-	GetDeviceContext()->PSSetConstantBuffers(10, 1, &g_OffScreenCBuffer);
+	renderer.GetDevice()->CreateBuffer(&hBufferDesc, NULL, &g_OffScreenCBuffer);
+	renderer.GetDeviceContext()->VSSetConstantBuffers(10, 1, &g_OffScreenCBuffer);
+	renderer.GetDeviceContext()->PSSetConstantBuffers(10, 1, &g_OffScreenCBuffer);
 
 	return S_OK;
 
@@ -99,42 +100,42 @@ void DrawOffScreenRender(void)
 {
 	SetOffScreenModeBuffer(1);
 
-	ResetRenderTarget();
+	renderer.ResetRenderTarget();
 
 	//// テクスチャ設定
-	GetDeviceContext()->PSSetShaderResources(7, 1, &g_OffScreenSRV);
+	renderer.GetDeviceContext()->PSSetShaderResources(7, 1, &g_OffScreenSRV);
 
-	SetWorldViewProjection2D();
+	renderer.SetWorldViewProjection2D();
 
 	MATERIAL material;
 	ZeroMemory(&material, sizeof(material));
 	material.Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	material.noTexSampling = TRUE;
-	SetMaterial(material);
+	renderer.SetMaterial(material);
 
 	UINT stride = sizeof(VERTEX_3D);
 	UINT offset = 0;
-	GetDeviceContext()->IASetVertexBuffers(0, 1, &g_VertexBuffer, &stride, &offset);
+	renderer.GetDeviceContext()->IASetVertexBuffers(0, 1, &g_VertexBuffer, &stride, &offset);
 
 	// プリミティブトポロジ設定
-	GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	renderer.GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 
 	// ポリゴンの描画
-	GetDeviceContext()->Draw(4, 0);
+	renderer.GetDeviceContext()->Draw(4, 0);
 
 	SetOffScreenModeBuffer(0);
 }
 
 void SetOffScreenRender(void)
 {
-	GetDeviceContext()->OMSetRenderTargets(1, &g_OffScreenRTV, nullptr);
-	GetDeviceContext()->ClearRenderTargetView(g_OffScreenRTV, g_ClearColor);
+	renderer.GetDeviceContext()->OMSetRenderTargets(1, &g_OffScreenRTV, nullptr);
+	renderer.GetDeviceContext()->ClearRenderTargetView(g_OffScreenRTV, g_ClearColor);
 }
 
 void SetOffScreenModeBuffer(int mode)
 {
 	OffSCREEN_CBUFFER md;
 	md.mode = mode;
-	GetDeviceContext()->UpdateSubresource(g_OffScreenCBuffer, 0, NULL, &md, 0, 0);
+	renderer.GetDeviceContext()->UpdateSubresource(g_OffScreenCBuffer, 0, NULL, &md, 0, 0);
 }

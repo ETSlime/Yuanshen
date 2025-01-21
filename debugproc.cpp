@@ -29,7 +29,7 @@ void DrawDebugProc(void)
 {
 	RECT rect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
 
-	DebugTextOut(g_aStrDebug, 0, 0);
+	Renderer::get_instance().DebugTextOut(g_aStrDebug, 0, 0);
 
 	// î•ñƒNƒŠƒA
 	memset(g_aStrDebug, 0, sizeof g_aStrDebug);
