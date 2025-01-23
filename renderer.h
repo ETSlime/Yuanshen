@@ -11,7 +11,7 @@
 // É}ÉNÉçíËã`
 //*********************************************************
 #define LIGHT_MAX			(5)
-#define BONE_MAX			(256)
+#define BONE_MAX			(512)
 #define MAX_BONE_INDICES	(4)
 
 enum LIGHT_TYPE

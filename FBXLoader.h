@@ -11,13 +11,15 @@
 //*****************************************************************************
 
 #define MAX_NODE_NUM			8192
-
+#define SMALL_NUM_THRESHOLD		1e-6
 enum class FbxNodeType
 {
 	LimbNode,
 	Mesh,
 	Skin,
 	Cluster,
+	BlendShape,
+	BlendShapeChannel,
 	BindPose,
 	AnimationCurve,
 	AnimationCurveNode,
@@ -58,7 +60,7 @@ enum ReferenceInformationType
 	IndexToDirect
 };
 
-enum GeometryType
+enum class GeometryType
 {
 	Mesh,
 	Shape,
@@ -154,6 +156,11 @@ struct ModelProperty
 		Translation = XMFLOAT3(0.0f, 0.0f, 0.0f);
 		Rotation = XMFLOAT3(0.0f, 0.0f, 0.0f);
 		Scaling = XMFLOAT3(1.0f, 1.0f, 1.0f);
+	}
+
+	ModelProperty()
+	{
+		Clear();
 	}
 };
 
@@ -313,16 +320,17 @@ public:
 private:
 	bool ParseObjectDefinitions(FILE* file, SkinnedMeshModel& model);
 	bool ParseObjectProperties(FILE* file, SkinnedMeshModel& model);
-	bool ParseGeometry(FILE* file, SkinnedMeshModel& model);
+	bool ParseGeometry(FILE* file, SkinnedMeshModel& model, GeometryType geometryType);
 	bool ParseModel(FILE* file, SkinnedMeshModel& model, FbxNode* node);
 	bool ParseMaterial(FILE* file, SkinnedMeshModel& model);
 	bool ParseDeformer(FILE* file, FbxNode* node);
 	bool ParseMaterialProperty(FILE* file, Material& globalMaterial);
 	bool ParseModelProperty(FILE* file, ModelProperty& modelProperty, FbxNode* node);
-	bool ParseVertexData(FILE* file, SkinnedMeshModel& model);
-	bool ParseIndexData(FILE* file, SkinnedMeshModel& model);
-	bool ParseNormal(FILE* file, SkinnedMeshModel& model);
-	bool ParseUV(FILE* file, SkinnedMeshModel& model);
+	bool ParseVertexData(FILE* file, SkinnedMeshModel& model, GeometryType geometryType);
+	bool ParseIndexData(FILE* file, SkinnedMeshModel& model, GeometryType geometryType);
+	bool ParseNormal(FILE* file, SkinnedMeshModel& model, GeometryType geometryType);
+	bool ParseNormalData(FILE* file, SkinnedMeshModel& model, GeometryType geometryType, MappingInformationType mappingInformationType, ReferenceInformationType referenceInformationType);
+	bool ParseUV(FILE* file, SkinnedMeshModel& model, GeometryType geometryType);
 	bool ParseTexture(FILE* file, SkinnedMeshModel& model);
 	bool ParseObjectConnections(FILE* file, SkinnedMeshModel& model);
 	bool ParseBindPose(FILE* file, SkinnedMeshModel& model, FbxNode* node);

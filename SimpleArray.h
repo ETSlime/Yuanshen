@@ -19,10 +19,40 @@ public:
         array = new T[capacity];
     }
 
+    SimpleArray(const SimpleArray& other) : array(nullptr), capacity(0), size(0)
+    {
+        if (other.size > 0) {
+            array = new T[other.capacity];
+            for (int i = 0; i < other.size; i++) {
+                array[i] = other.array[i];
+            }
+            capacity = other.capacity;
+            size = other.size;
+        }
+    }
+
+    SimpleArray& operator=(const SimpleArray& other)
+    {
+        if (this != &other) {
+            delete[] array;
+            array = new T[other.capacity];
+            for (int i = 0; i < other.size; i++) {
+                array[i] = other.array[i];
+            }
+            capacity = other.capacity;
+            size = other.size;
+        }
+        return *this;
+    }
+
     ~SimpleArray() 
     {
         if (array)
+        {
             delete[] array;
+            array = nullptr;
+        }
+            
     }
 
     void push_back(const T& item) {

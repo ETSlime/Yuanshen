@@ -1,24 +1,59 @@
 #include "SkinnedMeshModel.h"
 #include "input.h"
+#include "debugproc.h"
 void SkinnedMeshModel::Update()
 {
-    int curIdx = 0;
-    int prevIdx = -1;
-    UpdateLimbGlobalTransform(armatureNode, curIdx, prevIdx, animationTime);
-    UpdateBoneTransform();
-    if (GetKeyboardPress(DIK_RETURN))
+    PrintDebugProc("Cnt:%d\n", cnt);
+
+    if (GetKeyboardPress(DIK_UP))
     {
-        animationTime += 1539538600 * 0.5f;
+        pos.y--;
+    }
+    if (GetKeyboardPress(DIK_DOWN))
+    {
+        pos.y++;
     }
 
-	XMMATRIX	boneMatrices[BONE_MAX];
-	int size = mBoneFinalTransforms.getSize();
-	for (int i = 0; i < size; i++)
-	{
-		boneMatrices[i] = XMMatrixTranspose(XMLoadFloat4x4(&mBoneFinalTransforms[i]));
-		//boneMatrices[i] = XMLoadFloat4x4(&mBoneFinalTransforms[i]);
-	}
-	renderer.SetBoneMatrix(boneMatrices);
+    if (GetKeyboardPress(DIK_LEFT))
+    {
+        rot.y += 0.03f;
+    }
+    if (GetKeyboardPress(DIK_RIGHT))
+    {
+        rot.y -= 0.03f;
+    }
+
+    int curIdx = 0;
+    int prevIdx = -1;
+    if (armatureNode)
+    {
+        UpdateLimbGlobalTransform(armatureNode, curIdx, prevIdx, animationTime);
+        UpdateBoneTransform();
+        if (GetKeyboardTrigger(DIK_RETURN))
+        {
+            animationTime += 1539538600 * 0.5f;
+            cnt++;
+        }
+
+        if (GetKeyboardTrigger(DIK_RSHIFT))
+        {
+            cnt--;
+        }
+
+        XMMATRIX	boneMatrices[BONE_MAX];
+        int size = mBoneFinalTransforms.getSize();
+        for (int i = 0; i < size; i++)
+        {
+            boneMatrices[i] = XMMatrixTranspose(XMLoadFloat4x4(&mBoneFinalTransforms[i]));
+        }
+        renderer.SetBoneMatrix(boneMatrices);
+    }
+    else
+    {
+        XMMATRIX	boneMatrices[BONE_MAX];
+        boneMatrices[0] = XMMatrixTranspose(XMMatrixIdentity());
+        renderer.SetBoneMatrix(boneMatrices);
+    }
 }
 
 void SkinnedMeshModel::Draw()
@@ -29,15 +64,15 @@ void SkinnedMeshModel::Draw()
 	mtxWorld = XMMatrixIdentity();
 
 	// スケールを反映
-	mtxScl = XMMatrixScaling(1.f, 1.f, 1.f);
+	mtxScl = XMMatrixScaling(scl.x, scl.y, scl.z);
 	mtxWorld = XMMatrixMultiply(mtxWorld, mtxScl);
 
 	// 回転を反映
-	mtxRot = XMMatrixRotationRollPitchYaw(0.0f, 0.0f, 0.0f);
+	mtxRot = XMMatrixRotationRollPitchYaw(rot.x, rot.y, rot.z);
 	mtxWorld = XMMatrixMultiply(mtxWorld, mtxRot);
 
 	// 移動を反映
-	mtxTranslate = XMMatrixTranslation(1.0f, 0.0f, 0.0f);
+	mtxTranslate = XMMatrixTranslation(pos.x, pos.y, pos.z);
 	mtxWorld = XMMatrixMultiply(mtxWorld, mtxTranslate);
 
 	renderer.SetCurrentWorldMatrix(&mtxWorld);
@@ -48,7 +83,7 @@ void SkinnedMeshModel::Draw()
 	renderer.GetDeviceContext()->IASetVertexBuffers(0, 1, &this->VertexBuffer, &stride, &offset);
 
 	// インデックスバッファ設定
-	renderer.GetDeviceContext()->IASetIndexBuffer(this->IndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+	renderer.GetDeviceContext()->IASetIndexBuffer(this->IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
 	// プリミティブトポロジ設定
 	renderer.GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -78,6 +113,10 @@ SkinnedMeshModel::SkinnedMeshModel()
 	fbxNodes.insert(0, head);
     animationTime = 0;
     armatureNode = nullptr;
+
+    pos = XMFLOAT3(0.0f, 0.0f, 0.0f);
+    rot = XMFLOAT3(XM_PI / 2, 0.0f, 0.0f);
+    scl = XMFLOAT3(1.f, 1.f, 1.f);
 }
 
 SkinnedMeshModel::~SkinnedMeshModel()
@@ -120,7 +159,6 @@ void SkinnedMeshModel::UpdateLimbGlobalTransform(FbxNode* node, int& curIdx, int
         mModelHierarchy[curIdx] = prevIdx;
         limbHashMap.insert(node->nodeID, curIdx);
         XMMATRIX mtxLocalScl, mtxLocalRot, mtxLocalTranslate, mtxLcl, mtxGlobalTrans;
-        XMMATRIX mtxLocalScl2, mtxLocalRot2, mtxLocalTranslate2;
 
         mtxLcl = XMMatrixIdentity();
 
@@ -149,7 +187,7 @@ void SkinnedMeshModel::UpdateLimbGlobalTransform(FbxNode* node, int& curIdx, int
 
 
 
-        XMFLOAT4X4 localTranslate, localRot, localScl, localTrans;
+        XMFLOAT4X4 localTrans;
         XMFLOAT4X4 globalTranslate, globalRot, globalScl, globalTrans;
         XMMATRIX parentTranslate, mtxParentRot, mtxParentScl, parentTrans, mtxGlobalTranslate;
 
@@ -173,9 +211,6 @@ void SkinnedMeshModel::UpdateLimbGlobalTransform(FbxNode* node, int& curIdx, int
         mtxLcl = XMMatrixMultiply(mtxLcl, mtxLocalRot);
         mtxLcl = XMMatrixMultiply(mtxLcl, mtxLocalTranslate);
 
-        XMStoreFloat4x4(&localScl, mtxLocalScl);
-        XMStoreFloat4x4(&localTranslate, mtxLocalTranslate);
-        XMStoreFloat4x4(&localRot, mtxLocalRot);
         XMStoreFloat4x4(&localTrans, mtxLcl);
         XMStoreFloat4x4(&globalScl, XMMatrixMultiply(mtxParentScl, mtxLocalScl));
 
@@ -201,11 +236,8 @@ void SkinnedMeshModel::UpdateLimbGlobalTransform(FbxNode* node, int& curIdx, int
 
         XMStoreFloat4x4(&globalRot, XMMatrixMultiply(mtxLocalRot, mtxParentRot));
         mModelGlobalScl[curIdx] = globalScl;
-        mModelLocalScl[curIdx] = localScl;
         mModelGlobalRot[curIdx] = globalRot;
-        mModelLocalRot[curIdx] = localRot;
         mModelTranslate[curIdx] = globalTranslate;
-        mModelLocalTranslate[curIdx] = localTranslate;
 
         mModelGlobalTrans[curIdx] = globalTrans;
         mModelLocalTrans[curIdx] = localTrans;
@@ -218,6 +250,18 @@ void SkinnedMeshModel::UpdateLimbGlobalTransform(FbxNode* node, int& curIdx, int
                 curIdx++;
                 UpdateLimbGlobalTransform(node->childNodes[i], curIdx, prev, time);
             }
+            else 
+            {
+                for (int j = 0; j < node->childNodes[i]->childNodes.getSize(); j++)
+                {
+                    if (node->childNodes[i]->childNodes[j]->nodeType == FbxNodeType::LimbNode)
+                    {
+                        int prev = modelProperty->modelIdx;
+                        curIdx++;
+                        UpdateLimbGlobalTransform(node->childNodes[i]->childNodes[j], curIdx, prev, time);
+                    }
+                }
+            }
 
         }
     }
@@ -229,15 +273,20 @@ void SkinnedMeshModel::UpdateBoneTransform()
 
     if (numBones > 0)
     {
-        mBoneFinalTransforms.resize(numBones);
         mBoneFinalTransforms.clear();
+        mBoneFinalTransforms.resize(numBones);
+
         SimpleArray<XMFLOAT4X4> toRootTransforms(numBones);
         toRootTransforms[0] = mBoneToParentTransforms[0];
         for (int i = 1; i < numBones; i++)
         {
             XMMATRIX toParent = XMLoadFloat4x4(&mBoneToParentTransforms[i]);
             int parentIndex = mBoneHierarchy[i];
-            XMMATRIX parentToRoot = XMLoadFloat4x4(&toRootTransforms[parentIndex]);
+            XMMATRIX parentToRoot;
+            if (parentIndex == -1)
+                parentToRoot = XMMatrixIdentity();
+            else
+                parentToRoot = XMLoadFloat4x4(&toRootTransforms[parentIndex]);
             XMMATRIX toRoot = XMMatrixMultiply(toParent, parentToRoot);
             XMStoreFloat4x4(&toRootTransforms[i], toRoot);
         }
@@ -245,12 +294,18 @@ void SkinnedMeshModel::UpdateBoneTransform()
         for (int i = 0; i < numBones; ++i)
         {
             int limbIdx = 0;
+            int deformerIdx = 0;
+            int* pLimbIdx = nullptr;
+            int* pDeformerIdx = nullptr;
             uint64_t* pDeformerID = nullptr;
             uint64_t* pLimbID = nullptr;
-            int* pLimbIdx = nullptr;
 
             pDeformerID = deformerHashMap.search(i);
             if (pDeformerID == nullptr) continue;
+
+            pDeformerIdx = deformerIdxHashMap.search(*pDeformerID);
+            if (pDeformerIdx)
+                deformerIdx = *pDeformerIdx;
 
             pLimbID = deformerToLimb.search(*pDeformerID);
             if (pLimbID == nullptr)
@@ -262,13 +317,15 @@ void SkinnedMeshModel::UpdateBoneTransform()
                 limbIdx = *pLimbIdx;
             }
 
+            
+
             XMMATRIX mtxInverseRootTransform;
 
             XMMATRIX mtxGlobalTrans = XMLoadFloat4x4(&mModelGlobalTrans[limbIdx]);
             XMMATRIX mtxLocalTrans = XMLoadFloat4x4(&mModelLocalTrans[limbIdx]);
 
-            XMMATRIX offset = XMLoadFloat4x4(&mBoneOffsets[i]);
-            XMMATRIX toRoot = XMLoadFloat4x4(&toRootTransforms[i]);
+            XMMATRIX offset = XMLoadFloat4x4(&mBoneOffsets[deformerIdx]);
+            XMMATRIX toRoot = XMLoadFloat4x4(&toRootTransforms[deformerIdx]);
             XMMATRIX mtxTrans = XMMatrixIdentity();
 
 
@@ -281,7 +338,6 @@ void SkinnedMeshModel::UpdateBoneTransform()
                 bindPose = XMMatrixIdentity();
                 inverseBindPose = XMMatrixIdentity();
             }
-
             else
             {
                 bindPose = XMLoadFloat4x4(pBindPose);
@@ -293,6 +349,9 @@ void SkinnedMeshModel::UpdateBoneTransform()
                 XMMATRIX rootTransform = XMLoadFloat4x4(&mBoneFinalTransforms[0]);
                 rootTransform.r[3] = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
                 mtxInverseRootTransform = XMMatrixInverse(nullptr, rootTransform);
+
+
+                //mtxInverseRootTransform = XMMatrixIdentity();
             }
             else
             {
@@ -347,8 +406,41 @@ void SkinnedMeshModel::UpdateBoneTransform()
             mtxTransTmp = XMMATRIX(row0, row1, row2, row3);
             mtxGlobalTrans = mtxTransTmp;
 
-            mtxTrans = newBindPose * mtxGlobalTrans;
+            if (i < cnt)
+                mtxTrans = newBindPose * mtxGlobalTrans;
+            else
+                mtxTrans = XMMatrixIdentity();
+            //mtxTrans = toRoot * offset * inverseBindPose;
 
+            if (cnt == 8 && i == 7)
+                mtxTrans = mtxTrans;// XMMatrixIdentity();
+
+            float* pMtxTrans = reinterpret_cast<float*>(&mtxTrans);
+
+            for (int i = 0; i < 16; i++)
+            {
+                if (fabs(pMtxTrans[i]) < SMALL_NUM_THRESHOLD)
+                {
+                    pMtxTrans[i] = 0.0f;
+                }
+            }
+
+            mtxTrans = newBindPose * mtxGlobalTrans;
+            //mtxTrans.r[3] = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
+
+            if (i == cnt - 1)
+            {
+                PrintDebugProc("%f, %f, %f, %f \n", pMtxTrans[0],
+                    pMtxTrans[1], pMtxTrans[2], pMtxTrans[3]);
+                PrintDebugProc("%f, %f, %f, %f \n", mtxTrans.r[1].m128_f32[0],
+                    mtxTrans.r[1].m128_f32[1], mtxTrans.r[1].m128_f32[2], mtxTrans.r[1].m128_f32[3]);
+                PrintDebugProc("%f, %f, %f, %f \n", mtxTrans.r[2].m128_f32[0],
+                    mtxTrans.r[2].m128_f32[1], mtxTrans.r[2].m128_f32[2], mtxTrans.r[2].m128_f32[3]);
+                PrintDebugProc("%f, %f, %f, %f \n", mtxTrans.r[3].m128_f32[0],
+                    mtxTrans.r[3].m128_f32[1], mtxTrans.r[3].m128_f32[2], mtxTrans.r[3].m128_f32[3]);
+            }
+            
+            
 
             XMFLOAT4X4 finalTransform;
             XMStoreFloat4x4(&finalTransform, mtxTrans);

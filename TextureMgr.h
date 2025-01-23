@@ -9,7 +9,7 @@
 struct SRV_POOL
 {
 	ID3D11ShaderResourceView* srv;
-	unsigned short count;
+	unsigned int count;
 
 	SRV_POOL() : srv(nullptr), count(0) {}
 	~SRV_POOL()

@@ -32,8 +32,8 @@ struct MODEL_MATERIAL
 // 描画サブセット構造体
 struct SUBSET
 {
-	unsigned short	StartIndex;
-	unsigned short	IndexNum;
+	unsigned int	StartIndex;
+	unsigned int	IndexNum;
 	MODEL_MATERIAL	Material;
 	ID3D11ShaderResourceView* Texture;
 
@@ -56,9 +56,9 @@ struct SUBSET
 struct MODEL_DATA
 {
 	VERTEX_3D* VertexArray;
-	unsigned short	VertexNum;
-	unsigned short* IndexArray;
-	unsigned short	IndexNum;
+	unsigned int	VertexNum;
+	unsigned int* IndexArray;
+	unsigned int	IndexNum;
 
 	MODEL_DATA()
 	{
@@ -78,7 +78,7 @@ struct MODEL_DATA
 struct MODEL_POOL
 {
 	Model* pModel;
-	unsigned short count;
+	unsigned int count;
 
 	MODEL_POOL()
 	{
@@ -120,7 +120,7 @@ public:
 
 private:
 	void LoadObj(char* FileName, MODEL_DATA* Model);
-	void LoadMaterial(char* FileName, MODEL_MATERIAL** MaterialArray, unsigned short* MaterialNum);
+	void LoadMaterial(char* FileName, MODEL_MATERIAL** MaterialArray, unsigned int* MaterialNum);
 	void CreateBoundingBoxVertex();
 
 	static HashMap<char*, MODEL_POOL, CharPtrHash, CharPtrEquals> modelHashMap;
@@ -129,7 +129,7 @@ private:
 	ID3D11Buffer*	IndexBuffer;
 
 	SUBSET*			SubsetArray;
-	unsigned short	SubsetNum;
+	unsigned int	SubsetNum;
 
 	MODEL_DATA*		modelData;
 

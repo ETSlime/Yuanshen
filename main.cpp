@@ -242,7 +242,7 @@ HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 
 	mTexMgr.Init(renderer.GetDevice());
 
-	fbxLoader.LoadModel(renderer.GetDevice(), mTexMgr, model, "data/MODEL/enemy/xgw.fbx", nullptr);
+	fbxLoader.LoadModel(renderer.GetDevice(), mTexMgr, model, "data/MODEL/enemy/Angry.fbx", nullptr);
 
 	// ÉvÉåÉCÉÑÅ[ÇÃèâä˙âª
 	InitPlayer();
@@ -406,7 +406,7 @@ void DrawScene()
 {
 	DrawField();
 
-	DrawPlayer();
+	//DrawPlayer();
 
 	//DrawEnemy();
 	//enemyManager.Draw();

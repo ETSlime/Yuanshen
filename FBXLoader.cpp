@@ -39,11 +39,8 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
 
     model.mModelHierarchy.resize(model.ModelCount);
     model.mModelGlobalRot.resize(model.ModelCount);
-    model.mModelLocalRot.resize(model.ModelCount);
     model.mModelGlobalScl.resize(model.ModelCount);
-    model.mModelLocalScl.resize(model.ModelCount);
     model.mModelTranslate.resize(model.ModelCount);
-    model.mModelLocalTranslate.resize(model.ModelCount);
     model.mModelGlobalTrans.resize(model.ModelCount);
     model.mModelLocalTrans.resize(model.ModelCount);
 
@@ -90,15 +87,15 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
 
 
     model.Texture = texMgr.CreateTexture(model.textureName);
-    model.modelData->IndexNum = model.modelData->IndicesData.getSize();
+    model.modelData->IndexNum = model.modelData->mesh.IndicesData.getSize();
     model.modelData->VertexNum = model.modelData->IndexNum;
     model.modelData->VertexArray = new SKINNED_VERTEX_3D[model.modelData->VertexNum];
-    model.modelData->IndexArray = new unsigned short[model.modelData->IndexNum];
+    model.modelData->IndexArray = new unsigned int[model.modelData->IndexNum];
     
     for (int indexCnt = 0; indexCnt < model.modelData->IndexNum; indexCnt++)
     {
         SKINNED_VERTEX_3D vertex;
-        int vertexIndex = model.modelData->IndicesData[indexCnt].Index;
+        int vertexIndex = model.modelData->mesh.IndicesData[indexCnt].Index;
 
         if (vertexIndex < 0)
         {
@@ -107,19 +104,19 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
         }
 
         
-        vertex.Position = model.modelData->VerticesTemp[vertexIndex].Position;
+        vertex.Position = model.modelData->mesh.VerticesTemp[vertexIndex].Position;
         vertex.Position.z = -vertex.Position.z;
         float BoneIndices[MAX_BONE_INDICES] = { 0.0f, 0.0f , 0.0f , 0.0f };
-        float Weights[MAX_BONE_INDICES] = { 0.0f, 0.0f , 0.0f , 0.0f };
-        int boneIndicesSize = model.modelData->VerticesTemp[vertexIndex].BoneIndices.getSize();
+        float Weights[MAX_BONE_INDICES] = { 1.0f, 0.0f , 0.0f , 0.0f };
+        int boneIndicesSize = model.modelData->mesh.VerticesTemp[vertexIndex].BoneIndices.getSize();
         if (boneIndicesSize > MAX_BONE_INDICES)
         {
             int topWeightsIndices[MAX_BONE_INDICES] = { 0 };
             float topWeights[MAX_BONE_INDICES] = { 0 };
             for (int i = 0; i < boneIndicesSize; ++i)
             {
-                float currentWeight = model.modelData->VerticesTemp[vertexIndex].Weights[i];
-                int currentIndex = model.modelData->VerticesTemp[vertexIndex].BoneIndices[i];
+                float currentWeight = model.modelData->mesh.VerticesTemp[vertexIndex].Weights[i];
+                int currentIndex = model.modelData->mesh.VerticesTemp[vertexIndex].BoneIndices[i];
                 for (int j = 0; j < MAX_BONE_INDICES; ++j)
                 {
                     if (currentWeight > topWeights[j]) 
@@ -160,8 +157,8 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
         {
             for (int i = 0; i < boneIndicesSize; i++)
             {
-                BoneIndices[i] = model.modelData->VerticesTemp[vertexIndex].BoneIndices[i];
-                Weights[i] = model.modelData->VerticesTemp[vertexIndex].Weights[i];
+                BoneIndices[i] = model.modelData->mesh.VerticesTemp[vertexIndex].BoneIndices[i];
+                Weights[i] = model.modelData->mesh.VerticesTemp[vertexIndex].Weights[i];
 
             }
         }
@@ -171,15 +168,15 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
 
         
         if (model.normalLoc == Vertex)
-            vertex.Normal = model.modelData->VerticesTemp[vertexIndex].Normal;
+            vertex.Normal = model.modelData->mesh.VerticesTemp[vertexIndex].Normal;
         else if (model.normalLoc == Index)
-            vertex.Normal = model.modelData->IndicesData[indexCnt].Normal;
+            vertex.Normal = model.modelData->mesh.IndicesData[indexCnt].Normal;
 
         if (model.texLoc == Vertex)
-            vertex.TexCoord = model.modelData->VerticesTemp[vertexIndex].TexCoord;
+            vertex.TexCoord = model.modelData->mesh.VerticesTemp[vertexIndex].TexCoord;
         else if (model.texLoc == Index)
         {
-            vertex.TexCoord = model.modelData->IndicesData[indexCnt].TexCoord;
+            vertex.TexCoord = model.modelData->mesh.IndicesData[indexCnt].TexCoord;
 
             vertex.TexCoord.y = -vertex.TexCoord.y;
         }
@@ -209,7 +206,7 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
         D3D11_BUFFER_DESC bd;
         ZeroMemory(&bd, sizeof(bd));
         bd.Usage = D3D11_USAGE_DEFAULT;
-        bd.ByteWidth = sizeof(unsigned short) * model.modelData->IndexNum;
+        bd.ByteWidth = sizeof(unsigned int) * model.modelData->IndexNum;
         bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
         bd.CPUAccessFlags = 0;
 
@@ -383,7 +380,21 @@ bool FBXLoader::ParseObjectProperties(FILE* file, SkinnedMeshModel& model)
                     return false;   // Geometry‚Ì‰ðÍ‚ªŽ¸”s‚µ‚½
                 }
 
-                if (!ParseGeometry(file, model))
+                if (strcmp(geometryTypeBuffer, "Mesh") == 0)
+                    geometryType = GeometryType::Mesh;
+                else if (strcmp(geometryTypeBuffer, "Shape") == 0)
+                {
+                    geometryType = GeometryType::Shape;
+                    model.modelData->shapeCnt++;
+                    model.modelData->shapes.push_back(MeshData());
+                }
+                else
+                {
+                    delete node;
+                    return false;
+                }
+
+                if (!ParseGeometry(file, model, geometryType))
                 {
                     delete node;
                     return false;   // Geometry‚Ì‰ðÍ‚ªŽ¸”s‚µ‚½
@@ -474,6 +485,11 @@ bool FBXLoader::ParseObjectProperties(FILE* file, SkinnedMeshModel& model)
                     XMStoreFloat4x4(&deformer->Transform, XMMatrixIdentity());
                     XMStoreFloat4x4(&deformer->TransformLink, XMMatrixIdentity());
                     node->nodeData = static_cast<void*>(deformer);
+                    SkipNode(file);
+                }
+                else if (node->nodeType == FbxNodeType::BlendShape
+                        || node->nodeType == FbxNodeType::BlendShapeChannel)
+                {
                     SkipNode(file);
                 }
                 else if (!ParseDeformer(file, node))
@@ -578,7 +594,7 @@ bool FBXLoader::ParseObjectProperties(FILE* file, SkinnedMeshModel& model)
     return false;
 }
 
-bool FBXLoader::ParseGeometry(FILE* file, SkinnedMeshModel& model)
+bool FBXLoader::ParseGeometry(FILE* file, SkinnedMeshModel& model, GeometryType type)
 {
     char buffer[2048];
     int readCount;
@@ -606,7 +622,7 @@ bool FBXLoader::ParseGeometry(FILE* file, SkinnedMeshModel& model)
         {
             //fseek(file, position, SEEK_SET);
 
-            if (!ParseVertexData(file, model))
+            if (!ParseVertexData(file, model, type))
                 return false;
         }
         else if (strstr(buffer, "PolygonVertexIndex:")
@@ -614,13 +630,19 @@ bool FBXLoader::ParseGeometry(FILE* file, SkinnedMeshModel& model)
         {
             //fseek(file, position, SEEK_SET);
 
-            if (!ParseIndexData(file, model))
+            if (!ParseIndexData(file, model, type))
                 return false;
         }
         else if (strstr(buffer, "LayerElementNormal:"))
         {
-            if (!ParseNormal(file, model))
+            if (!ParseNormal(file, model, type))
                 return false;     
+        }
+        else if (strstr(buffer, "Normals: "))
+        {
+            if (!ParseNormalData(file, model, type, MappingInformationType::ByPolygonVertex, ReferenceInformationType::Direct))
+                return false;
+
         }
         else if (strstr(buffer, "LayerElementSmoothing:"))
         {
@@ -629,7 +651,7 @@ bool FBXLoader::ParseGeometry(FILE* file, SkinnedMeshModel& model)
         }
         else if (strstr(buffer, "LayerElementUV:"))
         {
-            if (!ParseUV(file, model))
+            if (!ParseUV(file, model, type))
                 return false;
         }
         else if (strstr(buffer, "LayerElementMaterial:"))
@@ -718,9 +740,9 @@ bool FBXLoader::ParseDeformer(FILE* file, FbxNode* node)
     char buffer[4096];
     char* ptr;
     int index;
-    int indexCount = -1;
+    int indexCount = 0;
     float weight;
-    int weightCount = -1;
+    int weightCount = 0;
     Deformer* deformer = new Deformer;
     while (fgets(buffer, sizeof(buffer), file))
     {
@@ -1496,7 +1518,7 @@ bool FBXLoader::ParseModelProperty(FILE* file, ModelProperty& modelProperty, Fbx
     }
 }
 
-bool FBXLoader::ParseVertexData(FILE* file, SkinnedMeshModel& model)
+bool FBXLoader::ParseVertexData(FILE* file, SkinnedMeshModel& model, GeometryType geometryType)
 {
     char buffer[4096];
     float vertexPos[3];
@@ -1537,7 +1559,11 @@ bool FBXLoader::ParseVertexData(FILE* file, SkinnedMeshModel& model)
                     newVertex.Position.x = vertexPos[0];
                     newVertex.Position.y = vertexPos[1];
                     newVertex.Position.z = vertexPos[2];
-                    model.modelData->VerticesTemp.push_back(newVertex);
+                    if (geometryType == GeometryType::Mesh)
+                        model.modelData->mesh.VerticesTemp.push_back(newVertex);
+                    else if (geometryType == GeometryType::Mesh)
+                        model.modelData->shapes[model.modelData->shapeCnt - 1].VerticesTemp.push_back(newVertex);
+
                     count = 0;
                 }
                 
@@ -1551,7 +1577,10 @@ bool FBXLoader::ParseVertexData(FILE* file, SkinnedMeshModel& model)
 
     if (count > 0 && count < 3)
     {
-        model.modelData->Vertices.clear();
+        if (geometryType == GeometryType::Mesh)
+            model.modelData->mesh.VerticesTemp.clear();
+        else if (geometryType == GeometryType::Mesh)
+            model.modelData->shapes[model.modelData->shapeCnt - 1].VerticesTemp.clear();
         return false;
     }
     else
@@ -1562,7 +1591,7 @@ bool FBXLoader::ParseVertexData(FILE* file, SkinnedMeshModel& model)
     }
 }
 
-bool FBXLoader::ParseIndexData(FILE* file, SkinnedMeshModel& model)
+bool FBXLoader::ParseIndexData(FILE* file, SkinnedMeshModel& model, GeometryType geometryType)
 {
     char buffer[4096];
     int index;
@@ -1597,7 +1626,11 @@ bool FBXLoader::ParseIndexData(FILE* file, SkinnedMeshModel& model)
                 indexData.Index = index;
                 if (count == 2 && index < 0)
                     polygonSize = 3;
-                model.modelData->IndicesData.push_back(indexData);
+                
+                if (geometryType == GeometryType::Mesh)
+                    model.modelData->mesh.IndicesData.push_back(indexData);
+                else if (geometryType == GeometryType::Shape)
+                    model.modelData->shapes[model.modelData->shapeCnt - 1].IndicesData.push_back(indexData);
                 count++;
 
                 if (count == polygonSize)
@@ -1611,9 +1644,9 @@ bool FBXLoader::ParseIndexData(FILE* file, SkinnedMeshModel& model)
         position = ftell(file);
     }
 
-    if (count > 0 && count < 4)
+    if (count > 0 && count < 4 && geometryType == GeometryType::Mesh)
     {
-        model.modelData->Vertices.clear();
+        model.modelData->mesh.IndicesData.clear();
         return false;
     }
     else
@@ -1622,15 +1655,14 @@ bool FBXLoader::ParseIndexData(FILE* file, SkinnedMeshModel& model)
             fseek(file, position, SEEK_SET);
         return true;
     }
-}
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             }
 
-bool FBXLoader::ParseNormal(FILE* file, SkinnedMeshModel& model)
+bool FBXLoader::ParseNormal(FILE* file, SkinnedMeshModel& model, GeometryType geometryType)
 {
     char buffer[4096];
     int readCount;
     char MappingInformationTypeBuffer[32];
     char ReferenceInformationTypeBuffer[32];
-    float normal;
     char* ptr;
     int normalFound = 0;
     long int position = 0;
@@ -1682,99 +1714,7 @@ bool FBXLoader::ParseNormal(FILE* file, SkinnedMeshModel& model)
         {
             //fseek(file, position, SEEK_SET);
 
-            int normalCount = 0;
-            int totalNormalCount = 0;
-            int vertexCount = 0;
-            float normalsByVertex[3];
-            while (fgets(buffer, sizeof(buffer), file))
-            {
-                ptr = buffer;
-                if (!normalFound)
-                {
-                    ptr = strstr(buffer, "a:");
-                    if (ptr)
-                    {
-                        ptr += strlen("a:");
-                        normalFound = 1;
-                    }
-                }
-
-                if (normalFound)
-                {
-                    while (*ptr && isspace((unsigned char)*ptr)) ptr++;
-
-                    if (!isdigit((unsigned char)*ptr) && *ptr != '-' && *ptr != '.') break;
-
-                    if (mappingInformationType == ByPolygonVertex
-                        && referenceInformationType == Direct)
-                    {
-
-                        while (sscanf(ptr, "%f", &normal) == 1)
-                        {
-                            if (normalCount < 3)
-                            {
-                                normalsByVertex[normalCount % 3] = normal;
-                                normalCount++;
-                                totalNormalCount++;
-                            }
-                            if (normalCount == 3)
-                            {
-                                if (vertexCount >= model.modelData->IndicesData.getSize())
-                                {
-                                    model.modelData->Vertices.clear();
-                                    return false;
-                                }
-                                model.modelData->IndicesData[vertexCount].Normal.x = normalsByVertex[0];
-                                model.modelData->IndicesData[vertexCount].Normal.y = normalsByVertex[1];
-                                model.modelData->IndicesData[vertexCount].Normal.z = normalsByVertex[2];
-                                vertexCount++;
-                                normalCount = 0;
-                            }
-
-                            while (*ptr != ',' && *ptr != '\0') ptr++;
-                            if (*ptr == ',') ptr++;
-                        }
-                    }
-                    else if (mappingInformationType == ByVertice
-                        && referenceInformationType == Direct)
-                    {
-                        while (sscanf(ptr, "%f", &normal) == 1)
-                        {
-                            if (normalCount < 3)
-                            {
-                                normalsByVertex[normalCount % 3] = normal;
-                                normalCount++;
-                                totalNormalCount++;
-                            }
-                            if (normalCount == 3)
-                            {
-                                if (vertexCount >= model.modelData->VerticesTemp.getSize())
-                                {
-                                    model.modelData->Vertices.clear();
-                                    return false;
-                                }
-                                model.modelData->VerticesTemp[vertexCount].Normal.x = normalsByVertex[0];
-                                model.modelData->VerticesTemp[vertexCount].Normal.y = normalsByVertex[1];
-                                model.modelData->VerticesTemp[vertexCount].Normal.z = normalsByVertex[2];
-                                vertexCount++;
-                                normalCount = 0;
-                            }
-
-                            while (*ptr != ',' && *ptr != '\0') ptr++;
-                            if (*ptr == ',') ptr++;
-                        }
-                    }
-
-                }
-
-                position = ftell(file);
-            }
-            if (mappingInformationType == ByPolygon
-                && vertexCount != model.modelData->Vertices.getSize())
-                return false;
-            else if (mappingInformationType == ByPolygonVertex
-                && vertexCount != model.modelData->IndicesData.getSize())
-                return false;
+            ParseNormalData(file, model, geometryType, mappingInformationType, referenceInformationType);
 
             //if (strstr(buffer, "}"))
             //    fgets(buffer, sizeof(buffer), file);
@@ -1797,7 +1737,149 @@ bool FBXLoader::ParseNormal(FILE* file, SkinnedMeshModel& model)
     return false;
 }
 
-bool FBXLoader::ParseUV(FILE* file, SkinnedMeshModel& model)
+bool FBXLoader::ParseNormalData(FILE* file, SkinnedMeshModel& model, GeometryType geometryType, MappingInformationType mappingInformationType, ReferenceInformationType referenceInformationType)
+{
+    char buffer[4096];
+    float normal;
+    int normalCount = 0;
+    int totalNormalCount = 0;
+    int vertexCount = 0;
+    int normalFound = 0;
+    float normalsByVertex[3];
+    char* ptr;
+    long int position = 0;
+    while (fgets(buffer, sizeof(buffer), file))
+    {
+        ptr = buffer;
+        if (!normalFound)
+        {
+            ptr = strstr(buffer, "a:");
+            if (ptr)
+            {
+                ptr += strlen("a:");
+                normalFound = 1;
+            }
+        }
+
+        if (normalFound)
+        {
+            while (*ptr && isspace((unsigned char)*ptr)) ptr++;
+
+            if (!isdigit((unsigned char)*ptr) && *ptr != '-' && *ptr != '.') break;
+
+            if (mappingInformationType == ByPolygonVertex
+                && referenceInformationType == Direct)
+            {
+
+                while (sscanf(ptr, "%f", &normal) == 1)
+                {
+                    if (normalCount < 3)
+                    {
+                        normalsByVertex[normalCount % 3] = normal;
+                        normalCount++;
+                        totalNormalCount++;
+                    }
+                    if (normalCount == 3)
+                    {
+                        if (vertexCount >= model.modelData->mesh.IndicesData.getSize())
+                        {
+                            model.modelData->mesh.Vertices.clear();
+                            return false;
+                        }
+                        if (geometryType == GeometryType::Mesh)
+                        {
+                            model.modelData->mesh.IndicesData[vertexCount].Normal.x = normalsByVertex[0];
+                            model.modelData->mesh.IndicesData[vertexCount].Normal.y = normalsByVertex[1];
+                            model.modelData->mesh.IndicesData[vertexCount].Normal.z = normalsByVertex[2];
+                        }
+                        else if (geometryType == GeometryType::Shape)
+                        {
+                            model.modelData->shapes[model.modelData->shapeCnt - 1].IndicesData[vertexCount].Normal.x = normalsByVertex[0];
+                            model.modelData->shapes[model.modelData->shapeCnt - 1].IndicesData[vertexCount].Normal.y = normalsByVertex[1];
+                            model.modelData->shapes[model.modelData->shapeCnt - 1].IndicesData[vertexCount].Normal.z = normalsByVertex[2];
+                        }
+
+                        vertexCount++;
+                        normalCount = 0;
+                    }
+
+                    while (*ptr != ',' && *ptr != '\0') ptr++;
+                    if (*ptr == ',') ptr++;
+                }
+            }
+            else if (mappingInformationType == ByVertice
+                && referenceInformationType == Direct)
+            {
+                while (sscanf(ptr, "%f", &normal) == 1)
+                {
+                    if (normalCount < 3)
+                    {
+                        normalsByVertex[normalCount % 3] = normal;
+                        normalCount++;
+                        totalNormalCount++;
+                    }
+                    if (normalCount == 3)
+                    {
+                        if (geometryType == GeometryType::Mesh)
+                        {
+                            if (vertexCount >= model.modelData->mesh.VerticesTemp.getSize())
+                            {
+                                model.modelData->mesh.Vertices.clear();
+                                return false;
+                            }
+                            model.modelData->mesh.VerticesTemp[vertexCount].Normal.x = normalsByVertex[0];
+                            model.modelData->mesh.VerticesTemp[vertexCount].Normal.y = normalsByVertex[1];
+                            model.modelData->mesh.VerticesTemp[vertexCount].Normal.z = normalsByVertex[2];
+                        }
+                        else if (geometryType == GeometryType::Shape)
+                        {
+                            if (vertexCount >= model.modelData->shapes[model.modelData->shapeCnt - 1].VerticesTemp.getSize())
+                            {
+                                model.modelData->shapes[model.modelData->shapeCnt - 1].Vertices.clear();
+                                return false;
+                            }
+                            model.modelData->shapes[model.modelData->shapeCnt - 1].VerticesTemp[vertexCount].Normal.x = normalsByVertex[0];
+                            model.modelData->shapes[model.modelData->shapeCnt - 1].VerticesTemp[vertexCount].Normal.y = normalsByVertex[1];
+                            model.modelData->shapes[model.modelData->shapeCnt - 1].VerticesTemp[vertexCount].Normal.z = normalsByVertex[2];
+                        }
+
+                        vertexCount++;
+                        normalCount = 0;
+                    }
+
+                    while (*ptr != ',' && *ptr != '\0') ptr++;
+                    if (*ptr == ',') ptr++;
+                }
+            }
+
+        }
+
+        position = ftell(file);
+    }
+
+    int VertexArrayCnt, IndexArrayCnt;
+    if (geometryType == GeometryType::Mesh)
+    {
+        VertexArrayCnt = model.modelData->mesh.Vertices.getSize();
+        IndexArrayCnt = model.modelData->mesh.IndicesData.getSize();
+    }
+    else if (geometryType == GeometryType::Shape)
+    {
+        VertexArrayCnt = model.modelData->shapes[model.modelData->shapeCnt - 1].Vertices.getSize();
+        IndexArrayCnt = model.modelData->shapes[model.modelData->shapeCnt - 1].IndicesData.getSize();
+    }
+
+
+    if (mappingInformationType == ByPolygon
+        && vertexCount != VertexArrayCnt)
+        return false;
+    else if (mappingInformationType == ByPolygonVertex
+        && vertexCount != IndexArrayCnt)
+        return false;
+    return true;
+}
+
+bool FBXLoader::ParseUV(FILE* file, SkinnedMeshModel& model, GeometryType geometryType)
 {
     char buffer[4096];
     int readCount;
@@ -1939,15 +2021,15 @@ bool FBXLoader::ParseUV(FILE* file, SkinnedMeshModel& model)
                 && referenceInformationType == IndexToDirect)
             {
                 int UVCoordIndexSize = UVCoordIndex.getSize();
-                if (UVCoordIndexSize != model.modelData->IndicesData.getSize())
+                if (UVCoordIndexSize != model.modelData->mesh.IndicesData.getSize())
                     return false;
 
                 for (int i = 0; i < UVCoordIndexSize; i++)
                 {                    
                     int coordIndex = UVCoordIndex[i];
 
-                    model.modelData->IndicesData[i].TexCoord.x = UVCoord[coordIndex * 2];
-                    model.modelData->IndicesData[i].TexCoord.y = UVCoord[coordIndex * 2 + 1];
+                    model.modelData->mesh.IndicesData[i].TexCoord.x = UVCoord[coordIndex * 2];
+                    model.modelData->mesh.IndicesData[i].TexCoord.y = UVCoord[coordIndex * 2 + 1];
                 }
             }
             //else if (mappingInformationType == AllSame)
@@ -2308,6 +2390,7 @@ void FBXLoader::HandleDeformer(FbxNode* node, ModelData* data, SkinnedMeshModel&
         deformer->boneIdx = curIdx;
         model.mBoneHierarchy.push_back(prevIdx);
         model.deformerHashMap.insert(curIdx, node->nodeID);
+        model.deformerIdxHashMap.insert(node->nodeID, curIdx);
         model.mBoneOffsets.push_back(deformer->TransformLink);
         model.mBoneToParentTransforms.push_back(deformer->Transform);
 
@@ -2315,8 +2398,8 @@ void FBXLoader::HandleDeformer(FbxNode* node, ModelData* data, SkinnedMeshModel&
         {
             int vertexIdx = deformer->Index[i];
             float weight = deformer->Weights[i];
-            model.modelData->VerticesTemp[vertexIdx].BoneIndices.push_back(curIdx);
-            model.modelData->VerticesTemp[vertexIdx].Weights.push_back(weight);
+            model.modelData->mesh.VerticesTemp[vertexIdx].BoneIndices.push_back(curIdx);
+            model.modelData->mesh.VerticesTemp[vertexIdx].Weights.push_back(weight);
 
         }
        
@@ -2355,6 +2438,10 @@ bool FBXLoader::CreateFbxNode(char* buffer, FbxNode* fbxNode)
         nodeType = FbxNodeType::Mesh;
     else if (strcmp(nodeTypeBuffer, "Skin") == 0)
         nodeType = FbxNodeType::Skin;
+    else if (strcmp(nodeTypeBuffer, "BlendShape") == 0)
+        nodeType = FbxNodeType::BlendShape;
+    else if (strcmp(nodeTypeBuffer, "BlendShapeChannel") == 0)
+        nodeType = FbxNodeType::BlendShapeChannel;
     else if (strcmp(nodeTypeBuffer, "Cluster") == 0)
         nodeType = FbxNodeType::Cluster;
     else if (strcmp(nodeTypeBuffer, "BindPose") == 0)

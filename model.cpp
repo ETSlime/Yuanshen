@@ -75,7 +75,7 @@ Model::Model(char *FileName)
 		D3D11_BUFFER_DESC bd;
 		ZeroMemory( &bd, sizeof(bd) );
 		bd.Usage = D3D11_USAGE_DEFAULT;
-		bd.ByteWidth = sizeof( unsigned short ) * model->IndexNum;
+		bd.ByteWidth = sizeof( unsigned int ) * model->IndexNum;
 		bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
 		bd.CPUAccessFlags = 0;
 
@@ -88,7 +88,7 @@ Model::Model(char *FileName)
 
 	// サブセット設定
 	{
-		for( unsigned short i = 0; i < this->SubsetNum; i++ )
+		for( unsigned int i = 0; i < this->SubsetNum; i++ )
 		{
 			this->SubsetArray[i].StartIndex = this->SubsetArray[i].StartIndex;
 			this->SubsetArray[i].IndexNum = this->SubsetArray[i].IndexNum;
@@ -133,12 +133,12 @@ void Model::DrawModel()
 	renderer.GetDeviceContext()->IASetVertexBuffers( 0, 1, &this->VertexBuffer, &stride, &offset );
 
 	// インデックスバッファ設定
-	renderer.GetDeviceContext()->IASetIndexBuffer( this->IndexBuffer, DXGI_FORMAT_R16_UINT, 0 );
+	renderer.GetDeviceContext()->IASetIndexBuffer( this->IndexBuffer, DXGI_FORMAT_R32_UINT, 0 );
 
 	// プリミティブトポロジ設定
 	renderer.GetDeviceContext()->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
 
-	for( unsigned short i = 0; i < this->SubsetNum; i++ )
+	for( unsigned int i = 0; i < this->SubsetNum; i++ )
 	{
 		// マテリアル設定
 		if (this->SubsetArray[i].Material.MaterialData.LoadMaterial)
@@ -190,16 +190,16 @@ void Model::LoadObj( char *FileName, MODEL_DATA* Model )
 	XMFLOAT3	*normalArray;
 	XMFLOAT2	*texcoordArray;
 
-	unsigned short	positionNum = 0;
-	unsigned short	normalNum = 0;
-	unsigned short	texcoordNum = 0;
-	unsigned short	vertexNum = 0;
-	unsigned short	indexNum = 0;
-	unsigned short	in = 0;
-	unsigned short	subsetNum = 0;
+	unsigned int	positionNum = 0;
+	unsigned int	normalNum = 0;
+	unsigned int	texcoordNum = 0;
+	unsigned int	vertexNum = 0;
+	unsigned int	indexNum = 0;
+	unsigned int	in = 0;
+	unsigned int	subsetNum = 0;
 
 	MODEL_MATERIAL	*materialArray = NULL;
-	unsigned short	materialNum = 0;
+	unsigned int	materialNum = 0;
 
 	char str[256];
 	char *s;
@@ -271,7 +271,7 @@ void Model::LoadObj( char *FileName, MODEL_DATA* Model )
 	Model->VertexArray = new VERTEX_3D[ vertexNum ];
 	Model->VertexNum = vertexNum;
 
-	Model->IndexArray = new unsigned short[ indexNum ];
+	Model->IndexArray = new unsigned int[ indexNum ];
 	Model->IndexNum = indexNum;
 
 	this->SubsetArray = new SUBSET[ subsetNum ];
@@ -287,9 +287,9 @@ void Model::LoadObj( char *FileName, MODEL_DATA* Model )
 	XMFLOAT3 *normal = normalArray;
 	XMFLOAT2 *texcoord = texcoordArray;
 
-	unsigned short vc = 0;
-	unsigned short ic = 0;
-	unsigned short sc = 0;
+	unsigned int vc = 0;
+	unsigned int ic = 0;
+	unsigned int sc = 0;
 
 
 	fseek( file, 0, SEEK_SET );
@@ -382,7 +382,7 @@ void Model::LoadObj( char *FileName, MODEL_DATA* Model )
 			this->SubsetArray[ sc ].StartIndex = ic;
 
 
-			for( unsigned short i = 0; i < materialNum; i++ )
+			for( unsigned int i = 0; i < materialNum; i++ )
 			{
 				if( strcmp( str, materialArray[i].Name ) == 0 )
 				{
@@ -459,7 +459,7 @@ void Model::LoadObj( char *FileName, MODEL_DATA* Model )
 
 
 //マテリアル読み込み///////////////////////////////////////////////////////////////////
-void Model::LoadMaterial( char *FileName, MODEL_MATERIAL **MaterialArray, unsigned short *MaterialNum )
+void Model::LoadMaterial( char *FileName, MODEL_MATERIAL **MaterialArray, unsigned int *MaterialNum )
 {
 	char str[256];
 
@@ -472,7 +472,7 @@ void Model::LoadMaterial( char *FileName, MODEL_MATERIAL **MaterialArray, unsign
 	}
 
 	MODEL_MATERIAL *materialArray;
-	unsigned short materialNum = 0;
+	unsigned int materialNum = 0;
 
 	//要素数カウント
 	while( TRUE )
@@ -600,7 +600,7 @@ void Model::GetModelDiffuse(XMFLOAT4 *diffuse)
 {
 	int max = (this->SubsetNum < MODEL_MAX_MATERIAL) ? this->SubsetNum : MODEL_MAX_MATERIAL;
 
-	for (unsigned short i = 0; i < max; i++)
+	for (unsigned int i = 0; i < max; i++)
 	{
 		// ディフューズ設定
 		diffuse[i] = this->SubsetArray[i].Material.MaterialData.Diffuse;

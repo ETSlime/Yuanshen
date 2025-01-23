@@ -47,18 +47,28 @@ struct SKINNED_VERTEX_3D_TEMP
 	SimpleArray<int>	BoneIndices;
 };
 
-struct ModelData
+struct MeshData
 {
 	SimpleArray<SKINNED_VERTEX_3D> Vertices;
 	SimpleArray<SKINNED_VERTEX_3D_TEMP> VerticesTemp;
 	SimpleArray<IndexData> IndicesData;
+};
+
+
+struct ModelData
+{
+	MeshData				mesh;
+	SimpleArray<MeshData>	shapes;
 	SimpleArray<Subset> Subsets;
 
+	int shapeCnt;
+
 	SKINNED_VERTEX_3D* VertexArray;
-	unsigned short	VertexNum;
-	unsigned short* IndexArray;
-	unsigned short	IndexNum;
+	unsigned int	VertexNum;
+	unsigned int* IndexArray;
+	unsigned int	IndexNum;
 };
+
 
 class SkinnedMeshModel
 {
@@ -70,6 +80,13 @@ public:
 
 	SkinnedMeshModel();
 	~SkinnedMeshModel();
+
+	XMFLOAT4X4			mtxWorld;			// ワールドマトリックス
+	XMFLOAT3			pos;				// モデルの位置
+	XMFLOAT3			rot;				// モデルの向き(回転)
+	XMFLOAT3			scl;				// モデルの大きさ(スケール)
+	
+	int cnt = 0;
 
 private:
 
@@ -86,11 +103,8 @@ private:
 	SimpleArray<int> mBoneHierarchy;
 	SimpleArray<int> mModelHierarchy;
 	SimpleArray<XMFLOAT4X4> mModelGlobalRot;
-	SimpleArray<XMFLOAT4X4> mModelLocalRot;
 	SimpleArray<XMFLOAT4X4> mModelGlobalScl;
-	SimpleArray<XMFLOAT4X4> mModelLocalScl;
 	SimpleArray<XMFLOAT4X4> mModelTranslate;
-	SimpleArray<XMFLOAT4X4> mModelLocalTranslate;
 	SimpleArray<XMFLOAT4X4> mModelGlobalTrans;
 	SimpleArray<XMFLOAT4X4> mModelLocalTrans;
 	SimpleArray<XMFLOAT4X4> mBoneOffsets;
@@ -122,6 +136,12 @@ private:
 	);
 
 	HashMap<int, uint64_t, HashUInt64, EqualUInt64> deformerHashMap = HashMap<int, uint64_t, HashUInt64, EqualUInt64>(
+		MAX_NODE_NUM,
+		HashUInt64(),
+		EqualUInt64()
+	);
+
+	HashMap<uint64_t, int, HashUInt64, EqualUInt64> deformerIdxHashMap = HashMap<uint64_t, int, HashUInt64, EqualUInt64>(
 		MAX_NODE_NUM,
 		HashUInt64(),
 		EqualUInt64()
