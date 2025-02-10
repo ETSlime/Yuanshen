@@ -242,7 +242,10 @@ HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 
 	mTexMgr.Init(renderer.GetDevice());
 
-	fbxLoader.LoadModel(renderer.GetDevice(), mTexMgr, model, "data/MODEL/enemy/Angry.fbx", nullptr);
+	fbxLoader.LoadModel(renderer.GetDevice(), mTexMgr, model, "data/MODEL/enemy/Sigewinne","Character_output.fbx", nullptr);
+	model.SetBodyDiffuseTexture(mTexMgr, "data/MODEL/enemy/Sigewinne/texture_0.png");
+	model.SetHairDiffuseTexture(mTexMgr, "data/MODEL/enemy/Sigewinne/Avatar_Loli_Bow_Sigewinne_Tex_Hair_Diffuse.png");
+	model.SetFaceDiffuseTexture(mTexMgr, "data/MODEL/enemy/Sigewinne/face.png");
 
 	// ÉvÉåÉCÉÑÅ[ÇÃèâä˙âª
 	InitPlayer();

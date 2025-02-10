@@ -97,6 +97,34 @@ public:
         delete[] buckets;
     }
 
+    HashMap& operator=(const HashMap& other)
+    {
+        if (this == &other) return *this;
+
+        this->clear();
+        delete[] this->buckets;
+
+        this->size = other.size;
+        this->buckets = new Node * [this->size] {};
+        for (int i = 0; i < this->size; ++i)
+        {
+            Node* current = other.buckets[i];
+            Node** ptr = &this->buckets[i];
+            while (current != nullptr)
+            {
+                Node* newNode = new Node(current->data.key, current->data.value);
+                *ptr = newNode;
+                ptr = &newNode->next;
+                current = current->next;
+            }
+        }
+        this->hashFunc = other.hashFunc;
+        this->equalsFunc = other.equalsFunc;
+
+        return *this;
+    }
+
+
     void insert(const Key& key, const Value& value)
     {
         unsigned int index = hashFunc(key) % size;
@@ -118,6 +146,26 @@ public:
             current = current->next;
         }
         return nullptr;
+    }
+
+    Value& operator[](const Key& key)
+    {
+        unsigned int index = hashFunc(key) % size;
+        Node* current = buckets[index];
+
+        // Search for the key in the linked list
+        while (current != nullptr)
+        {
+            if (equalsFunc(current->data.key, key))
+            {
+                return current->data.value;
+            }
+            current = current->next;
+        }
+
+        // Key not found, create new node with default value
+        insert(key, Value{});
+        return buckets[index]->data.value; // Return the newly inserted node's value
     }
 
     bool remove(const Key& key)
@@ -176,11 +224,11 @@ public:
             if (current == nullptr)
             {
                 // Advance to the first valid node
-                for (; index < size; ++index)
+                for (; this->index < size; ++this->index)
                 {
-                    if (buckets[index])
+                    if (buckets[this->index])
                     {
-                        current = buckets[index];
+                        current = buckets[this->index];
                         break;
                     }
                 }

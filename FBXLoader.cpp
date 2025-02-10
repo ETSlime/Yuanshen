@@ -1,8 +1,21 @@
 #include "FBXLoader.h"
 #include "SkinnedMeshModel.h"
 
-void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshModel& model, const char* modelFilename, const char* texturePath)
+void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshModel& model, 
+    const char* modelPath, const char* modelName, const char* texturePath)
 {
+    char* modelFilename = new char[MODEL_NAME_LENGTH]{};
+
+    strcat(modelFilename, modelPath);
+
+    size_t modelPathLength = strlen(modelPath);
+    if (modelPathLength > 0 && modelPath[modelPathLength - 1] != '/' && modelPath[modelPathLength - 1] != '\\') 
+    {
+        strcat(modelFilename, "/");
+    }
+   
+    strcat(modelFilename, modelName);
+
 	FILE* file;
 	file = fopen(modelFilename, "rt");
 	if (file == NULL)
@@ -10,6 +23,9 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
 		printf("エラー:LoadModel %s \n", modelFilename);
 		return;
 	}
+
+    strcpy(model.modelPath, modelPath);
+    strcpy(model.modelName, modelName);
 
     char buffer[1024];
     bool loadSuccess = true;
@@ -37,184 +53,212 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
         memset(buffer, 0, sizeof(buffer));
     }
 
-    model.mModelHierarchy.resize(model.ModelCount);
-    model.mModelGlobalRot.resize(model.ModelCount);
-    model.mModelGlobalScl.resize(model.ModelCount);
-    model.mModelTranslate.resize(model.ModelCount);
-    model.mModelGlobalTrans.resize(model.ModelCount);
-    model.mModelLocalTrans.resize(model.ModelCount);
-
     SimpleArray<FbxNode*> rootNodeChilds;
     for (auto& node : model.fbxNodes)
     {
         if (node.key == 0)
         {
             rootNodeChilds = node.value->childNodes;
-            break;
+        }
+        else if (node.value->nodeType == FbxNodeType::LimbNode)
+        {
+            FbxNode* geometryNode = GetGeometryNodeByLimbNode(node.value);
+            if (geometryNode)
+            {
+                ModelData** ppModelData = model.meshDataMap.search(geometryNode->nodeID);
+                (*ppModelData)->limbCnt++;
+            }
+
         }
     }
+
+    //for (auto it : model.meshDataMap)
+    //{
+    //    ModelData* modelData = it.value;
+
+    //    modelData->mModelHierarchy.resize(modelData->limbCnt);
+    //    modelData->mModelGlobalRot.resize(modelData->limbCnt);
+    //    modelData->mModelGlobalScl.resize(modelData->limbCnt);
+    //    modelData->mModelTranslate.resize(modelData->limbCnt);
+    //    modelData->mModelGlobalTrans.resize(modelData->limbCnt);
+    //    modelData->mModelLocalTrans.resize(modelData->limbCnt);
+    //}
+
+
+
+
     if (rootNodeChilds.getSize() != 0)
     {
         for (int i = 0; i < rootNodeChilds.getSize(); i++)
         {
             if (rootNodeChilds[i]->nodeType == FbxNodeType::Mesh)
             {
-                SimpleArray<FbxNode*> meshNodeChilds = rootNodeChilds[i]->childNodes;
-                for (int j = 0; j < meshNodeChilds.getSize(); j++)
+                HandleMeshNode(rootNodeChilds[i], model);
+            }
+            else if (rootNodeChilds[i]->nodeType == FbxNodeType::None)
+            {
+                SimpleArray<FbxNode*> childNodeChilds = rootNodeChilds[i]->childNodes;
+                for (int j = 0; j < childNodeChilds.getSize(); j++)
                 {
-                    if (meshNodeChilds[j]->nodeType == FbxNodeType::Mesh)
+                    if (childNodeChilds[j]->nodeType == FbxNodeType::Mesh)
                     {
-                        SimpleArray<FbxNode*> geometryNodeChilds = meshNodeChilds[j]->childNodes;
-                        ModelData* modelData = static_cast<ModelData*>(meshNodeChilds[j]->nodeData);
-                        for (int k = 0; k < geometryNodeChilds.getSize(); k++)
+                        HandleMeshNode(childNodeChilds[j], model);
+                    }
+                    else if (childNodeChilds[j]->nodeType == FbxNodeType::None)
+                    {
+                        SimpleArray<FbxNode*> childchildNodeChilds = childNodeChilds[j]->childNodes;
+                        for (int k = 0; k < childchildNodeChilds.getSize(); k++)
                         {
-                            FbxNode* armature = geometryNodeChilds[k];
-                            HandleDeformer(armature, modelData, model, 0, -1);
+                            if (childchildNodeChilds[k]->nodeType == FbxNodeType::Mesh)
+                            {
+                                HandleMeshNode(childchildNodeChilds[k], model);
+                            }
                         }
                     }
                 }
-            }
-            else if (rootNodeChilds[i]->nodeType == FbxNodeType::None || rootNodeChilds[i]->nodeType == FbxNodeType::LimbNode)
-            {
-                FbxNode* armature = rootNodeChilds[i];
-                model.armatureNode = armature;
-                int curIdx = 0;
-                int prevIdx = -1;
-                model.UpdateLimbGlobalTransform(armature, curIdx, prevIdx, model.animationTime);
             }
         }
     }
 
-
-    model.Texture = texMgr.CreateTexture(model.textureName);
-    model.modelData->IndexNum = model.modelData->mesh.IndicesData.getSize();
-    model.modelData->VertexNum = model.modelData->IndexNum;
-    model.modelData->VertexArray = new SKINNED_VERTEX_3D[model.modelData->VertexNum];
-    model.modelData->IndexArray = new unsigned int[model.modelData->IndexNum];
-    
-    for (int indexCnt = 0; indexCnt < model.modelData->IndexNum; indexCnt++)
+    for (auto& it : model.meshDataMap)
     {
-        SKINNED_VERTEX_3D vertex;
-        int vertexIndex = model.modelData->mesh.IndicesData[indexCnt].Index;
 
-        if (vertexIndex < 0)
-        {
-            vertexIndex = -vertexIndex;
-            vertexIndex--;
-        }
-
+        ModelData* modelData = it.value;
         
-        vertex.Position = model.modelData->mesh.VerticesTemp[vertexIndex].Position;
-        vertex.Position.z = -vertex.Position.z;
-        float BoneIndices[MAX_BONE_INDICES] = { 0.0f, 0.0f , 0.0f , 0.0f };
-        float Weights[MAX_BONE_INDICES] = { 1.0f, 0.0f , 0.0f , 0.0f };
-        int boneIndicesSize = model.modelData->mesh.VerticesTemp[vertexIndex].BoneIndices.getSize();
-        if (boneIndicesSize > MAX_BONE_INDICES)
+        char* diffuseTextureName = nullptr;
+        if (modelData->material)
+            diffuseTextureName = GetTextureName(model.modelPath, modelData->material->DiffuseColorTexName);
+
+        modelData->diffuseTexture = texMgr.CreateTexture(diffuseTextureName);
+        modelData->IndexNum = modelData->mesh->IndicesData.getSize();
+        modelData->VertexNum = modelData->IndexNum;
+        modelData->VertexArray = new SKINNED_VERTEX_3D[modelData->VertexNum];
+        modelData->IndexArray = new unsigned int[modelData->IndexNum];
+
+        for (int indexCnt = 0; indexCnt < modelData->IndexNum; indexCnt++)
         {
-            int topWeightsIndices[MAX_BONE_INDICES] = { 0 };
-            float topWeights[MAX_BONE_INDICES] = { 0 };
-            for (int i = 0; i < boneIndicesSize; ++i)
+            SKINNED_VERTEX_3D vertex;
+            int vertexIndex = modelData->mesh->IndicesData[indexCnt].Index;
+
+            if (vertexIndex < 0)
             {
-                float currentWeight = model.modelData->mesh.VerticesTemp[vertexIndex].Weights[i];
-                int currentIndex = model.modelData->mesh.VerticesTemp[vertexIndex].BoneIndices[i];
-                for (int j = 0; j < MAX_BONE_INDICES; ++j)
+                vertexIndex = -vertexIndex;
+                vertexIndex--;
+            }
+
+
+            vertex.Position = modelData->mesh->VerticesTemp[vertexIndex].Position;
+            vertex.Position.z = -vertex.Position.z;
+            float BoneIndices[MAX_BONE_INDICES] = { 0.0f, 0.0f , 0.0f , 0.0f };
+            float Weights[MAX_BONE_INDICES] = { 1.0f, 0.0f , 0.0f , 0.0f };
+            int boneIndicesSize = modelData->mesh->VerticesTemp[vertexIndex].BoneIndices.getSize();
+            if (boneIndicesSize > MAX_BONE_INDICES)
+            {
+                int topWeightsIndices[MAX_BONE_INDICES] = { 0 };
+                float topWeights[MAX_BONE_INDICES] = { 0 };
+                for (int i = 0; i < boneIndicesSize; ++i)
                 {
-                    if (currentWeight > topWeights[j]) 
+                    float currentWeight = modelData->mesh->VerticesTemp[vertexIndex].Weights[i];
+                    int currentIndex = modelData->mesh->VerticesTemp[vertexIndex].BoneIndices[i];
+                    for (int j = 0; j < MAX_BONE_INDICES; ++j)
                     {
-                        for (int k = MAX_BONE_INDICES - 1; k > j; --k)
+                        if (currentWeight > topWeights[j])
                         {
-                            topWeights[k] = topWeights[k - 1];
-                            topWeightsIndices[k] = topWeightsIndices[k - 1];
+                            for (int k = MAX_BONE_INDICES - 1; k > j; --k)
+                            {
+                                topWeights[k] = topWeights[k - 1];
+                                topWeightsIndices[k] = topWeightsIndices[k - 1];
+                            }
+                            topWeights[j] = currentWeight;
+                            topWeightsIndices[j] = currentIndex;
+                            break;
                         }
-                        topWeights[j] = currentWeight;
-                        topWeightsIndices[j] = currentIndex;
-                        break;
                     }
                 }
-            }
 
-            float sumWeights = 0.0f;
-            for (int i = 0; i < MAX_BONE_INDICES; i++)
-            {
-                sumWeights += topWeights[i];
-            }
-            if (sumWeights > 0) 
-            {
+                float sumWeights = 0.0f;
                 for (int i = 0; i < MAX_BONE_INDICES; i++)
                 {
-                    topWeights[i] /= sumWeights;
+                    sumWeights += topWeights[i];
+                }
+                if (sumWeights > 0)
+                {
+                    for (int i = 0; i < MAX_BONE_INDICES; i++)
+                    {
+                        topWeights[i] /= sumWeights;
+                    }
+                }
+
+                for (int i = 0; i < MAX_BONE_INDICES; i++)
+                {
+                    BoneIndices[i] = topWeightsIndices[i];
+                    Weights[i] = topWeights[i];
+
+                }
+            }
+            else
+            {
+                for (int i = 0; i < boneIndicesSize; i++)
+                {
+                    BoneIndices[i] = modelData->mesh->VerticesTemp[vertexIndex].BoneIndices[i];
+                    Weights[i] = modelData->mesh->VerticesTemp[vertexIndex].Weights[i];
+
                 }
             }
 
-            for (int i = 0; i < MAX_BONE_INDICES; i++)
+            vertex.BoneIndices = XMFLOAT4(BoneIndices[0], BoneIndices[1], BoneIndices[2], BoneIndices[3]);
+            vertex.Weights = XMFLOAT4(Weights[0], Weights[1], Weights[2], Weights[3]);
+
+
+            if (modelData->normalLoc == Vertex)
+                vertex.Normal = modelData->mesh->VerticesTemp[vertexIndex].Normal;
+            else if (modelData->normalLoc == Index)
+                vertex.Normal = modelData->mesh->IndicesData[indexCnt].Normal;
+
+            if (modelData->texLoc == Vertex)
+                vertex.TexCoord = modelData->mesh->VerticesTemp[vertexIndex].TexCoord;
+            else if (modelData->texLoc == Index)
             {
-                BoneIndices[i] = topWeightsIndices[i];
-                Weights[i] = topWeights[i];
-
+                vertex.TexCoord = modelData->mesh->IndicesData[indexCnt].TexCoord;
             }
-        }
-        else
-        {
-            for (int i = 0; i < boneIndicesSize; i++)
-            {
-                BoneIndices[i] = model.modelData->mesh.VerticesTemp[vertexIndex].BoneIndices[i];
-                Weights[i] = model.modelData->mesh.VerticesTemp[vertexIndex].Weights[i];
-
-            }
-        }
-
-        vertex.BoneIndices = XMFLOAT4(BoneIndices[0], BoneIndices[1], BoneIndices[2], BoneIndices[3]);
-        vertex.Weights = XMFLOAT4(Weights[0], Weights[1], Weights[2], Weights[3]);
-
-        
-        if (model.normalLoc == Vertex)
-            vertex.Normal = model.modelData->mesh.VerticesTemp[vertexIndex].Normal;
-        else if (model.normalLoc == Index)
-            vertex.Normal = model.modelData->mesh.IndicesData[indexCnt].Normal;
-
-        if (model.texLoc == Vertex)
-            vertex.TexCoord = model.modelData->mesh.VerticesTemp[vertexIndex].TexCoord;
-        else if (model.texLoc == Index)
-        {
-            vertex.TexCoord = model.modelData->mesh.IndicesData[indexCnt].TexCoord;
 
             vertex.TexCoord.y = -vertex.TexCoord.y;
+
+            modelData->VertexArray[indexCnt] = vertex;
+            modelData->IndexArray[indexCnt] = indexCnt;
         }
-        
-        model.modelData->VertexArray[indexCnt] = vertex;
-        model.modelData->IndexArray[indexCnt] = indexCnt;
-    }
 
-    // 頂点バッファ生成
-    {
-        D3D11_BUFFER_DESC bd;
-        ZeroMemory(&bd, sizeof(bd));
-        bd.Usage = D3D11_USAGE_DYNAMIC;
-        bd.ByteWidth = sizeof(SKINNED_VERTEX_3D) * model.modelData->VertexNum;
-        bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-        bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        // 頂点バッファ生成
+        {
+            D3D11_BUFFER_DESC bd;
+            ZeroMemory(&bd, sizeof(bd));
+            bd.Usage = D3D11_USAGE_DYNAMIC;
+            bd.ByteWidth = sizeof(SKINNED_VERTEX_3D) * modelData->VertexNum;
+            bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+            bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-        D3D11_SUBRESOURCE_DATA sd;
-        ZeroMemory(&sd, sizeof(sd));
-        sd.pSysMem = model.modelData->VertexArray;
+            D3D11_SUBRESOURCE_DATA sd;
+            ZeroMemory(&sd, sizeof(sd));
+            sd.pSysMem = modelData->VertexArray;
 
-        renderer.GetDevice()->CreateBuffer(&bd, &sd, &model.VertexBuffer);
-    }
+            renderer.GetDevice()->CreateBuffer(&bd, &sd, &modelData->VertexBuffer);
+        }
 
-    // インデックスバッファ生成
-    {
-        D3D11_BUFFER_DESC bd;
-        ZeroMemory(&bd, sizeof(bd));
-        bd.Usage = D3D11_USAGE_DEFAULT;
-        bd.ByteWidth = sizeof(unsigned int) * model.modelData->IndexNum;
-        bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-        bd.CPUAccessFlags = 0;
+        // インデックスバッファ生成
+        {
+            D3D11_BUFFER_DESC bd;
+            ZeroMemory(&bd, sizeof(bd));
+            bd.Usage = D3D11_USAGE_DEFAULT;
+            bd.ByteWidth = sizeof(unsigned int) * modelData->IndexNum;
+            bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+            bd.CPUAccessFlags = 0;
 
-        D3D11_SUBRESOURCE_DATA sd;
-        ZeroMemory(&sd, sizeof(sd));
-        sd.pSysMem = model.modelData->IndexArray;
+            D3D11_SUBRESOURCE_DATA sd;
+            ZeroMemory(&sd, sizeof(sd));
+            sd.pSysMem = modelData->IndexArray;
 
-        renderer.GetDevice()->CreateBuffer(&bd, &sd, &model.IndexBuffer);
+            renderer.GetDevice()->CreateBuffer(&bd, &sd, &modelData->IndexBuffer);
+        }
     }
 }
 
@@ -264,16 +308,6 @@ bool FBXLoader::ParseObjectDefinitions(FILE* file, SkinnedMeshModel& model)
                     
                     while (fgets(buffer, sizeof(buffer), file))
                     {
-                        //int current = ftell(file);
-                        //if (inProperty && !strstr(buffer, "}"))
-                        //{
-                        //    fseek(file, position, SEEK_SET);
-                        //    current = ftell(file);
-                        //    fgets(buffer, sizeof(buffer), file);
-                        //    current = ftell(file);
-                        //    break;
-                        //}
-
                         if (strstr(buffer, "{"))
                             bracket++;
                         if (strstr(buffer, "}"))
@@ -289,8 +323,6 @@ bool FBXLoader::ParseObjectDefinitions(FILE* file, SkinnedMeshModel& model)
                                 return false;
                             bracket--;
                         }
-                        //memset(buffer, 0, sizeof(buffer));
-                        //position = ftell(file);
                     }
 
                     break;
@@ -381,12 +413,27 @@ bool FBXLoader::ParseObjectProperties(FILE* file, SkinnedMeshModel& model)
                 }
 
                 if (strcmp(geometryTypeBuffer, "Mesh") == 0)
+                {
                     geometryType = GeometryType::Mesh;
+                    if (model.meshDataMap.search(node->nodeID) == nullptr)
+                    {
+                        model.meshDataMap.insert(node->nodeID, new ModelData());
+                    }
+                }
+                   
                 else if (strcmp(geometryTypeBuffer, "Shape") == 0)
                 {
                     geometryType = GeometryType::Shape;
-                    model.modelData->shapeCnt++;
-                    model.modelData->shapes.push_back(MeshData());
+
+                    //ModelData** ppModelData = model.meshDataMap.search(node->nodeID);
+                    //if (ppModelData == nullptr)
+                    //{
+                    //    model.meshDataMap.insert(node->nodeID, new ModelData());
+                    //    ppModelData = model.meshDataMap.search(node->nodeID);
+                    //}
+                    //
+                    //(*ppModelData)->shapeCnt++;
+                    //(*ppModelData)->shapes.push_back(MeshData());
                 }
                 else
                 {
@@ -394,13 +441,14 @@ bool FBXLoader::ParseObjectProperties(FILE* file, SkinnedMeshModel& model)
                     return false;
                 }
 
-                if (!ParseGeometry(file, model, geometryType))
+                if (!ParseGeometry(file, model, geometryType, node))
                 {
                     delete node;
                     return false;   // Geometryの解析が失敗した
                 }
 
-                node->nodeData = static_cast<void*>(model.modelData);
+                //if ()
+                //node->nodeData = static_cast<void*>(model.modelData);
 
                 model.fbxNodes.insert(node->nodeID, node);
 
@@ -462,7 +510,8 @@ bool FBXLoader::ParseObjectProperties(FILE* file, SkinnedMeshModel& model)
                     delete node;
                     return false;   // Materialの解析が失敗した
                 }
-                if (!ParseMaterial(file, model))
+                node->nodeType = FbxNodeType::Material;
+                if (!ParseMaterial(file, model, node))
                 {
                     delete node;
                     return false;   // Materialの解析が失敗した
@@ -522,21 +571,16 @@ bool FBXLoader::ParseObjectProperties(FILE* file, SkinnedMeshModel& model)
                 }
                 model.fbxNodes.insert(node->nodeID, node);
 
-                if (model.textureName[0] != '\0')
-                    SkipNode(file);
-                else
+                char TextureName[128];
+                if (sscanf(buffer, " Texture: %*[^,], \"%[^\"]\", \"%[^\"]\"", TextureName) != 1)
                 {
-                    char TextureName[128];
-                    if (sscanf(buffer, " Texture: %*[^,], \"%[^\"]\", \"%[^\"]\"", TextureName) != 1)
-                    {
-                        delete node;
-                        return false;   // Textureの解析が失敗した
-                    }
-                    if (!ParseTexture(file, model))
-                    {
-                        delete node;
-                        return false;   // Textureの解析が失敗した
-                    }
+                    delete node;
+                    return false;   // Textureの解析が失敗した
+                }
+                if (!ParseTexture(file, model, node))
+                {
+                    delete node;
+                    return false;   // Textureの解析が失敗した
                 }
 
             }
@@ -594,55 +638,53 @@ bool FBXLoader::ParseObjectProperties(FILE* file, SkinnedMeshModel& model)
     return false;
 }
 
-bool FBXLoader::ParseGeometry(FILE* file, SkinnedMeshModel& model, GeometryType type)
+bool FBXLoader::ParseGeometry(FILE* file, SkinnedMeshModel& model, GeometryType type, FbxNode* node)
 {
     char buffer[2048];
     int readCount;
     bool readVertice = false;
     long int position = 0;
+    MeshData* meshData = nullptr;
+    SimpleArray<float> normals;
     // Geometry内部のフィールドを処理する
     while (fgets(buffer, sizeof(buffer), file))
     {
-        //if (strstr(buffer, "Properties60:"))
-        //{
-        //    if (!ParseModelProperty(file))
-        //        return false;
-        //}
-        //else if (strstr(buffer, "Culling:"))
-        //{
-        //    char culling[32];
-        //    
-        //    readCount = sscanf(buffer, " Culling: \"%[^\"]\"", culling);
-        //    if (readCount != 1)
-        //        return false;
-        //    if (strcmp(culling, "CullingOff") == 0)
-        //        cullMode = CULL_MODE_NONE;
-        //}
         if (strstr(buffer, "Vertices:"))
         {
-            //fseek(file, position, SEEK_SET);
-
-            if (!ParseVertexData(file, model, type))
+            if (!ParseVertexData(file, model, type, node, meshData))
                 return false;
         }
         else if (strstr(buffer, "PolygonVertexIndex:")
                 || strstr(buffer, "Indexes:"))
         {
-            //fseek(file, position, SEEK_SET);
-
-            if (!ParseIndexData(file, model, type))
+            if (!ParseIndexData(file, model, type, node, meshData))
                 return false;
         }
         else if (strstr(buffer, "LayerElementNormal:"))
         {
-            if (!ParseNormal(file, model, type))
+            if (!ParseNormal(file, model, type, node, meshData))
                 return false;     
         }
         else if (strstr(buffer, "Normals: "))
         {
-            if (!ParseNormalData(file, model, type, MappingInformationType::ByPolygonVertex, ReferenceInformationType::Direct))
+            if (!ParseNormalData(file, model, type, MappingInformationType::ByPolygonVertex, ReferenceInformationType::Direct, node, meshData, normals))
                 return false;
 
+        }
+        else if (strstr(buffer, "Edges: "))
+        {
+            SkipNode(file);
+
+        }
+        else if (strstr(buffer, "LayerElementTangent:"))
+        {
+            //fseek(file, position, SEEK_SET);
+            SkipNode(file);
+        }
+        else if (strstr(buffer, "LayerElementColor:"))
+        {
+            //fseek(file, position, SEEK_SET);
+            SkipNode(file);
         }
         else if (strstr(buffer, "LayerElementSmoothing:"))
         {
@@ -651,7 +693,7 @@ bool FBXLoader::ParseGeometry(FILE* file, SkinnedMeshModel& model, GeometryType 
         }
         else if (strstr(buffer, "LayerElementUV:"))
         {
-            if (!ParseUV(file, model, type))
+            if (!ParseUV(file, model, type, node, meshData))
                 return false;
         }
         else if (strstr(buffer, "LayerElementMaterial:"))
@@ -661,12 +703,18 @@ bool FBXLoader::ParseGeometry(FILE* file, SkinnedMeshModel& model, GeometryType 
         }
         else if (strstr(buffer, "Layer:"))
         {
-            //fseek(file, position, SEEK_SET);
             SkipNode(file);
         }
         else if (strstr(buffer, "}"))
         {
             // Geometryセグメントの終わり
+            if (type == GeometryType::Shape)
+            {
+                if (meshData == nullptr)
+                    return false;
+
+                node->nodeData = static_cast<void*>(meshData);
+            }
             return true;
         }
 
@@ -715,23 +763,31 @@ bool FBXLoader::ParseModel(FILE* file, SkinnedMeshModel& model, FbxNode* node)
     return false;
 }
 
-bool FBXLoader::ParseMaterial(FILE* file, SkinnedMeshModel& model)
+bool FBXLoader::ParseMaterial(FILE* file, SkinnedMeshModel& model, FbxNode* node)
 {
     char buffer[2048];
     int readCount;
     long int position = 0;
+    FbxMaterial* material = new FbxMaterial();
     // Material内部のフィールドを処理する
     while (fgets(buffer, sizeof(buffer), file))
     {
         if (strstr(buffer, "Properties70:"))
         {
-            if (!ParseMaterialProperty(file, model.material))
+            if (!ParseMaterialProperty(file, *material))
+            {
+                delete material;
                 return false;
+            }
         }
 
         if (strstr(buffer, "}"))
+        {
+            node->nodeData = static_cast<void*>(material);
             return true;
+        }
     }
+    delete material;
     return false;
 }
 
@@ -928,7 +984,7 @@ bool FBXLoader::ParseDeformer(FILE* file, FbxNode* node)
     return false;
 }
 
-bool FBXLoader::ParseMaterialProperty(FILE* file, Material& material)
+bool FBXLoader::ParseMaterialProperty(FILE* file, FbxMaterial& material)
 {
     char buffer[2048];
     char property[128] = { 0 };
@@ -946,7 +1002,7 @@ bool FBXLoader::ParseMaterialProperty(FILE* file, Material& material)
         }
         else if (strstr(property, "EmissiveColor"))
         {
-            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%lf, %lf, %lf", &material.EmissiveColor.x, &material.EmissiveColor.y, &material.EmissiveColor.z);
+            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%f, %f, %f", &material.EmissiveColor.x, &material.EmissiveColor.y, &material.EmissiveColor.z);
             if (readCount != 3)
                 return false;
         }
@@ -958,7 +1014,7 @@ bool FBXLoader::ParseMaterialProperty(FILE* file, Material& material)
         }
         else if (strstr(property, "AmbientColor"))
         {
-            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%lf, %lf, %lf", &material.AmbientColor.x, &material.AmbientColor.y, &material.AmbientColor.z);
+            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%f, %f, %f", &material.AmbientColor.x, &material.AmbientColor.y, &material.AmbientColor.z);
             if (readCount != 3)
                 return false;
         }
@@ -970,7 +1026,7 @@ bool FBXLoader::ParseMaterialProperty(FILE* file, Material& material)
         }
         else if (strstr(property, "DiffuseColor"))
         {
-            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%lf, %lf, %lf", &material.DiffuseColor.x, &material.DiffuseColor.y, &material.DiffuseColor.z);
+            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%f, %f, %f", &material.DiffuseColor.x, &material.DiffuseColor.y, &material.DiffuseColor.z);
             if (readCount != 3)
                 return false;
         }
@@ -982,25 +1038,25 @@ bool FBXLoader::ParseMaterialProperty(FILE* file, Material& material)
         }
         else if (strstr(property, "Bump\""))
         {
-            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%lf, %lf, %lf", &material.Bump.x, &material.Bump.y, &material.Bump.z);
+            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%f, %f, %f", &material.Bump.x, &material.Bump.y, &material.Bump.z);
             if (readCount != 3)
                 return false;
         }
         else if (strstr(property, "NormalMap"))
         {
-            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%lf, %lf, %lf", &material.NormalMap.x, &material.NormalMap.y, &material.NormalMap.z);
+            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%f, %f, %f", &material.NormalMap.x, &material.NormalMap.y, &material.NormalMap.z);
             if (readCount != 3)
                 return false;
         }
         else if (strstr(property, "BumpFactor"))
         {
-            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%lf", &material.BumpFactor);
+            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%f", &material.BumpFactor);
             if (readCount != 1)
                 return false;
         }
         else if (strstr(property, "TransparentColor"))
         {
-            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%lf, %lf, %lf", &material.TransparentColor.x, &material.TransparentColor.y, &material.TransparentColor.z);
+            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%f, %f, %f", &material.TransparentColor.x, &material.TransparentColor.y, &material.TransparentColor.z);
             if (readCount != 3)
                 return false;
         }
@@ -1012,31 +1068,31 @@ bool FBXLoader::ParseMaterialProperty(FILE* file, Material& material)
         }
         else if (strstr(property, "DisplacementColor"))
         {
-            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%lf, %lf, %lf", &material.DisplacementColor.x, &material.DisplacementColor.y, &material.DisplacementColor.z);
+            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%f, %f, %f", &material.DisplacementColor.x, &material.DisplacementColor.y, &material.DisplacementColor.z);
             if (readCount != 3)
                 return false;
         }
         else if (strstr(property, "DisplacementFactor"))
         {
-            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%lf", &material.DisplacementFactor);
+            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%f", &material.DisplacementFactor);
             if (readCount != 1)
                 return false;
         }
         else if (strstr(property, "VectorDisplacementColor"))
         {
-            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%lf, %lf, %lf", &material.VectorDisplacementColor.x, &material.VectorDisplacementColor.y, &material.VectorDisplacementColor.z);
+            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%f, %f, %f", &material.VectorDisplacementColor.x, &material.VectorDisplacementColor.y, &material.VectorDisplacementColor.z);
             if (readCount != 3)
                 return false;
         }
         else if (strstr(property, "VectorDisplacementFactor"))
         {
-            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%lf", &material.VectorDisplacementFactor);
+            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%f", &material.VectorDisplacementFactor);
             if (readCount != 1)
                 return false;
         }
         else if (strstr(property, "SpecularColor"))
         {
-            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%lf, %lf, %lf", &material.SpecularColor.x, &material.SpecularColor.y, &material.SpecularColor.z);
+            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%f, %f, %f", &material.SpecularColor.x, &material.SpecularColor.y, &material.SpecularColor.z);
             if (readCount != 3)
                 return false;
         }
@@ -1054,7 +1110,7 @@ bool FBXLoader::ParseMaterialProperty(FILE* file, Material& material)
         }
         else if (strstr(property, "ReflectionColor"))
         {
-            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%lf, %lf, %lf", &material.ReflectionColor.x, &material.ReflectionColor.y, &material.ReflectionColor.z);
+            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%f, %f, %f", &material.ReflectionColor.x, &material.ReflectionColor.y, &material.ReflectionColor.z);
             if (readCount != 3)
                 return false;
         }
@@ -1518,7 +1574,7 @@ bool FBXLoader::ParseModelProperty(FILE* file, ModelProperty& modelProperty, Fbx
     }
 }
 
-bool FBXLoader::ParseVertexData(FILE* file, SkinnedMeshModel& model, GeometryType geometryType)
+bool FBXLoader::ParseVertexData(FILE* file, SkinnedMeshModel& model, GeometryType geometryType, FbxNode* node, MeshData* &meshData)
 {
     char buffer[4096];
     float vertexPos[3];
@@ -1560,9 +1616,20 @@ bool FBXLoader::ParseVertexData(FILE* file, SkinnedMeshModel& model, GeometryTyp
                     newVertex.Position.y = vertexPos[1];
                     newVertex.Position.z = vertexPos[2];
                     if (geometryType == GeometryType::Mesh)
-                        model.modelData->mesh.VerticesTemp.push_back(newVertex);
-                    else if (geometryType == GeometryType::Mesh)
-                        model.modelData->shapes[model.modelData->shapeCnt - 1].VerticesTemp.push_back(newVertex);
+                    {
+                        ModelData* modelData = model.meshDataMap[node->nodeID];
+                        if (modelData == nullptr)
+                            modelData = new ModelData();
+                        modelData->mesh->VerticesTemp.push_back(newVertex);
+                    }
+                        
+                    else if (geometryType == GeometryType::Shape)
+                    {
+                        if (meshData == nullptr)
+                            meshData = new MeshData();
+                        meshData->VerticesTemp.push_back(newVertex);
+                    }
+                        
 
                     count = 0;
                 }
@@ -1577,10 +1644,9 @@ bool FBXLoader::ParseVertexData(FILE* file, SkinnedMeshModel& model, GeometryTyp
 
     if (count > 0 && count < 3)
     {
-        if (geometryType == GeometryType::Mesh)
-            model.modelData->mesh.VerticesTemp.clear();
-        else if (geometryType == GeometryType::Mesh)
-            model.modelData->shapes[model.modelData->shapeCnt - 1].VerticesTemp.clear();
+        if (meshData)
+            delete meshData;
+
         return false;
     }
     else
@@ -1591,7 +1657,7 @@ bool FBXLoader::ParseVertexData(FILE* file, SkinnedMeshModel& model, GeometryTyp
     }
 }
 
-bool FBXLoader::ParseIndexData(FILE* file, SkinnedMeshModel& model, GeometryType geometryType)
+bool FBXLoader::ParseIndexData(FILE* file, SkinnedMeshModel& model, GeometryType geometryType, FbxNode* node, MeshData* &meshData)
 {
     char buffer[4096];
     int index;
@@ -1599,6 +1665,15 @@ bool FBXLoader::ParseIndexData(FILE* file, SkinnedMeshModel& model, GeometryType
     char* ptr;
     int indicesFound = 0;
     long int position = 0;
+
+    ModelData* modelData = nullptr;
+    if (node->nodeType == FbxNodeType::Mesh)
+    {
+        modelData = model.meshDataMap[node->nodeID];
+        if (modelData == nullptr)
+            modelData = new ModelData();
+    }
+
 
     while (fgets(buffer, sizeof(buffer), file))
     {
@@ -1628,9 +1703,16 @@ bool FBXLoader::ParseIndexData(FILE* file, SkinnedMeshModel& model, GeometryType
                     polygonSize = 3;
                 
                 if (geometryType == GeometryType::Mesh)
-                    model.modelData->mesh.IndicesData.push_back(indexData);
+                {
+                    modelData->mesh->IndicesData.push_back(indexData);
+                }
                 else if (geometryType == GeometryType::Shape)
-                    model.modelData->shapes[model.modelData->shapeCnt - 1].IndicesData.push_back(indexData);
+                {
+                    if (meshData == nullptr)
+                        meshData = new MeshData();
+                    meshData->IndicesData.push_back(indexData);
+                }
+
                 count++;
 
                 if (count == polygonSize)
@@ -1646,7 +1728,11 @@ bool FBXLoader::ParseIndexData(FILE* file, SkinnedMeshModel& model, GeometryType
 
     if (count > 0 && count < 4 && geometryType == GeometryType::Mesh)
     {
-        model.modelData->mesh.IndicesData.clear();
+       modelData->mesh->IndicesData.clear();
+
+        if (meshData)
+            delete meshData;
+
         return false;
     }
     else
@@ -1657,7 +1743,7 @@ bool FBXLoader::ParseIndexData(FILE* file, SkinnedMeshModel& model, GeometryType
     }
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              }
 
-bool FBXLoader::ParseNormal(FILE* file, SkinnedMeshModel& model, GeometryType geometryType)
+bool FBXLoader::ParseNormal(FILE* file, SkinnedMeshModel& model, GeometryType geometryType, FbxNode* node, MeshData* &meshData)
 {
     char buffer[4096];
     int readCount;
@@ -1668,6 +1754,7 @@ bool FBXLoader::ParseNormal(FILE* file, SkinnedMeshModel& model, GeometryType ge
     long int position = 0;
     MappingInformationType mappingInformationType;
     ReferenceInformationType referenceInformationType;
+    SimpleArray<float> normals;
 
     while (fgets(buffer, sizeof(buffer), file))
     {
@@ -1692,9 +1779,20 @@ bool FBXLoader::ParseNormal(FILE* file, SkinnedMeshModel& model, GeometryType ge
                 return false;
 
             if (mappingInformationType == ByVertice)
-                model.normalLoc = Vertex;
+            {
+                ModelData* modelData = model.meshDataMap[node->nodeID];
+                if (modelData == nullptr)
+                    modelData = new ModelData();
+                modelData->normalLoc = Vertex;
+            }   
             else if (mappingInformationType == ByPolygonVertex)
-                model.normalLoc = Index;
+            {
+                ModelData* modelData = model.meshDataMap[node->nodeID];
+                if (modelData == nullptr)
+                    modelData = new ModelData();
+                modelData->normalLoc = Index;
+            }
+                
         }
         else if (strstr(buffer, "ReferenceInformationType:"))
         {
@@ -1712,17 +1810,16 @@ bool FBXLoader::ParseNormal(FILE* file, SkinnedMeshModel& model, GeometryType ge
         }
         else if (strstr(buffer, "Normals:"))
         {
-            //fseek(file, position, SEEK_SET);
-
-            ParseNormalData(file, model, geometryType, mappingInformationType, referenceInformationType);
-
-            //if (strstr(buffer, "}"))
-            //    fgets(buffer, sizeof(buffer), file);
-            //fseek(file, position, SEEK_SET);
+            if (!ParseNormalData(file, model, geometryType, mappingInformationType, referenceInformationType, node, meshData, normals))
+                return false;
         }
-
         else if (strstr(buffer, "NormalsW:"))
             SkipNode(file);
+        else if (strstr(buffer, "NormalsIndex:"))
+        {
+            if (!ParseNormalIndexData(file, model, geometryType, node, meshData, normals))
+                return false;
+        }
 
         else if (strstr(buffer, "}"))
         {
@@ -1737,7 +1834,9 @@ bool FBXLoader::ParseNormal(FILE* file, SkinnedMeshModel& model, GeometryType ge
     return false;
 }
 
-bool FBXLoader::ParseNormalData(FILE* file, SkinnedMeshModel& model, GeometryType geometryType, MappingInformationType mappingInformationType, ReferenceInformationType referenceInformationType)
+bool FBXLoader::ParseNormalData(FILE* file, SkinnedMeshModel& model, GeometryType geometryType, 
+    MappingInformationType mappingInformationType, ReferenceInformationType referenceInformationType, FbxNode* node, MeshData* &meshData,
+    SimpleArray<float>& normals)
 {
     char buffer[4096];
     float normal;
@@ -1748,6 +1847,15 @@ bool FBXLoader::ParseNormalData(FILE* file, SkinnedMeshModel& model, GeometryTyp
     float normalsByVertex[3];
     char* ptr;
     long int position = 0;
+
+    ModelData* modelData = nullptr;
+    if (node->nodeType == FbxNodeType::Mesh)
+    {
+        modelData = model.meshDataMap[node->nodeID];
+        if (modelData == nullptr)
+            modelData = new ModelData();
+    }
+
     while (fgets(buffer, sizeof(buffer), file))
     {
         ptr = buffer;
@@ -1781,22 +1889,37 @@ bool FBXLoader::ParseNormalData(FILE* file, SkinnedMeshModel& model, GeometryTyp
                     }
                     if (normalCount == 3)
                     {
-                        if (vertexCount >= model.modelData->mesh.IndicesData.getSize())
-                        {
-                            model.modelData->mesh.Vertices.clear();
-                            return false;
-                        }
                         if (geometryType == GeometryType::Mesh)
                         {
-                            model.modelData->mesh.IndicesData[vertexCount].Normal.x = normalsByVertex[0];
-                            model.modelData->mesh.IndicesData[vertexCount].Normal.y = normalsByVertex[1];
-                            model.modelData->mesh.IndicesData[vertexCount].Normal.z = normalsByVertex[2];
+
+                            ModelData* modelData = model.meshDataMap[node->nodeID];
+                            if (modelData == nullptr)
+                                modelData = new ModelData();
+                            modelData->mesh->IndicesData[vertexCount].Normal.x = normalsByVertex[0];
+                            modelData->mesh->IndicesData[vertexCount].Normal.y = normalsByVertex[1];
+                            modelData->mesh->IndicesData[vertexCount].Normal.z = normalsByVertex[2];
                         }
                         else if (geometryType == GeometryType::Shape)
                         {
-                            model.modelData->shapes[model.modelData->shapeCnt - 1].IndicesData[vertexCount].Normal.x = normalsByVertex[0];
-                            model.modelData->shapes[model.modelData->shapeCnt - 1].IndicesData[vertexCount].Normal.y = normalsByVertex[1];
-                            model.modelData->shapes[model.modelData->shapeCnt - 1].IndicesData[vertexCount].Normal.z = normalsByVertex[2];
+
+                            if (meshData == nullptr)
+                            {
+                                meshData = new MeshData();
+
+                                IndexData indexData;
+                                indexData.Normal.x = normalsByVertex[0];
+                                indexData.Normal.y = normalsByVertex[1];
+                                indexData.Normal.z = normalsByVertex[2];
+                                meshData->IndicesData.push_back(indexData);
+                            }
+                            else
+                            {
+                                meshData->IndicesData[vertexCount].Normal.x = normalsByVertex[0];
+                                meshData->IndicesData[vertexCount].Normal.y = normalsByVertex[1];
+                                meshData->IndicesData[vertexCount].Normal.z = normalsByVertex[2];
+                            }
+                                
+
                         }
 
                         vertexCount++;
@@ -1822,25 +1945,27 @@ bool FBXLoader::ParseNormalData(FILE* file, SkinnedMeshModel& model, GeometryTyp
                     {
                         if (geometryType == GeometryType::Mesh)
                         {
-                            if (vertexCount >= model.modelData->mesh.VerticesTemp.getSize())
+                            if (vertexCount >= modelData->mesh->VerticesTemp.getSize())
                             {
-                                model.modelData->mesh.Vertices.clear();
+                                delete modelData;
                                 return false;
                             }
-                            model.modelData->mesh.VerticesTemp[vertexCount].Normal.x = normalsByVertex[0];
-                            model.modelData->mesh.VerticesTemp[vertexCount].Normal.y = normalsByVertex[1];
-                            model.modelData->mesh.VerticesTemp[vertexCount].Normal.z = normalsByVertex[2];
+                            modelData->mesh->VerticesTemp[vertexCount].Normal.x = normalsByVertex[0];
+                            modelData->mesh->VerticesTemp[vertexCount].Normal.y = normalsByVertex[1];
+                            modelData->mesh->VerticesTemp[vertexCount].Normal.z = normalsByVertex[2];
                         }
                         else if (geometryType == GeometryType::Shape)
                         {
-                            if (vertexCount >= model.modelData->shapes[model.modelData->shapeCnt - 1].VerticesTemp.getSize())
+                            if (meshData == nullptr)
+                                return false;
+                            if (vertexCount >= meshData->VerticesTemp.getSize())
                             {
-                                model.modelData->shapes[model.modelData->shapeCnt - 1].Vertices.clear();
+                                delete meshData;
                                 return false;
                             }
-                            model.modelData->shapes[model.modelData->shapeCnt - 1].VerticesTemp[vertexCount].Normal.x = normalsByVertex[0];
-                            model.modelData->shapes[model.modelData->shapeCnt - 1].VerticesTemp[vertexCount].Normal.y = normalsByVertex[1];
-                            model.modelData->shapes[model.modelData->shapeCnt - 1].VerticesTemp[vertexCount].Normal.z = normalsByVertex[2];
+                            meshData->VerticesTemp[vertexCount].Normal.x = normalsByVertex[0];
+                            meshData->VerticesTemp[vertexCount].Normal.y = normalsByVertex[1];
+                            meshData->VerticesTemp[vertexCount].Normal.z = normalsByVertex[2];
                         }
 
                         vertexCount++;
@@ -1851,7 +1976,16 @@ bool FBXLoader::ParseNormalData(FILE* file, SkinnedMeshModel& model, GeometryTyp
                     if (*ptr == ',') ptr++;
                 }
             }
-
+            else if (mappingInformationType == ByPolygonVertex
+                && referenceInformationType == IndexToDirect)
+                {
+                    while (sscanf(ptr, "%f", &normal) == 1)
+                    {
+                        normals.push_back(normal);
+                        while (*ptr != ',' && *ptr != '\0') ptr++;
+                        if (*ptr == ',') ptr++;
+                    }
+                }
         }
 
         position = ftell(file);
@@ -1860,26 +1994,107 @@ bool FBXLoader::ParseNormalData(FILE* file, SkinnedMeshModel& model, GeometryTyp
     int VertexArrayCnt, IndexArrayCnt;
     if (geometryType == GeometryType::Mesh)
     {
-        VertexArrayCnt = model.modelData->mesh.Vertices.getSize();
-        IndexArrayCnt = model.modelData->mesh.IndicesData.getSize();
+        VertexArrayCnt = modelData->mesh->Vertices.getSize();
+        IndexArrayCnt = modelData->mesh->IndicesData.getSize();
     }
     else if (geometryType == GeometryType::Shape)
     {
-        VertexArrayCnt = model.modelData->shapes[model.modelData->shapeCnt - 1].Vertices.getSize();
-        IndexArrayCnt = model.modelData->shapes[model.modelData->shapeCnt - 1].IndicesData.getSize();
+        if (meshData == nullptr)
+            return false;
+        VertexArrayCnt = meshData->Vertices.getSize();
+        IndexArrayCnt = meshData->IndicesData.getSize();
     }
 
 
     if (mappingInformationType == ByPolygon
+        && referenceInformationType == Direct
         && vertexCount != VertexArrayCnt)
+    {
+        if (meshData)
+            delete meshData;
+
         return false;
+    }
     else if (mappingInformationType == ByPolygonVertex
+        && referenceInformationType == Direct
         && vertexCount != IndexArrayCnt)
+    {
+        if (meshData)
+            delete meshData;
+
         return false;
+    }
+
     return true;
 }
 
-bool FBXLoader::ParseUV(FILE* file, SkinnedMeshModel& model, GeometryType geometryType)
+bool FBXLoader::ParseNormalIndexData(FILE* file, SkinnedMeshModel& model, GeometryType geometryType, FbxNode* node, MeshData*& meshData, SimpleArray<float>& normals)
+{
+    if (normals.getSize() <= 0)
+        return false;
+
+    char buffer[4096];
+    SimpleArray<float> normalIndex;
+    int index;
+    int normalIndexFound = 0;
+    char* ptr;
+
+    ModelData* modelData = nullptr;
+    if (node->nodeType == FbxNodeType::Mesh)
+    {
+        modelData = model.meshDataMap[node->nodeID];
+        if (modelData == nullptr)
+            modelData = new ModelData();
+    }
+
+    while (fgets(buffer, sizeof(buffer), file))
+    {
+        ptr = buffer;
+        if (!normalIndexFound)
+        {
+            ptr = strstr(buffer, "a:");
+            if (ptr)
+            {
+                ptr += strlen("a:");
+                normalIndexFound = 1;
+            }
+        }
+
+        if (normalIndexFound)
+        {
+            while (*ptr && isspace((unsigned char)*ptr)) ptr++;
+
+            if (!isdigit((unsigned char)*ptr) && *ptr != '-' && *ptr != '.') 
+                break;
+
+            while (sscanf(ptr, "%d", &index) == 1)
+            {
+                normalIndex.push_back(index);
+
+                while (*ptr != ',' && *ptr != '\0') ptr++;
+                if (*ptr == ',') ptr++;
+            }
+        }
+    }
+
+    int normalIndexSize = normalIndex.getSize();
+
+    for (int i = 0; i < normalIndexSize; i++)
+    {
+        if (normalIndexSize != modelData->mesh->IndicesData.getSize())
+            return false;
+
+        int index = normalIndex[i];
+
+        modelData->mesh->IndicesData[i].Normal.x = normals[index * 3];
+        modelData->mesh->IndicesData[i].Normal.y = normals[index * 3 + 1];
+        modelData->mesh->IndicesData[i].Normal.y = normals[index * 3 + 2];
+    }
+
+    return true;
+}
+
+bool FBXLoader::ParseUV(FILE* file, SkinnedMeshModel& model, GeometryType geometryType, FbxNode* node, MeshData* &meshData)
 {
     char buffer[4096];
     int readCount;
@@ -1893,6 +2108,14 @@ bool FBXLoader::ParseUV(FILE* file, SkinnedMeshModel& model, GeometryType geomet
     long int position = 0;
     MappingInformationType mappingInformationType;
     ReferenceInformationType referenceInformationType;
+
+    ModelData* modelData = nullptr;
+    if (geometryType == GeometryType::Mesh)
+    {
+        modelData = model.meshDataMap[node->nodeID];
+        if (modelData == nullptr)
+            return false;
+    }
 
     while (fgets(buffer, sizeof(buffer), file))
     {
@@ -1917,9 +2140,21 @@ bool FBXLoader::ParseUV(FILE* file, SkinnedMeshModel& model, GeometryType geomet
                 return false;
 
             if (mappingInformationType == ByVertice)
-                model.texLoc = Vertex;
+            {
+                ModelData* modelData = model.meshDataMap[node->nodeID];
+                if (modelData == nullptr)
+                    modelData = new ModelData();
+                modelData->texLoc = Vertex;
+            }
+                
             else if (mappingInformationType == ByPolygonVertex)
-                model.texLoc = Index;
+            {
+                ModelData* modelData = model.meshDataMap[node->nodeID];
+                if (modelData == nullptr)
+                    modelData = new ModelData();
+                modelData->texLoc = Index;
+            }
+                
         }
         else if (strstr(buffer, "ReferenceInformationType:"))
         {
@@ -1937,7 +2172,6 @@ bool FBXLoader::ParseUV(FILE* file, SkinnedMeshModel& model, GeometryType geomet
         }
         else if (strstr(buffer, "UV:"))
         {
-            //fseek(file, position, SEEK_SET);
             int UVFound = 0;
             while (fgets(buffer, sizeof(buffer), file))
             {
@@ -1970,14 +2204,9 @@ bool FBXLoader::ParseUV(FILE* file, SkinnedMeshModel& model, GeometryType geomet
 
                 position = ftell(file);
             }
-            
-            //if (strstr(buffer, "}"))
-            //    fgets(buffer, sizeof(buffer), file);
-            //fseek(file, position, SEEK_SET);
         }
         else if (strstr(buffer, "UVIndex:"))
         {
-            //fseek(file, position, SEEK_SET);
             int UVIndexFound = 0;
             while (fgets(buffer, sizeof(buffer), file))
             {
@@ -2010,31 +2239,55 @@ bool FBXLoader::ParseUV(FILE* file, SkinnedMeshModel& model, GeometryType geomet
 
                 position = ftell(file);
             }
-
-            //fseek(file, position, SEEK_SET);
         }
 
-        // Modelセグメントの終わり
+        // UVセグメントの終わり
         else if (strstr(buffer, "}"))
         {
+            int UVCoordIndexSize = UVCoordIndex.getSize();
+
             if (mappingInformationType == ByPolygonVertex
                 && referenceInformationType == IndexToDirect)
             {
-                int UVCoordIndexSize = UVCoordIndex.getSize();
-                if (UVCoordIndexSize != model.modelData->mesh.IndicesData.getSize())
-                    return false;
 
                 for (int i = 0; i < UVCoordIndexSize; i++)
                 {                    
                     int coordIndex = UVCoordIndex[i];
 
-                    model.modelData->mesh.IndicesData[i].TexCoord.x = UVCoord[coordIndex * 2];
-                    model.modelData->mesh.IndicesData[i].TexCoord.y = UVCoord[coordIndex * 2 + 1];
+                    if (geometryType == GeometryType::Mesh)
+                    {
+                        if (UVCoordIndexSize != modelData->mesh->IndicesData.getSize())
+                            return false;
+                        modelData->mesh->IndicesData[i].TexCoord.x = UVCoord[coordIndex * 2];
+                        modelData->mesh->IndicesData[i].TexCoord.y = UVCoord[coordIndex * 2 + 1];
+
+
+                    }
+                    else if (geometryType == GeometryType::Shape)
+                    {
+                        if (meshData == nullptr)
+                            meshData = new MeshData();
+
+                        meshData->IndicesData[i].TexCoord.x = UVCoord[coordIndex * 2];
+                        meshData->IndicesData[i].TexCoord.y = UVCoord[coordIndex * 2 + 1];
+                    }
+
                 }
             }
-            //else if (mappingInformationType == AllSame)
+            else if (mappingInformationType == ByVertice
+                && referenceInformationType == Direct)
+            {
+                int numVertices = modelData->mesh->VerticesTemp.getSize();
+                if (UVCoord.getSize() != numVertices * 2)
+                    return false;
 
-            //fgets(buffer, sizeof(buffer), file);
+                for (int i = 0; i < numVertices; i++)
+                {
+                    modelData->mesh->VerticesTemp[i].TexCoord.x = UVCoord[i * 2];
+                    modelData->mesh->VerticesTemp[i].TexCoord.y = UVCoord[i * 2 + 1];
+                }
+            }
+
             return true;
         }
 
@@ -2044,21 +2297,31 @@ bool FBXLoader::ParseUV(FILE* file, SkinnedMeshModel& model, GeometryType geomet
     return false;
 }
 
-bool FBXLoader::ParseTexture(FILE* file, SkinnedMeshModel& model)
+bool FBXLoader::ParseTexture(FILE* file, SkinnedMeshModel& model, FbxNode* node)
 {
     char buffer[512];
+    char* textureName = new char[TEXTURE_NAME_LENGTH];
+    textureName[0] = '\0';
     while (fgets(buffer, sizeof(buffer), file))
     {
         if (strstr(buffer, "Properties70"))
             SkipNode(file);
         else if (strstr(buffer, "RelativeFilename"))
         {
-            if (sscanf(buffer, " RelativeFilename: \"%[^\"]\"", model.textureName) != 1)
+            if (sscanf(buffer, " RelativeFilename: \"%[^\"]\"", textureName) != 1)
+            {
+                delete textureName;
                 return false;
+            }
+                
         }
         else if (strstr(buffer, "}"))
+        {
+            node->nodeData = static_cast<void*>(textureName);
             return true;
+        }
     }
+    delete textureName;
     return false;
 }
 
@@ -2076,7 +2339,7 @@ bool FBXLoader::ParseObjectConnections(FILE* file, SkinnedMeshModel& model)
             FbxNode** ppParentNode = model.fbxNodes.search(nodeID2);
             if (ppChildNode == nullptr || ppParentNode == nullptr) continue;
 
-            (*ppChildNode)->parentNode = *ppParentNode;
+            (*ppChildNode)->parentNodes.push_back(*ppParentNode);
             (*ppParentNode)->childNodes.push_back(*ppChildNode);
         }
         else if (sscanf(buffer, " C: \"OP\",%llu,%llu, \"%[^\"]\"", &nodeID1, &nodeID2, &attributeType) == 3)
@@ -2133,7 +2396,23 @@ bool FBXLoader::ParseObjectConnections(FILE* file, SkinnedMeshModel& model)
                 limbNodeAnimation->LclScl = (*ppChildNode)->nodeID;
                 (*ppParentNode)->limbNodeAnimation = static_cast<void*>(limbNodeAnimation);
             }
-            (*ppChildNode)->parentNode = *ppParentNode;
+            else if (strcmp(attributeType, "EmissiveColor") == 0)
+            {
+                char* textureName = static_cast<char*>((*ppChildNode)->nodeData);
+                if (textureName == nullptr)
+                    return false;
+                FbxMaterial* material = static_cast<FbxMaterial*>((*ppParentNode)->nodeData);
+                strcpy(material->EmissiveColorTexName, textureName);
+            }
+            else if (strcmp(attributeType, "DiffuseColor") == 0)
+            {
+                char* textureName = static_cast<char*>((*ppChildNode)->nodeData);
+                if (textureName == nullptr)
+                    return false;
+                FbxMaterial* material = static_cast<FbxMaterial*>((*ppParentNode)->nodeData);
+                strcpy(material->DiffuseColorTexName, textureName);
+            }
+            (*ppChildNode)->parentNodes.push_back(*ppParentNode);
             (*ppParentNode)->childNodes.push_back(*ppChildNode);
         }
         else if (strstr(buffer, "}"))
@@ -2381,29 +2660,29 @@ void FBXLoader::SkipNode(FILE* file)
     }
 }
 
-void FBXLoader::HandleDeformer(FbxNode* node, ModelData* data, SkinnedMeshModel& model, int curIdx, int prevIdx)
+void FBXLoader::HandleDeformer(FbxNode* node, ModelData* modelData, SkinnedMeshModel& model, int curIdx, int prevIdx)
 {
     
     Deformer* deformer = static_cast<Deformer*>(node->nodeData);
     if (deformer)
     {
         deformer->boneIdx = curIdx;
-        model.mBoneHierarchy.push_back(prevIdx);
-        model.deformerHashMap.insert(curIdx, node->nodeID);
-        model.deformerIdxHashMap.insert(node->nodeID, curIdx);
-        model.mBoneOffsets.push_back(deformer->TransformLink);
-        model.mBoneToParentTransforms.push_back(deformer->Transform);
+        modelData->mBoneHierarchy.push_back(prevIdx);
+        modelData->deformerHashMap.insert(curIdx, node->nodeID);
+        modelData->deformerIdxHashMap.insert(node->nodeID, curIdx);
+        modelData->mBoneOffsets.push_back(deformer->TransformLink);
+        modelData->mBoneToParentTransforms.push_back(deformer->Transform);
 
         for (int i = 0; i < deformer->Index.getSize(); i++)
         {
             int vertexIdx = deformer->Index[i];
             float weight = deformer->Weights[i];
-            model.modelData->mesh.VerticesTemp[vertexIdx].BoneIndices.push_back(curIdx);
-            model.modelData->mesh.VerticesTemp[vertexIdx].Weights.push_back(weight);
+            modelData->mesh->VerticesTemp[vertexIdx].Weights.push_back(weight);
+            modelData->mesh->VerticesTemp[vertexIdx].BoneIndices.push_back(curIdx);
 
         }
-       
-        model.modelData->IndexNum += deformer->Index.getSize();
+
+        modelData->IndexNum += deformer->Index.getSize();
 
         for (int i = 0; i < node->childNodes.getSize(); i++)
         {
@@ -2411,15 +2690,148 @@ void FBXLoader::HandleDeformer(FbxNode* node, ModelData* data, SkinnedMeshModel&
             {
                 int prev = deformer->boneIdx;
                 curIdx++;
-                HandleDeformer(node->childNodes[i], data, model, curIdx, prev);
+                HandleDeformer(node->childNodes[i], modelData, model, curIdx, prev);
             }
             else if (node->childNodes[i]->nodeType == FbxNodeType::LimbNode)
             {
-                model.deformerToLimb.insert(node->nodeID, node->childNodes[i]->nodeID);
+                modelData->deformerToLimb.insert(node->nodeID, node->childNodes[i]->nodeID);
             }
 
         }
     }
+}
+
+void FBXLoader::HandleMeshNode(FbxNode* node, SkinnedMeshModel& model)
+{
+    SimpleArray<FbxNode*> meshNodeChilds = node->childNodes;
+    FbxNode* geometryNode = nullptr;
+    FbxNode* materialNode = nullptr;
+
+    for (int i = 0; i < meshNodeChilds.getSize(); i++)
+    {
+        if (meshNodeChilds[i]->nodeType == FbxNodeType::Mesh)
+        {
+
+            geometryNode = meshNodeChilds[i];
+        }
+        else if (meshNodeChilds[i]->nodeType == FbxNodeType::Material)
+        {
+            materialNode = meshNodeChilds[i];
+        }
+    }
+
+    if (geometryNode)
+    {
+        ModelData** ppModelData = model.meshDataMap.search(geometryNode->nodeID);
+        if (ppModelData)
+        {
+            SimpleArray<FbxNode*> geometryNodeChilds = geometryNode->childNodes;
+            (*ppModelData)->material = static_cast<FbxMaterial*>(materialNode->nodeData);
+            
+            for (int k = 0; k < geometryNodeChilds.getSize(); k++)
+            {
+                FbxNode* deformerArmature = geometryNodeChilds[k];
+                FbxNode* modelArmature = GetModelArmatureNodeByDeformer(deformerArmature);
+                if (modelArmature)
+                    (*ppModelData)->armatureNode = modelArmature;
+                HandleDeformer(deformerArmature, *ppModelData, model, 0, -1);
+            }
+        }
+    }
+
+}
+
+void FBXLoader::BuildLimbHierarchy(FbxNode* armatureNode, ModelData* modelData, int curIdx, int prevIdx)
+{
+    SimpleArray<FbxNode*> childNodes = armatureNode->childNodes;
+    for (int i = 0; i < childNodes.getSize(); i++)
+    {
+        if (childNodes[i]->nodeType == FbxNodeType::LimbNode)
+        {
+            modelData->mBoneHierarchy.push_back(prevIdx);
+
+        }
+        
+    }
+}
+
+FbxNode* FBXLoader::GetGeometryNodeByLimbNode(FbxNode* limbNode)
+{
+    SimpleArray<FbxNode*> pParentNodes = limbNode->parentNodes;
+    for (int i = 0; i < pParentNodes.getSize(); i++)
+    {
+        if (pParentNodes[i]->nodeType == FbxNodeType::Cluster
+            || pParentNodes[i]->nodeType == FbxNodeType::Skin)
+        {
+            return GetGeometryNodeByLimbNode(pParentNodes[i]);
+        }
+        else if (pParentNodes[i]->nodeType == FbxNodeType::Mesh)
+        {
+            return pParentNodes[i];
+        }
+    }
+    return nullptr;
+}
+
+FbxNode* FBXLoader::GetModelArmatureNodeByDeformer(FbxNode* deformerNode)
+{
+    SimpleArray<FbxNode*> subDeformerNodes = deformerNode->childNodes;
+    for (int i = 0; i < subDeformerNodes.getSize(); i++)
+    {
+        SimpleArray<FbxNode*> modelNodes = subDeformerNodes[i]->childNodes;
+        for (int j = 0; j < modelNodes.getSize(); j++)
+        {
+            FbxNode* armatureNode = GetModelArmatureNodeByModel(modelNodes[j]);
+            if (armatureNode)
+                return armatureNode;
+        }
+    }
+    return nullptr;
+}
+
+FbxNode* FBXLoader::GetModelArmatureNodeByModel(FbxNode* modelNode)
+{
+    SimpleArray<FbxNode*> parentModelNodes = modelNode->parentNodes;
+    for (int i = 0; i < parentModelNodes.getSize(); i++)
+    {
+        if (parentModelNodes[i]->nodeType == FbxNodeType::LimbNode)
+        {
+            return GetModelArmatureNodeByModel(parentModelNodes[i]);
+        }
+        else if (parentModelNodes[i]->nodeType == FbxNodeType::None)
+            return parentModelNodes[i];
+    }
+    return nullptr;
+}
+
+char* FBXLoader::GetTextureName(char* modelPath, char* relativeTexturePath)
+{
+    if (modelPath == nullptr || relativeTexturePath == nullptr)
+        return nullptr;
+    char* result = new char[TEXTURE_NAME_LENGTH];
+    result[0] = '\0';
+
+    const char* lastSlash = strrchr(relativeTexturePath, '/');
+    const char* lastBackslash = strrchr(relativeTexturePath, '\\');
+
+    // 最後の区切り文字がどちらかを確認し、それに基づいてファイル名を取得
+    const char* textureNameStart = relativeTexturePath;
+    if (lastSlash || lastBackslash) 
+    {
+        textureNameStart = max(lastSlash, lastBackslash) + 1;
+    }
+
+    strcpy(result, modelPath);
+
+    size_t modelPathLength = strlen(modelPath);
+    if (modelPathLength > 0 && modelPath[modelPathLength - 1] != '/' && modelPath[modelPathLength - 1] != '\\')
+    {
+        strcat(result, "/");
+    }
+    // ファイル名部分を追加
+    strcat(result, textureNameStart);
+
+    return result;
 }
 
 

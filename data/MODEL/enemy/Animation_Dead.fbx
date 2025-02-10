@@ -2251,7 +2251,7 @@ Objects:  {
 			P: "AlphaSource", "enum", "", "",2
 		}
 		Media: "Video::Material_1_basecolor"
-		FileName: "C:\Users\Sayako\Downloads\biped\Animation_Dead_withSkin.fbm/texture_0.png"
+		FileName: "C:\Users\Sayako\Downloads\biped\Animation_Dead_withSkin.fbm/texture_0png"
 		RelativeFilename: "data/MODEL/enemy/texture_0.png"
 		ModelUVTranslation: 0,0
 		ModelUVScaling: 1,1

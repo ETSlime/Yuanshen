@@ -11,11 +11,13 @@
 //*****************************************************************************
 
 #define MAX_NODE_NUM			8192
+#define TEXTURE_NAME_LENGTH		256
 #define SMALL_NUM_THRESHOLD		1e-6
 enum class FbxNodeType
 {
 	LimbNode,
 	Mesh,
+	Material,
 	Skin,
 	Cluster,
 	BlendShape,
@@ -213,6 +215,32 @@ struct BindPose
 	);
 };
 
+struct IndexData
+{
+	int Index;
+	XMFLOAT3 Normal;
+	XMFLOAT2 TexCoord;
+};
+
+struct SKINNED_VERTEX_3D_TEMP
+{
+	XMFLOAT3	Position;
+	XMFLOAT3	Normal;
+	XMFLOAT4	Diffuse;
+	XMFLOAT2	TexCoord;
+	SimpleArray<float>	Weights;
+	SimpleArray<int>	BoneIndices;
+
+	//SimpleArray<SimpleArray<float>>	ModelWeights;
+	//SimpleArray<int>	BoneIndices;
+};
+
+struct MeshData
+{
+	SimpleArray<SKINNED_VERTEX_3D> Vertices;
+	SimpleArray<SKINNED_VERTEX_3D_TEMP> VerticesTemp;
+	SimpleArray<IndexData> IndicesData;
+};
 
 struct Subset
 {
@@ -235,20 +263,20 @@ struct FbxNode
 	uint64_t	nodeID;
 	char nodeName[128];
 	FbxNodeType nodeType;
-	FbxNode* parentNode;
+	SimpleArray<FbxNode*>	parentNodes;
 	SimpleArray<FbxNode*>	childNodes;
 	void*	nodeData;
 	void*	limbNodeAnimation;
 
-	FbxNode() : nodeID(MAXUINT64), nodeName(""), nodeType(FbxNodeType::None), parentNode(nullptr), nodeData(nullptr), limbNodeAnimation(nullptr) {};
+	FbxNode() : nodeID(MAXUINT64), nodeName(""), nodeType(FbxNodeType::None), parentNodes(SimpleArray<FbxNode*>()), nodeData(nullptr), limbNodeAnimation(nullptr) {};
 
 	FbxNode(uint64_t nodeID) : nodeName("")
 	{
 		this->nodeID = nodeID;
-		parentNode = nullptr;
 		nodeData = nullptr;
 		limbNodeAnimation = nullptr;
 		nodeType = FbxNodeType::None;
+		parentNodes = SimpleArray<FbxNode*>();
 		childNodes = SimpleArray<FbxNode*>();
 	}
 
@@ -259,8 +287,8 @@ struct FbxNode
 		strcpy(this->nodeName, nodeName);
 		this->nodeType = nodeType;
 		nodeData = nullptr;
-		parentNode = nullptr;
 		limbNodeAnimation = nullptr;
+		parentNodes = SimpleArray<FbxNode*>();
 		childNodes = SimpleArray<FbxNode*>();
 	}
 
@@ -277,12 +305,14 @@ struct FbxNode
 			delete nodeData;
 			nodeData = nullptr;
 		}
+		if (parentNodes.getSize() > 0)
+			parentNodes.clear();
 		if (childNodes.getSize() > 0)
 			childNodes.clear();
 	}
 };
 
-struct Material
+struct FbxMaterial
 {
 	ShadingModelEnum	ShadingModel;
 	bool				MultiLayer;
@@ -306,6 +336,9 @@ struct Material
 	float				ShininessExponent;
 	XMFLOAT3			ReflectionColor;
 	float				ReflectionFactor;
+
+	char				DiffuseColorTexName[TEXTURE_NAME_LENGTH];
+	char				EmissiveColorTexName[TEXTURE_NAME_LENGTH];
 };
 
 class SkinnedMeshModel;
@@ -315,23 +348,26 @@ class FBXLoader : public SingletonBase<FBXLoader>
 {
 public:
 	FBXLoader() {};
-	void LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshModel& model, const char* modelFilename, const char* texturePath);
+	void LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshModel& model, 
+		const char* modelPath, const char* modelFilename, const char* texturePath);
 
 private:
 	bool ParseObjectDefinitions(FILE* file, SkinnedMeshModel& model);
 	bool ParseObjectProperties(FILE* file, SkinnedMeshModel& model);
-	bool ParseGeometry(FILE* file, SkinnedMeshModel& model, GeometryType geometryType);
+	bool ParseGeometry(FILE* file, SkinnedMeshModel& model, GeometryType geometryType, FbxNode* node);
 	bool ParseModel(FILE* file, SkinnedMeshModel& model, FbxNode* node);
-	bool ParseMaterial(FILE* file, SkinnedMeshModel& model);
+	bool ParseMaterial(FILE* file, SkinnedMeshModel& model, FbxNode* node);
 	bool ParseDeformer(FILE* file, FbxNode* node);
-	bool ParseMaterialProperty(FILE* file, Material& globalMaterial);
+	bool ParseMaterialProperty(FILE* file, FbxMaterial& globalMaterial);
 	bool ParseModelProperty(FILE* file, ModelProperty& modelProperty, FbxNode* node);
-	bool ParseVertexData(FILE* file, SkinnedMeshModel& model, GeometryType geometryType);
-	bool ParseIndexData(FILE* file, SkinnedMeshModel& model, GeometryType geometryType);
-	bool ParseNormal(FILE* file, SkinnedMeshModel& model, GeometryType geometryType);
-	bool ParseNormalData(FILE* file, SkinnedMeshModel& model, GeometryType geometryType, MappingInformationType mappingInformationType, ReferenceInformationType referenceInformationType);
-	bool ParseUV(FILE* file, SkinnedMeshModel& model, GeometryType geometryType);
-	bool ParseTexture(FILE* file, SkinnedMeshModel& model);
+	bool ParseVertexData(FILE* file, SkinnedMeshModel& model, GeometryType geometryType, FbxNode* node, MeshData* &meshData);
+	bool ParseIndexData(FILE* file, SkinnedMeshModel& model, GeometryType geometryType, FbxNode* node, MeshData* &meshData);
+	bool ParseNormal(FILE* file, SkinnedMeshModel& model, GeometryType geometryType, FbxNode* node, MeshData* &meshData);
+	bool ParseNormalData(FILE* file, SkinnedMeshModel& model, GeometryType geometryType, 
+		MappingInformationType mappingInformationType, ReferenceInformationType referenceInformationType, FbxNode* node, MeshData* &meshData, SimpleArray<float>& normals);
+	bool ParseNormalIndexData(FILE* file, SkinnedMeshModel& model, GeometryType geometryType, FbxNode* node, MeshData*& meshData, SimpleArray<float>& normals);
+	bool ParseUV(FILE* file, SkinnedMeshModel& model, GeometryType geometryType, FbxNode* node, MeshData* &meshData);
+	bool ParseTexture(FILE* file, SkinnedMeshModel& model, FbxNode* node);
 	bool ParseObjectConnections(FILE* file, SkinnedMeshModel& model);
 	bool ParseBindPose(FILE* file, SkinnedMeshModel& model, FbxNode* node);
 	bool ParseAnimationCurve(FILE* file, FbxNode* node);
@@ -339,6 +375,15 @@ private:
 	void SkipNode(FILE* file);
 
 	void HandleDeformer(FbxNode* node, ModelData* data, SkinnedMeshModel& model, int boneCnt, int prevIdx);
+	void HandleMeshNode(FbxNode* node, SkinnedMeshModel& model);
+
+	void BuildLimbHierarchy(FbxNode* armatureNode, ModelData* modelData, int curIdx, int prevIdx);
+
+	FbxNode* GetGeometryNodeByLimbNode(FbxNode* limbNode);
+	FbxNode* GetModelArmatureNodeByDeformer(FbxNode* deformerNode);
+	FbxNode* GetModelArmatureNodeByModel(FbxNode* modelNode);
+
+	char* GetTextureName(char* modelPath, char* relativeTexturePath);
 
 	Renderer& renderer = Renderer::get_instance();
 };

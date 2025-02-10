@@ -1,0 +1,17 @@
+1. 在https://huggingface.co/spaces/MeYourHint/MoMask生成运动捕捉.bvh文件
+
+2. 将.bvh文件和模型的fbx文件一同导入blender
+
+2.1 利用插件Rococo retarget，这里分两步
+
+.bvh ===》 fbx
+2.1.1 第一步是.bvh到fbx模型的retargeting，我也不知道为什么要这一步，但是缺少这个步骤的话会导致之后fbx到.bvh retargeting的时候缩放出错
+
+2.1.2 将源设定为fbx的骨骼，目标设定为.bvh，这么做是为了让.bvh的骨骼定向到fbx的骨骼，绑定的pose将和fbx的pose一致
+
+fbx===》.bvh
+2.2.1 第二步是fbx模型到.bvh的retargeting，这里我们已经有一个和原本模型pose一致的.bvh（因为刚刚retargeting了），这个时候需要删除retargeting的.bvh文件，并再次导入同样的.bvh文件
+
+2.2.2 （重要）这时我们要完成fbx到.bvh的retargeting，但是注意fbx模型原本如果已经有了动画的话一定要删去原本的动画，否则的话retargeting不会覆盖原本的动画，导致会有两个动画同时出现
+
+2.2.3 将源设定为.bvh，目标设定为fbx的骨骼，如此一来fbx的动画将跟随我们需要的运动捕捉.bvh文件，然后导出即可
