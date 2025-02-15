@@ -8,9 +8,9 @@ HashMap<char*, SRV_POOL*, CharPtrHash, CharPtrEquals> TextureMgr::mTextureSRV(
 	CharPtrHash(),
 	CharPtrEquals());
 
-TextureMgr::TextureMgr() : md3dDevice(0)
+TextureMgr::TextureMgr()
 {
-
+	Init(renderer.GetDevice());
 }
 
 TextureMgr::~TextureMgr()

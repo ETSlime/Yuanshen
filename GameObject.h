@@ -2,7 +2,7 @@
 
 //=============================================================================
 //
-// エネミーモデル処理 [GameObject.h]
+// GameObject処理 [GameObject.h]
 // Author : 
 //
 //=============================================================================
@@ -10,6 +10,7 @@
 #include "main.h"
 #include "renderer.h"
 #include "model.h"
+#include "SkinnedMeshModel.h"
 
 //*****************************************************************************
 // 構造体定義
@@ -29,6 +30,21 @@ struct Transform
 		scl = XMFLOAT3(1.0f, 1.0f, 1.0f);
 		mtxWorld = XMMatrixIdentity();
 	}
+};
+
+struct SkinnedMeshModelInstance
+{
+	char*				modelPath;
+	char*				modelName;
+	int					state;
+	bool				use;
+	bool				load;
+	SkinnedMeshModel*	pModel;
+	Transform			transform;
+
+	BOOL			isSelected;
+	BOOL			isCursorIn;
+	int				editorIdx;
 };
 
 struct ModelInstance
@@ -53,6 +69,8 @@ public:
 	GameObject();
 	~GameObject();
 	void Instantiate(char* modelPath);
+	void Instantiate(char* modelPath, char* modelName, ModelType modelType, 
+		AnimationClipName clipName = AnimationClipName::ANIM_NONE);
 	virtual void Update();
 	virtual void Draw();
 	void DrawModelEditor();
@@ -61,6 +79,7 @@ public:
 	inline void SetPosition(XMFLOAT3 pos) { instance.transform.pos = pos; }
 	inline void SetRotation(XMFLOAT3 rot) { instance.transform.rot = rot; }
 	inline void SetScale(XMFLOAT3 scl) { instance.transform.scl = scl; }
+	inline void SetTransform(Transform transform) { instance.transform = transform; }
 	inline void SetWorldMatrix(XMMATRIX mtxWorld) { instance.transform.mtxWorld = mtxWorld; }
 	inline Transform GetTransform() { return instance.transform; }
 	inline Model* GetModel() { return instance.pModel; }
@@ -107,8 +126,10 @@ GameObject<T>::~GameObject()
 			}
 		}
 	}
-
 }
+
+template <>
+GameObject<SkinnedMeshModelInstance>::~GameObject();
 
 template <typename T>
 void GameObject<T>::Instantiate(char* modelPath)
@@ -118,6 +139,10 @@ void GameObject<T>::Instantiate(char* modelPath)
 	instance.load = true;
 	instance.use = true;
 }
+
+template <>
+void GameObject<SkinnedMeshModelInstance>::Instantiate(char* modelPath, char* modelName, 
+	ModelType modelType, AnimationClipName clipName);
 
 template <typename T>
 void GameObject<T>::Update()
@@ -142,15 +167,16 @@ void GameObject<T>::Update()
 	instance.transform.mtxWorld = mtxWorld;
 }
 
+
 template <typename T>
 void GameObject<T>::Draw()
 {
-
 	// ワールドマトリックスの設定
 	renderer.SetCurrentWorldMatrix(&instance.transform.mtxWorld);
 
 	instance.pModel->DrawModel();
 }
+
 
 template<typename T>
 inline void GameObject<T>::DrawModelEditor()

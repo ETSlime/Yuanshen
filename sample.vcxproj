@@ -135,6 +135,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="AnimationStateMachine.h" />
     <ClInclude Include="camera.h" />
     <ClInclude Include="collision.h" />
     <ClInclude Include="debugproc.h" />
@@ -151,7 +152,9 @@
     <ClInclude Include="FBXLoader.h" />
     <ClInclude Include="model.h" />
     <ClInclude Include="offScreenRender.h" />
-    <ClInclude Include="player.h" />
+    <ClInclude Include="Player.h" />
+    <ClInclude Include="Sigewinne.h" />
+    <ClInclude Include="tenshi.h" />
     <ClInclude Include="renderer.h" />
     <ClInclude Include="score.h" />
     <ClInclude Include="shadow.h" />
@@ -171,6 +174,7 @@
     <ClCompile Include="enemy.cpp" />
     <ClCompile Include="FBXLoader.cpp" />
     <ClCompile Include="field.cpp" />
+    <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="ground.cpp" />
     <ClCompile Include="input.cpp" />
     <ClCompile Include="light.cpp" />
@@ -178,7 +182,9 @@
     <ClCompile Include="MapEditor.cpp" />
     <ClCompile Include="model.cpp" />
     <ClCompile Include="offScreenRender.cpp" />
-    <ClCompile Include="player.cpp" />
+    <ClCompile Include="Player.cpp" />
+    <ClCompile Include="Sigewinne.cpp" />
+    <ClCompile Include="tenshi.cpp" />
     <ClCompile Include="renderer.cpp" />
     <ClCompile Include="score.cpp" />
     <ClCompile Include="shadow.cpp" />

@@ -2,30 +2,36 @@
 #include "SkinnedMeshModel.h"
 
 void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshModel& model, 
-    const char* modelPath, const char* modelName, const char* texturePath)
+    const char* modelPath, const char* modelName, const char* texturePath, AnimationClipName animName, ModelType modelType)
 {
-    char* modelFilename = new char[MODEL_NAME_LENGTH]{};
+    char* modelFullPath = new char[MODEL_NAME_LENGTH]{};
 
-    strcat(modelFilename, modelPath);
+    strcat(modelFullPath, modelPath);
 
     size_t modelPathLength = strlen(modelPath);
     if (modelPathLength > 0 && modelPath[modelPathLength - 1] != '/' && modelPath[modelPathLength - 1] != '\\') 
     {
-        strcat(modelFilename, "/");
+        strcat(modelFullPath, "/");
     }
    
-    strcat(modelFilename, modelName);
+    strcat(modelFullPath, modelName);
 
 	FILE* file;
-	file = fopen(modelFilename, "rt");
+	file = fopen(modelFullPath, "rt");
 	if (file == NULL)
 	{
-		printf("エラー:LoadModel %s \n", modelFilename);
+		printf("エラー:LoadModel %s \n", modelFullPath);
 		return;
 	}
 
     strcpy(model.modelPath, modelPath);
     strcpy(model.modelName, modelName);
+
+    FbxNode* rootNode = new FbxNode(model.currentRootNodeID);
+    model.fbxNodes.insert(model.currentRootNodeID, rootNode);
+    model.currentRootNodeID++;
+
+    model.modelType = modelType;
 
     char buffer[1024];
     bool loadSuccess = true;
@@ -53,10 +59,12 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
         memset(buffer, 0, sizeof(buffer));
     }
 
+    model.currentAnimClip.name = animName;
+
     SimpleArray<FbxNode*> rootNodeChilds;
     for (auto& node : model.fbxNodes)
     {
-        if (node.key == 0)
+        if (node.key == model.currentRootNodeID - 1)
         {
             rootNodeChilds = node.value->childNodes;
         }
@@ -83,8 +91,6 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
     //    modelData->mModelGlobalTrans.resize(modelData->limbCnt);
     //    modelData->mModelLocalTrans.resize(modelData->limbCnt);
     //}
-
-
 
 
     if (rootNodeChilds.getSize() != 0)
@@ -220,6 +226,8 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
             else if (modelData->texLoc == Index)
             {
                 vertex.TexCoord = modelData->mesh->IndicesData[indexCnt].TexCoord;
+                vertex.Tangent = modelData->mesh->IndicesData[indexCnt].Tangent;
+                vertex.Bitangent = modelData->mesh->IndicesData[indexCnt].Bitangent;
             }
 
             vertex.TexCoord.y = -vertex.TexCoord.y;
@@ -261,6 +269,83 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
         }
     }
 }
+
+void FBXLoader::LoadAnimation(ID3D11Device* device, SkinnedMeshModel& model, const char* modelPath, const char* modelName, AnimationClipName animName)
+{
+    char* modelFilename = new char[MODEL_NAME_LENGTH] {};
+
+    strcat(modelFilename, modelPath);
+
+    size_t modelPathLength = strlen(modelPath);
+    if (modelPathLength > 0 && modelPath[modelPathLength - 1] != '/' && modelPath[modelPathLength - 1] != '\\')
+    {
+        strcat(modelFilename, "/");
+    }
+
+    strcat(modelFilename, modelName);
+
+    FILE* file;
+    file = fopen(modelFilename, "rt");
+    if (file == NULL)
+    {
+        printf("エラー:LoadModel %s \n", modelFilename);
+        return;
+    }
+
+    strcpy(model.modelPath, modelPath);
+    strcpy(model.modelName, modelName);
+
+    FbxNode* rootNode = new FbxNode(model.currentRootNodeID);
+    model.fbxNodes.insert(model.currentRootNodeID, rootNode);
+    model.currentRootNodeID++;
+
+    char buffer[1024];
+    bool loadSuccess = true;
+    long int position = 0;
+    while (fgets(buffer, sizeof(buffer), file))
+    {
+        if (strstr(buffer, "; Object properties"))
+        {
+            loadSuccess = ParseObjectProperties(file, model, true);
+        }
+        else if (strstr(buffer, "; Object connections"))
+        {
+            loadSuccess = ParseObjectConnections(file, model);
+        }
+
+        if (!loadSuccess)
+            return;
+
+        position = ftell(file);
+        memset(buffer, 0, sizeof(buffer));
+    }
+
+    model.currentAnimClip.name = animName;
+
+    SimpleArray<FbxNode*> rootNodeChilds;
+    for (auto& node : model.fbxNodes)
+    {
+        if (node.key == model.currentRootNodeID - 1)
+        {
+            rootNodeChilds = node.value->childNodes;
+        }
+    }
+
+    if (rootNodeChilds.getSize() != 0)
+    {
+        for (int i = 0; i < rootNodeChilds.getSize(); i++)
+        {
+            FbxNode* childNode = rootNodeChilds[i];
+            if (childNode->nodeType == FbxNodeType::None)
+            {
+                model.currentAnimClip.armatureNode = childNode;
+                model.animationClips.insert(model.currentAnimClip.name, model.currentAnimClip);
+            }
+        }
+    }
+}
+
+
 
 bool FBXLoader::ParseObjectDefinitions(FILE* file, SkinnedMeshModel& model)
 {
@@ -369,7 +454,7 @@ bool FBXLoader::ParseObjectDefinitions(FILE* file, SkinnedMeshModel& model)
     return false;
 }
 
-bool FBXLoader::ParseObjectProperties(FILE* file, SkinnedMeshModel& model)
+bool FBXLoader::ParseObjectProperties(FILE* file, SkinnedMeshModel& model, bool loadAnimation)
 {
     char buffer[2048];
     bool inObjects = false;
@@ -400,6 +485,12 @@ bool FBXLoader::ParseObjectProperties(FILE* file, SkinnedMeshModel& model)
             }
             if (strstr(buffer, "Geometry:"))
             {
+                if (loadAnimation == true)
+                {
+                    SkipNode(file);
+                    continue;
+                }
+
                 FbxNode* node = new FbxNode();
                 if (!CreateFbxNode(buffer, node))
                     return false;
@@ -594,8 +685,11 @@ bool FBXLoader::ParseObjectProperties(FILE* file, SkinnedMeshModel& model)
                 }
                 model.fbxNodes.insert(node->nodeID, node);
 
-
-                SkipNode(file);
+                if (!ParseAnimationStackCurve(file, model))
+                {
+                    delete node;
+                    return false;
+                }
             }
             if (strstr(buffer, "AnimationCurve"))
             {
@@ -2088,7 +2182,7 @@ bool FBXLoader::ParseNormalIndexData(FILE* file, SkinnedMeshModel& model, Geomet
 
         modelData->mesh->IndicesData[i].Normal.x = normals[index * 3];
         modelData->mesh->IndicesData[i].Normal.y = normals[index * 3 + 1];
-        modelData->mesh->IndicesData[i].Normal.y = normals[index * 3 + 2];
+        modelData->mesh->IndicesData[i].Normal.z = normals[index * 3 + 2];
     }
 
     return true;
@@ -2254,12 +2348,55 @@ bool FBXLoader::ParseUV(FILE* file, SkinnedMeshModel& model, GeometryType geomet
                 {                    
                     int coordIndex = UVCoordIndex[i];
 
+                    XMFLOAT3 normal0, normal1, normal2, pos0, pos1, pos2;
+                    if ((i+1) % 3 == 0 && i > 1)
+                    {
+                        if (modelData->normalLoc == VertexDataLocation::Index)
+                        {
+                            normal0 = modelData->mesh->IndicesData[i].Normal;
+                            normal1 = modelData->mesh->IndicesData[i - 1].Normal;
+                            normal2 = modelData->mesh->IndicesData[i - 2].Normal;
+                        }
+                        else if (modelData->normalLoc == VertexDataLocation::Vertex)
+                        {
+                            normal0 = modelData->mesh->VerticesTemp[i].Normal;
+                            normal1 = modelData->mesh->VerticesTemp[i - 1].Normal;
+                            normal2 = modelData->mesh->VerticesTemp[i - 2].Normal;
+                        }
+                        int vertexIndex0 = modelData->mesh->IndicesData[i].Index;
+                        int vertexIndex1 = modelData->mesh->IndicesData[i - 1].Index;
+                        int vertexIndex2 = modelData->mesh->IndicesData[i - 2].Index;
+                        if (vertexIndex0 < 0)
+                        {
+                            vertexIndex0 = -vertexIndex0;
+                            vertexIndex0--;
+                        }
+                        pos0 = modelData->mesh->VerticesTemp[vertexIndex0].Position;
+                        pos1 = modelData->mesh->VerticesTemp[vertexIndex1].Position;
+                        pos2 = modelData->mesh->VerticesTemp[vertexIndex2].Position;
+                    }
+
+
                     if (geometryType == GeometryType::Mesh)
                     {
                         if (UVCoordIndexSize != modelData->mesh->IndicesData.getSize())
                             return false;
                         modelData->mesh->IndicesData[i].TexCoord.x = UVCoord[coordIndex * 2];
                         modelData->mesh->IndicesData[i].TexCoord.y = UVCoord[coordIndex * 2 + 1];
+
+                       
+                        if ((i + 1) % 3 == 0 && i > 1)
+                            CalculateTangentAndBitangent(pos0, pos1, pos2,
+                                modelData->mesh->IndicesData[i].TexCoord,
+                                modelData->mesh->IndicesData[i - 1].TexCoord,
+                                modelData->mesh->IndicesData[i - 2].TexCoord,
+                                normal0, normal1, normal2,
+                                modelData->mesh->IndicesData[i].Tangent,
+                                modelData->mesh->IndicesData[i - 1].Tangent,
+                                modelData->mesh->IndicesData[i - 2].Tangent,
+                                modelData->mesh->IndicesData[i].Bitangent,
+                                modelData->mesh->IndicesData[i - 1].Bitangent,
+                                modelData->mesh->IndicesData[i - 2].Bitangent);
 
 
                     }
@@ -2270,6 +2407,19 @@ bool FBXLoader::ParseUV(FILE* file, SkinnedMeshModel& model, GeometryType geomet
 
                         meshData->IndicesData[i].TexCoord.x = UVCoord[coordIndex * 2];
                         meshData->IndicesData[i].TexCoord.y = UVCoord[coordIndex * 2 + 1];
+
+                        if ((i + 1) % 3 == 0 && i > 1)
+                            CalculateTangentAndBitangent(pos0, pos1, pos2,
+                                meshData->IndicesData[i].TexCoord,
+                                meshData->IndicesData[i - 1].TexCoord,
+                                meshData->IndicesData[i - 2].TexCoord,
+                                normal0, normal1, normal2,
+                                meshData->IndicesData[i].Tangent,
+                                meshData->IndicesData[i - 1].Tangent,
+                                meshData->IndicesData[i - 2].Tangent,
+                                meshData->IndicesData[i].Bitangent,
+                                meshData->IndicesData[i - 1].Bitangent,
+                                meshData->IndicesData[i - 2].Bitangent);
                     }
 
                 }
@@ -2335,6 +2485,9 @@ bool FBXLoader::ParseObjectConnections(FILE* file, SkinnedMeshModel& model)
         char attributeType[64];
         if (sscanf(buffer, " C: \"OO\",%llu,%llu", &nodeID1, &nodeID2) == 2)
         {
+            if (nodeID2 == 0)
+                nodeID2 = model.currentRootNodeID - 1;
+
             FbxNode** ppChildNode = model.fbxNodes.search(nodeID1);
             FbxNode** ppParentNode = model.fbxNodes.search(nodeID2);
             if (ppChildNode == nullptr || ppParentNode == nullptr) continue;
@@ -2525,6 +2678,29 @@ bool FBXLoader::ParseBindPose(FILE* file, SkinnedMeshModel& model, FbxNode* node
     return false;
 }
 
+bool FBXLoader::ParseAnimationStackCurve(FILE* file, SkinnedMeshModel& model)
+{
+    char buffer[4096];
+    char* ptr;
+    while (fgets(buffer, sizeof(buffer), file))
+    {
+        if (strstr(buffer, "LocalStop"))
+        {
+            if (sscanf(buffer, "%*[^0-9]%llu", &model.currentAnimClip.stopTime) != 1)
+            {
+                return false;
+            }
+        }
+        if (strstr(buffer, "}"))
+        {
+            fgets(buffer, sizeof(buffer), file);
+            if (strstr(buffer, "}"))
+                return true;
+        }
+    }
+    return false;
+}
+
 bool FBXLoader::ParseAnimationCurve(FILE* file, FbxNode* node)
 {
     char buffer[4096];
@@ -2668,10 +2844,14 @@ void FBXLoader::HandleDeformer(FbxNode* node, ModelData* modelData, SkinnedMeshM
     {
         deformer->boneIdx = curIdx;
         modelData->mBoneHierarchy.push_back(prevIdx);
-        modelData->deformerHashMap.insert(curIdx, node->nodeID);
-        modelData->deformerIdxHashMap.insert(node->nodeID, curIdx);
         modelData->mBoneOffsets.push_back(deformer->TransformLink);
         modelData->mBoneToParentTransforms.push_back(deformer->Transform);
+
+        //modelData->deformerHashMap.insert(curIdx, node->nodeID);
+        //modelData->deformerIdxHashMap.insert(node->nodeID, curIdx);
+
+        model.deformerHashMap.insert(curIdx, node->nodeID);
+        model.deformerIdxHashMap.insert(node->nodeID, curIdx);
 
         for (int i = 0; i < deformer->Index.getSize(); i++)
         {
@@ -2694,7 +2874,9 @@ void FBXLoader::HandleDeformer(FbxNode* node, ModelData* modelData, SkinnedMeshM
             }
             else if (node->childNodes[i]->nodeType == FbxNodeType::LimbNode)
             {
-                modelData->deformerToLimb.insert(node->nodeID, node->childNodes[i]->nodeID);
+                //modelData->deformerToLimb.insert(node->nodeID, node->childNodes[i]->nodeID);
+
+                model.deformerToLimb.insert(node->nodeID, node->childNodes[i]->nodeID);
             }
 
         }
@@ -2733,7 +2915,12 @@ void FBXLoader::HandleMeshNode(FbxNode* node, SkinnedMeshModel& model)
                 FbxNode* deformerArmature = geometryNodeChilds[k];
                 FbxNode* modelArmature = GetModelArmatureNodeByDeformer(deformerArmature);
                 if (modelArmature)
+                {
                     (*ppModelData)->armatureNode = modelArmature;
+                    model.currentAnimClip.armatureNode = modelArmature;
+                    model.animationClips.insert(model.currentAnimClip.name, model.currentAnimClip);
+                }
+                    
                 HandleDeformer(deformerArmature, *ppModelData, model, 0, -1);
             }
         }
@@ -2832,6 +3019,43 @@ char* FBXLoader::GetTextureName(char* modelPath, char* relativeTexturePath)
     strcat(result, textureNameStart);
 
     return result;
+}
+
+void FBXLoader::CalculateTangentAndBitangent(
+    const XMFLOAT3& p0, const XMFLOAT3& p1, const XMFLOAT3& p2,
+    const XMFLOAT2& TexCoord0, const XMFLOAT2& TexCoord1, const XMFLOAT2& TexCoord2,
+    const XMFLOAT3& n0, const XMFLOAT3& n1, const XMFLOAT3& n2,
+    XMFLOAT3& tangent0, XMFLOAT3& tangent1, XMFLOAT3& tangent2,
+    XMFLOAT3& bitangent0, XMFLOAT3& bitangent1, XMFLOAT3& bitangent2)
+{
+    XMVECTOR pos1 = XMLoadFloat3(&p0);
+    XMVECTOR pos2 = XMLoadFloat3(&p1);
+    XMVECTOR pos3 = XMLoadFloat3(&p2);
+
+    XMVECTOR uv1 = XMLoadFloat2(&TexCoord0);
+    XMVECTOR uv2 = XMLoadFloat2(&TexCoord1);
+    XMVECTOR uv3 = XMLoadFloat2(&TexCoord2);
+
+    XMVECTOR edge1 = pos2 - pos1;
+    XMVECTOR edge2 = pos3 - pos1;
+    XMVECTOR deltaUV1 = uv2 - uv1;
+    XMVECTOR deltaUV2 = uv3 - uv1;
+
+
+    float r = 1.0f / (XMVectorGetX(deltaUV1) * XMVectorGetY(deltaUV2) - XMVectorGetX(deltaUV2) * XMVectorGetY(deltaUV1));
+    XMVECTOR tangentVec = (edge1 * XMVectorGetY(deltaUV2) - edge2 * XMVectorGetY(deltaUV1)) * r;
+
+    XMVECTOR bitangentVec0 = XMVector3Cross(XMLoadFloat3(&n0), tangentVec);
+    XMVECTOR bitangentVec1 = XMVector3Cross(XMLoadFloat3(&n1), tangentVec);
+    XMVECTOR bitangentVec2 = XMVector3Cross(XMLoadFloat3(&n2), tangentVec);
+
+    XMStoreFloat3(&tangent0, XMVector3Normalize(tangentVec));
+    XMStoreFloat3(&tangent1, XMVector3Normalize(tangentVec));
+    XMStoreFloat3(&tangent2, XMVector3Normalize(tangentVec));
+
+    XMStoreFloat3(&bitangent0, XMVector3Normalize(bitangentVec0));
+    XMStoreFloat3(&bitangent1, XMVector3Normalize(bitangentVec1));
+    XMStoreFloat3(&bitangent2, XMVector3Normalize(bitangentVec2));
 }
 
 

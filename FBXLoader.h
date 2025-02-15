@@ -68,6 +68,25 @@ enum class GeometryType
 	Shape,
 };
 
+enum AnimationClipName
+{
+	ANIM_NONE,
+	ANIM_IDLE,
+	ANIM_BREAKDANCE_UPROCK,
+	ANIM_STANDING_DRAW_ARROW,
+	ANIM_STANDING_AIM_WALK_FORWARD,
+	ANIM_STANDING_AIM_WALK_LEFT,
+	ANIM_STANDING_AIM_OVERDRAW,
+	ANIM_WALK,
+};
+
+enum class ModelType
+{
+	Default,
+	Sigewinne,
+	Weapon,
+};
+
 //*****************************************************************************
 // ç\ë¢ëÃíËã`
 //*****************************************************************************
@@ -219,6 +238,8 @@ struct IndexData
 {
 	int Index;
 	XMFLOAT3 Normal;
+	XMFLOAT3 Tangent;
+	XMFLOAT3 Bitangent;
 	XMFLOAT2 TexCoord;
 };
 
@@ -226,6 +247,8 @@ struct SKINNED_VERTEX_3D_TEMP
 {
 	XMFLOAT3	Position;
 	XMFLOAT3	Normal;
+	XMFLOAT3	Tangent;
+	XMFLOAT3	Bitangent;
 	XMFLOAT4	Diffuse;
 	XMFLOAT2	TexCoord;
 	SimpleArray<float>	Weights;
@@ -349,11 +372,14 @@ class FBXLoader : public SingletonBase<FBXLoader>
 public:
 	FBXLoader() {};
 	void LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshModel& model, 
-		const char* modelPath, const char* modelFilename, const char* texturePath);
+		const char* modelPath, const char* modelName, const char* texturePath, AnimationClipName name = AnimationClipName::ANIM_NONE, ModelType modelType = ModelType::Default);
+
+	void LoadAnimation(ID3D11Device* device, SkinnedMeshModel& model,
+		const char* modelPath, const char* modelName, AnimationClipName name);
 
 private:
 	bool ParseObjectDefinitions(FILE* file, SkinnedMeshModel& model);
-	bool ParseObjectProperties(FILE* file, SkinnedMeshModel& model);
+	bool ParseObjectProperties(FILE* file, SkinnedMeshModel& model, bool loadAnimation = false);
 	bool ParseGeometry(FILE* file, SkinnedMeshModel& model, GeometryType geometryType, FbxNode* node);
 	bool ParseModel(FILE* file, SkinnedMeshModel& model, FbxNode* node);
 	bool ParseMaterial(FILE* file, SkinnedMeshModel& model, FbxNode* node);
@@ -370,6 +396,7 @@ private:
 	bool ParseTexture(FILE* file, SkinnedMeshModel& model, FbxNode* node);
 	bool ParseObjectConnections(FILE* file, SkinnedMeshModel& model);
 	bool ParseBindPose(FILE* file, SkinnedMeshModel& model, FbxNode* node);
+	bool ParseAnimationStackCurve(FILE* file, SkinnedMeshModel& model);
 	bool ParseAnimationCurve(FILE* file, FbxNode* node);
 	bool CreateFbxNode(char* buffer, FbxNode* fbxNode);
 	void SkipNode(FILE* file);
@@ -384,6 +411,13 @@ private:
 	FbxNode* GetModelArmatureNodeByModel(FbxNode* modelNode);
 
 	char* GetTextureName(char* modelPath, char* relativeTexturePath);
+
+	void CalculateTangentAndBitangent(
+		const XMFLOAT3& p0, const XMFLOAT3& p1, const XMFLOAT3& p2,
+		const XMFLOAT2& uv0, const XMFLOAT2& uv1, const XMFLOAT2& uv2,
+		const XMFLOAT3& n0, const XMFLOAT3& n1, const XMFLOAT3& n2,
+		XMFLOAT3& tangent0, XMFLOAT3& tangent1, XMFLOAT3& tangent2, 
+		XMFLOAT3& bitangent0, XMFLOAT3& bitangent1, XMFLOAT3& bitangent2);
 
 	Renderer& renderer = Renderer::get_instance();
 };

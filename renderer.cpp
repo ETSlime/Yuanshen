@@ -223,6 +223,7 @@ void Renderer::SetMaterial( MATERIAL material )
 	g_Material.Emission = material.Emission;
 	g_Material.Shininess = material.Shininess;
 	g_Material.noTexSampling = material.noTexSampling;
+	g_Material.lightMapSampling = material.lightMapSampling;
 
 	GetDeviceContext()->UpdateSubresource( g_MaterialBuffer, 0, NULL, &g_Material, 0, 0 );
 }
@@ -294,7 +295,7 @@ void Renderer::SetShaderCamera(XMFLOAT3 pos)
 {
 	XMFLOAT4 tmp = XMFLOAT4( pos.x, pos.y, pos.z, 0.0f );
 
-	GetDeviceContext()->UpdateSubresource(g_CameraBuffer, 0, NULL, &tmp, 0, 0);
+	GetDeviceContext()->UpdateSubresource(g_CameraPosBuffer, 0, NULL, &tmp, 0, 0);
 }
 
 void Renderer::SetRenderShadowMap(int lightIdx)
@@ -317,6 +318,7 @@ void Renderer::SetRenderShadowMap(int lightIdx)
 void Renderer::SetRenderSkinnedMeshModel(void)
 {
 	g_ImmediateContext->VSSetShader(g_SkinnedMeshVertexShader, nullptr, 0);
+	g_ImmediateContext->PSSetShader(g_SkinnedMeshPixelShader, nullptr, 0);
 	g_ImmediateContext->VSSetConstantBuffers(11, 1, &g_BoneMatrixBuffer);
 	g_ImmediateContext->PSSetConstantBuffers(11, 1, &g_BoneMatrixBuffer);
 }
@@ -649,7 +651,7 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 
 	g_D3DDevice->CreateVertexShader( pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), NULL, &g_VertexShader );
 
-	pVSBlob->Release();
+	//pVSBlob->Release();
 
 	// 入力レイアウト生成
 	D3D11_INPUT_ELEMENT_DESC layout[] =
@@ -673,6 +675,8 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(SKINNED_VERTEX_3D, Position), D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(SKINNED_VERTEX_3D, Normal), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(SKINNED_VERTEX_3D, Tangent), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(SKINNED_VERTEX_3D, Bitangent), D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(SKINNED_VERTEX_3D, Diffuse), D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(SKINNED_VERTEX_3D, TexCoord), D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "BLENDWEIGHT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(SKINNED_VERTEX_3D, Weights), D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -698,6 +702,16 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 
 	g_D3DDevice->CreatePixelShader( pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), NULL, &g_PixelShader );
 	
+	pPSBlob->Release();
+
+	hr = D3DX11CompileFromFile("shader.hlsl", NULL, NULL, "SkinnedMeshPixelShader", "ps_4_0", shFlag, 0, NULL, &pPSBlob, &pErrorBlob, NULL);
+	if (FAILED(hr))
+	{
+		MessageBox(NULL, (char*)pErrorBlob->GetBufferPointer(), "PS", MB_OK | MB_ICONERROR);
+	}
+
+	g_D3DDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), NULL, &g_SkinnedMeshPixelShader);
+
 	pPSBlob->Release();
 
 
@@ -755,9 +769,9 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 
 	//カメラ
 	hBufferDesc.ByteWidth = sizeof(XMFLOAT4);
-	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_CameraBuffer);
-	g_ImmediateContext->VSSetConstantBuffers(7, 1, &g_CameraBuffer);
-	g_ImmediateContext->PSSetConstantBuffers(7, 1, &g_CameraBuffer);
+	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_CameraPosBuffer);
+	g_ImmediateContext->VSSetConstantBuffers(7, 1, &g_CameraPosBuffer);
+	g_ImmediateContext->PSSetConstantBuffers(7, 1, &g_CameraPosBuffer);
 
 	hBufferDesc.ByteWidth = sizeof(BoneMatrices);
 	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_BoneMatrixBuffer);

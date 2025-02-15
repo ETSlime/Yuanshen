@@ -57,15 +57,20 @@ public:
 
     void push_back(const T& item) {
         if (size >= capacity) {
-            capacity = capacity == 0 ? 4 : capacity * 2;
-            T* newArray = new T[capacity];
+            int newCapacity = (capacity == 0) ? 4 : capacity * 2;
+            T* newArray = new T[newCapacity];
+            //for (int i = 0; i < size; i++) {
+            //    newArray[i] = array[i];
+            //}
             for (int i = 0; i < size; i++) {
-                newArray[i] = array[i];
+                newArray[i] = std::move(array[i]);
             }
             delete[] array;
             array = newArray;
+            capacity = newCapacity;
         }
-        array[size++] = item;
+        array[size] = item;
+        size++;
     }
 
     const T& front() const

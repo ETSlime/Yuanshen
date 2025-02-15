@@ -11,7 +11,6 @@
 #include "debugproc.h"
 #include "field.h"
 #include "model.h"
-#include "player.h"
 #include "enemy.h"
 #include "shadow.h"
 #include "light.h"
@@ -23,6 +22,7 @@
 #include "FBXLoader.h"
 #include "TextureMgr.h"
 #include "SkinnedMeshModel.h"
+#include "Player.h"
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
@@ -47,8 +47,9 @@ long g_MouseY = 0;
 MapEditor& mapEditor = MapEditor::get_instance();
 EnemyManager& enemyManager = EnemyManager::get_instance();
 Ground* ground = nullptr;
-TextureMgr mTexMgr;
-FBXLoader& fbxLoader = FBXLoader::get_instance();
+Player* player = nullptr;
+//TextureMgr& mTexMgr = TextureMgr::get_instance();
+//FBXLoader& fbxLoader = FBXLoader::get_instance();
 SkinnedMeshModel model;
 Renderer& renderer = Renderer::get_instance();
 
@@ -232,7 +233,7 @@ HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	// 入力処理の初期化
 	InitInput(hInstance, hWnd);
 
-	InitVertex();
+	//InitVertex();
 
 	// 影の初期化処理
 	InitShadow();
@@ -240,21 +241,12 @@ HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	// フィールドの初期化
 	InitField();
 
-	mTexMgr.Init(renderer.GetDevice());
-
-	fbxLoader.LoadModel(renderer.GetDevice(), mTexMgr, model, "data/MODEL/enemy/Sigewinne","Character_output.fbx", nullptr);
-	model.SetBodyDiffuseTexture(mTexMgr, "data/MODEL/enemy/Sigewinne/texture_0.png");
-	model.SetHairDiffuseTexture(mTexMgr, "data/MODEL/enemy/Sigewinne/Avatar_Loli_Bow_Sigewinne_Tex_Hair_Diffuse.png");
-	model.SetFaceDiffuseTexture(mTexMgr, "data/MODEL/enemy/Sigewinne/face.png");
-
 	// プレイヤーの初期化
-	InitPlayer();
+	player = new Player();
 
 	// エネミーの初期化
-	//InitEnemy();
 	enemyManager.Init();
 
-	//InitGround();
 	ground = new Ground();
 
 	InitOffScreenRender();
@@ -284,7 +276,8 @@ void Uninit(void)
 	//UninitEnemy();
 
 	// プレイヤーの終了処理
-	UninitPlayer();
+	//UninitPlayer();
+	delete player;
 
 	// フィールドの終了処理
 	UninitField();
@@ -292,7 +285,7 @@ void Uninit(void)
 	// 影の終了処理
 	UninitShadow();
 
-	UninitVertex();
+	//UninitVertex();
 
 	// カメラの終了処理
 	UninitCamera();
@@ -303,13 +296,13 @@ void Uninit(void)
 	UninitScore();
 
 	// レンダラーの終了処理
-	renderer.Uninit();
+	Renderer::get_instance().Uninit();
 
 	UninitOffScreenRender();
 
 	mapEditor.Uninit();
 
-	mTexMgr.Uninit();
+	//mTexMgr.Uninit();
 }
 
 //=============================================================================
@@ -329,15 +322,13 @@ void Update(void)
 	UpdateField();
 
 	// プレイヤーの更新処理
-	UpdatePlayer();
+	player->Update();
 
 	// エネミーの更新処理
-	//UpdateEnemy();
 	enemyManager.Update();
 
 	model.Update();
 
-	//UpdateGround();
 	ground->Update();
 
 	// 影の更新処理
@@ -355,7 +346,7 @@ void Draw(void)
 	renderer.Clear();
 
 	// プレイヤー視点
-	XMFLOAT3 pos = GetPlayer()->trans[ALL].pos;
+	XMFLOAT3 pos = player->GetTransform().pos;
 	pos.y = 0.0f;			// カメラ酔いを防ぐためにクリアしている
 	SetCameraAT(pos);
 	SetCamera();
@@ -368,26 +359,21 @@ void Draw(void)
 
 		renderer.SetRenderShadowMap(i);
 
-		//DrawPlayer();
-
-		//DrawEnemy();
-
-		//DrawGround();
-
-		//DrawScene();
+		DrawScene();
 	}
 
 	renderer.SetRenderObject();
-	//DrawScene();
+	DrawScene();
 
 	renderer.SetLightEnable(FALSE);
-	//mapEditor.Draw();
+	mapEditor.Draw();
 	//DrawScore();
 	renderer.SetLightEnable(TRUE);
 	
 	renderer.SetRenderSkinnedMeshModel();
 	renderer.SetSkinnedMeshInputLayout();
-	model.Draw();
+	player->Draw();
+	//model.Draw();
 
 	//SetOffScreenRender();
 	//DrawScene();
@@ -411,10 +397,8 @@ void DrawScene()
 
 	//DrawPlayer();
 
-	//DrawEnemy();
-	//enemyManager.Draw();
+	enemyManager.Draw();
 
-	//DrawGround();
 	ground->Draw();
 }
 

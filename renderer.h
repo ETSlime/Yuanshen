@@ -81,6 +81,8 @@ struct SKINNED_VERTEX_3D
 {
 	XMFLOAT3	Position;
 	XMFLOAT3	Normal;
+	XMFLOAT3	Tangent;
+	XMFLOAT3	Bitangent;
 	XMFLOAT4	Diffuse;
 	XMFLOAT2	TexCoord;
 	XMFLOAT4	Weights;// [MAX_BONE_INDICES] ;
@@ -92,6 +94,8 @@ struct SKINNED_VERTEX_3D
 		Normal = XMFLOAT3(0.0f, 0.0f, 0.0f);
 		Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 		TexCoord = XMFLOAT2(0.0f, 0.0f);
+		//Tangent = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		//Bitangent = XMFLOAT3(0.0f, 0.0f, 0.0f);
 		//for (int i = 0; i < MAX_BONE_INDICES; i++)
 		//{
 		//	Weights[i] = 0.0f;
@@ -101,10 +105,11 @@ struct SKINNED_VERTEX_3D
 		BoneIndices = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	}
 
-	SKINNED_VERTEX_3D(XMFLOAT3 pos, XMFLOAT3 norm, XMFLOAT4 dif, XMFLOAT2 tex)
+	SKINNED_VERTEX_3D(XMFLOAT3 pos, XMFLOAT3 norm, XMFLOAT3 tangent, XMFLOAT4 dif, XMFLOAT2 tex)
 	{
 		Position = pos;
 		Normal = norm;
+		//Tangent = tangent;
 		Diffuse = dif;
 		TexCoord = tex;
 		//for (int i = 0; i < MAX_BONE_INDICES; i++)
@@ -126,11 +131,13 @@ struct MATERIAL
 	XMFLOAT4	Emission;
 	float		Shininess;
 	int			noTexSampling;
+	int			lightMapSampling;
 	BOOL		LoadMaterial;
 
 	MATERIAL()
 	{
 		noTexSampling = 1;
+		lightMapSampling = 0;
 		LoadMaterial = FALSE;
 		Ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 		Diffuse = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
@@ -177,7 +184,8 @@ struct MATERIAL_CBUFFER
 	XMFLOAT4	Emission;
 	float		Shininess;
 	int			noTexSampling;
-	float		Dummy[2];				// 16byte境界用
+	int			lightMapSampling;
+	float		Dummy[1];				// 16byte境界用
 };
 
 // ライト用フラグ構造体
@@ -296,6 +304,7 @@ private:
 	ID3D11VertexShader* g_SkinnedMeshVertexShader = NULL;
 	ID3D11VertexShader* g_DepthVertexShader = NULL;
 	ID3D11PixelShader* g_PixelShader = NULL;
+	ID3D11PixelShader* g_SkinnedMeshPixelShader = NULL;
 	ID3D11InputLayout* g_VertexLayout = NULL;
 	ID3D11InputLayout* g_SkinnedMeshVertexLayout = NULL;
 	ID3D11Buffer* g_WorldBuffer = NULL;
@@ -305,7 +314,7 @@ private:
 	ID3D11Buffer* g_LightBuffer = NULL;
 	ID3D11Buffer* g_FogBuffer = NULL;
 	ID3D11Buffer* g_FuchiBuffer = NULL;
-	ID3D11Buffer* g_CameraBuffer = NULL;
+	ID3D11Buffer* g_CameraPosBuffer = NULL;
 	ID3D11Buffer* g_LightProjViewBuffer = NULL;
 	ID3D11Buffer* g_BoneMatrixBuffer = NULL;
 

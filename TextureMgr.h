@@ -3,6 +3,7 @@
 #include "main.h"
 #include "renderer.h"
 #include "HashMap.h"
+#include "SingletonBase.h"
 
 #define MAX_SRV			222
 
@@ -53,7 +54,7 @@ struct SRV_POOL
 	}
 };
 
-class TextureMgr
+class TextureMgr : public SingletonBase<TextureMgr>
 {
 public:
 	TextureMgr();

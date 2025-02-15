@@ -73,25 +73,25 @@ void InitLight(void)
 //=============================================================================
 void UpdateLight(void)
 {
-	PLAYER* player = GetPlayer();
+	//PLAYER* player = GetPlayer();
 
 	// 並行光源の設定（世界を照らす光）
 	g_Light[1].Direction = XMFLOAT3(-1.0f, -15.0f, -13.0f);		// 光の向き
-	g_Light[1].Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);	// 光の色
+	g_Light[1].Diffuse = XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f);	// 光の色
 	g_Light[1].Type = LIGHT_TYPE_DIRECTIONAL;					// 並行光源
 
-	g_Light[1].Ambient = XMFLOAT4(0.25f, 0.25f, 0.25f, 1.0f);
+	g_Light[1].Ambient = XMFLOAT4(0.15f, 0.15f, 0.15f, 1.0f);
 	g_Light[1].Position = XMFLOAT3(600.0f, 500.0f, 250.0f);
 
 	//g_Light[0].Direction = XMFLOAT3(-1.0f, -15.0f, -13.0f);		// 光の向き
 	g_Light[0].Direction = XMFLOAT3(1.1f, -1.0f, 0.0f);		// 光の向き
-	g_Light[0].Diffuse = XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f);	// 光の色
+	g_Light[0].Diffuse = XMFLOAT4(0.7f, 0.7f, 0.7f, 1.0f);	// 光の色
 	g_Light[0].Type = LIGHT_TYPE_DIRECTIONAL;					// 並行光源
 	//g_Light[0].Position = XMFLOAT3(-400.0f, 200.0f, 50.0f);
 
 	g_Light[0].Position = XMFLOAT3(0.0f, 0.0f, 0.0f); // player->trans[ALL].pos;
 	g_Light[0].Position.y += 11;
-	g_Light[0].Ambient = XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
+	g_Light[0].Ambient = XMFLOAT4(0.05f, 0.05f, 0.05f, 1.0f);
 	renderer.SetLight(0, &g_Light[0]);
 	XMFLOAT3 targetPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	XMFLOAT3 lightUp = { 0.0f, 1.0f, 0.0f };

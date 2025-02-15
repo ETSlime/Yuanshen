@@ -20,7 +20,7 @@
 #define	VALUE_ROTATE_MODEL	(XM_PI * 0.05f)			// 回転速度
 #define	RATE_ROTATE_MODEL	(0.20f)					// 回転慣性係数
 #define	SCALE_MODEL			(10.0f)					// 回転慣性係数
-#define MAX_MODEL_NUM		(10)
+#define MAX_MODEL_NUM		(30)
 
 //*****************************************************************************
 // グローバル変数

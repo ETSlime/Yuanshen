@@ -11,8 +11,10 @@
 // マクロ定義
 //*****************************************************************************
 #define MAX_MESH_NUM			64
+#define MAX_ANIM_NUM			32
 #define MODEL_NAME_LENGTH		64
 #define MODEL_PATH_LENGTH		128
+#define ANIM_SPD				(1539538600 * 0.55f)
 enum VertexDataLocation
 {
 	Index,
@@ -29,6 +31,20 @@ struct PosNormalTexTanSkinned
 	XMFLOAT3 Normal;
 	XMFLOAT2 Tex;
 	XMFLOAT4 TangentU;
+};
+
+struct SkinnedMeshModelPool
+{
+	SkinnedMeshModel* pModel;
+	unsigned int count;
+
+	SkinnedMeshModelPool()
+	{
+		pModel = nullptr;
+		count = 0;
+	}
+
+	void AddRef() { count++; }
 };
 
 struct ModelData
@@ -96,29 +112,32 @@ struct ModelData
 	ID3D11ShaderResourceView* diffuseTexture;
 	ID3D11ShaderResourceView* emissiveTexture;
 
-	HashMap<int, uint64_t, HashUInt64, EqualUInt64> deformerHashMap = HashMap<int, uint64_t, HashUInt64, EqualUInt64>(
-		MAX_NODE_NUM,
-		HashUInt64(),
-		EqualUInt64()
-	);
-
-	HashMap<uint64_t, int, HashUInt64, EqualUInt64> deformerIdxHashMap = HashMap<uint64_t, int, HashUInt64, EqualUInt64>(
-		MAX_NODE_NUM,
-		HashUInt64(),
-		EqualUInt64()
-	);
-
 	HashMap<uint64_t, int, HashUInt64, EqualUInt64> limbHashMap = HashMap<uint64_t, int, HashUInt64, EqualUInt64>(
 		MAX_NODE_NUM,
 		HashUInt64(),
 		EqualUInt64()
 	);
+};
 
-	HashMap<uint64_t, uint64_t, HashUInt64, EqualUInt64> deformerToLimb = HashMap<uint64_t, uint64_t, HashUInt64, EqualUInt64>(
-		MAX_NODE_NUM,
-		HashUInt64(),
-		EqualUInt64()
-	);
+struct AnimationClip
+{
+	AnimationClipName name;
+	FbxNode* armatureNode;
+	uint64_t stopTime;
+	uint64_t currentTime;
+
+	AnimationClip()
+	{
+		name = AnimationClipName::ANIM_NONE;
+		armatureNode = nullptr;
+		stopTime = 0;
+		currentTime = 0;
+	}
+
+	XMMATRIX* GetBoneMatrices()
+	{
+
+	}
 };
 
 class SkinnedMeshModel
@@ -126,43 +145,60 @@ class SkinnedMeshModel
 public:
 	friend class FBXLoader;
 
-	void Draw();
+	void DrawModel();
 	void Update();
 
 	SkinnedMeshModel();
 	~SkinnedMeshModel();
 
-	void SetBodyDiffuseTexture(TextureMgr& texMgr, char* texturePath);
-	void SetHairDiffuseTexture(TextureMgr& texMgr, char* texturePath);
-	void SetFaceDiffuseTexture(TextureMgr& texMgr, char* texturePath);
+	void SetBodyDiffuseTexture(char* texturePath);
+	void SetBodyLightMapTexture(char* texturePath);
+	void SetBodyNormalMapTexture(char* texturePath);
+	void SetHairDiffuseTexture(char* texturePath);
+	void SetHairLightMapTexture(char* texturePath);
+	void SetFaceDiffuseTexture(char* texturePath);
+	void SetFaceLightMapTexture(char* texturePath);
 
-	XMFLOAT4X4			mtxWorld;			// ワールドマトリックス
-	XMFLOAT3			pos;				// モデルの位置
-	XMFLOAT3			rot;				// モデルの向き(回転)
-	XMFLOAT3			scl;				// モデルの大きさ(スケール)
-	
-	int cnt = 0;
+	void SetCurrentAnim(AnimationClipName clipName, float startTime = 0);
+	AnimationClipName GetCurrentAnim(void) { return currentAnimClip.name; };
+	void PlayCurrentAnim(float playSpeed = 1.0f);
+
+	static SkinnedMeshModel* StoreModel(char* modelPath, char* modelName, ModelType modelType, AnimationClipName clipName);
+	static SkinnedMeshModelPool* GetModel(char* modelFullPath);
+	static void RemoveModel(char* modelPath);
 
 private:
 
-	void UpdateLimbGlobalTransform(FbxNode* node, int& curIdx, int prevIdx, uint64_t time, ModelData* modelData);
+	static HashMap<char*, SkinnedMeshModelPool, CharPtrHash, CharPtrEquals> modelHashMap;
+
+	void UpdateLimbGlobalTransform(FbxNode* node, FbxNode* deformNode, int& curIdx, int prevIdx, uint64_t time, ModelData* modelData);
 	void UpdateBoneTransform(ModelData* modelData);
 	XMFLOAT3 GetAnimationValue(FbxNode** ppAnimationCurve, XMFLOAT3 defaultValue, uint64_t time);
 	float GetAnimationCurveValue(FbxNode** ppAnimationCurveNode, uint64_t time, float defaultValue);
 	void CalculateDrawParameters(ModelData* modelData, float startPercentage, float endPercentage, int& IndexNum, int& StartIndexLocation);
 
+	void DrawSigewinne(ModelData* modelData);
+
 	char modelPath[MODEL_PATH_LENGTH];
 	char modelName[MODEL_NAME_LENGTH];
 
-	UINT SubsetCount;
-	UINT ModelCount;
+	XMFLOAT4X4			mtxWorld;			// ワールドマトリックス
 
-	uint64_t animationTime;
+	UINT ModelCount;
+	UINT currentRootNodeID;
+
+	AnimationClip currentAnimClip;
 	FbxNode* armatureNode;
 
+	ModelType modelType;
+
 	ID3D11ShaderResourceView* bodyDiffuseTexture;
+	ID3D11ShaderResourceView* bodyLightMapTexture;
+	ID3D11ShaderResourceView* bodyNormalMapTexture;
 	ID3D11ShaderResourceView* hairDiffuseTexture;
+	ID3D11ShaderResourceView* hairLightMapTexture;
 	ID3D11ShaderResourceView* faceDiffuseTexture;
+	ID3D11ShaderResourceView* faceLightMapTexture;
 
 
 	ModelProperty modelProperty;
@@ -184,5 +220,27 @@ private:
 		EqualUInt64()
 	);
 
-	Renderer& renderer = Renderer::get_instance();
+	HashMap<int, AnimationClip, HashUInt64, EqualUInt64> animationClips = HashMap<int, AnimationClip, HashUInt64, EqualUInt64>(
+		MAX_ANIM_NUM,
+		HashUInt64(),
+		EqualUInt64()
+	);
+
+	HashMap<int, uint64_t, HashUInt64, EqualUInt64> deformerHashMap = HashMap<int, uint64_t, HashUInt64, EqualUInt64>(
+		MAX_NODE_NUM,
+		HashUInt64(),
+		EqualUInt64()
+	);
+
+	HashMap<uint64_t, int, HashUInt64, EqualUInt64> deformerIdxHashMap = HashMap<uint64_t, int, HashUInt64, EqualUInt64>(
+		MAX_NODE_NUM,
+		HashUInt64(),
+		EqualUInt64()
+	);
+
+	HashMap<uint64_t, uint64_t, HashUInt64, EqualUInt64> deformerToLimb = HashMap<uint64_t, uint64_t, HashUInt64, EqualUInt64>(
+		MAX_NODE_NUM,
+		HashUInt64(),
+		EqualUInt64()
+	);
 };

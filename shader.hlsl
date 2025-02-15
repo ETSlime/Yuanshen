@@ -21,6 +21,8 @@ struct SkinnedMeshVertexInputType
 {
     float4 position : POSITION;
     float3 normal : NORMAL;
+    float3 tangent : TANGENT;
+    float3 bitangent : BITANGENT;
     float4 color : COLOR;
     float2 texcoord : TEXCOORD;
     float4 weights : BLENDWEIGHT;
@@ -31,6 +33,8 @@ struct PixelInputType
 {
     float4 position : SV_POSITION;
     float4 normal : NORMAL;
+    float4 tangent : TANGENT;
+    float4 bitangent : BITANGENT;
     float2 texcoord : TEXCOORD;
     float4 color : COLOR;
     float4 worldPos : POSITION;
@@ -53,6 +57,11 @@ cbuffer ProjectionBuffer : register( b2 )
 	matrix Projection;
 }
 
+cbuffer CameraPosBuffer : register(b7)
+{
+    float4 CameraPos;
+}
+
 cbuffer ProjViewBuffer : register(b8)
 {
     LightViewProjBuffer ProjView;
@@ -72,6 +81,7 @@ struct MATERIAL
 	float4		Emission;
 	float		Shininess;
 	int			noTexSampling;
+    int lightmapSampling;
 	float		Dummy[2];//16byte境界用
 };
 
@@ -186,11 +196,11 @@ PixelInputType SkinnedMeshVertexShaderPolygon(SkinnedMeshVertexInputType input)
     matrix wvp = mul(World, View); // Assume World[0] is used for non-skinned objects
     wvp = mul(wvp, Projection);
     output.position = mul(worldPosition, wvp);
-    //output.position = mul(input.position, wvp);
 
     // Normal transformation (only transform by the world matrix part)
     output.normal = normalize(mul(float4(input.normal, 0.0), boneTransform));
-    //output.normal = normalize(mul(float4(input.normal, 0.0), World));
+    output.tangent = normalize(mul(float4(input.tangent, 0.0), boneTransform));
+    output.bitangent = normalize(mul(float4(input.bitangent, 0.0), boneTransform));
 
     // Pass through the texture coordinates and color
     output.texcoord = input.texcoord;
@@ -214,7 +224,48 @@ Texture2D		g_Texture : register( t0 );
 SamplerState	g_SamplerState : register( s0 );
 Texture2D g_ShadowMap[5] : register(t1);
 Texture2D g_TextureSmall : register(t7);
+Texture2D g_LightMap : register(t8);
+Texture2D g_NormalMap : register(t9);
 SamplerComparisonState g_ShadowSampler : register(s1);
+
+float ToonLighting(float NdotL)
+{
+    float levels = 3.0;
+    return floor(NdotL * levels) / (levels - 1);
+}
+
+float3 ToonShading(float3 normal, float3 lightDir, float3 lightColor)
+{
+    float NdotL = max(dot(normal, lightDir), 0.0);
+    float toonIntensity = ToonLighting(NdotL);
+    return toonIntensity * lightColor;
+}
+
+float HalfLambert(float NdotL)
+{
+    return (NdotL * 0.5 + 0.5);
+}
+
+float3 HalfLambertToon(float3 normal, float3 lightDir, float3 lightColor)
+{
+    float NdotL = max(dot(normal, lightDir), 0.0);
+    float halfLambert = HalfLambert(NdotL);
+    float toonIntensity = ToonLighting(halfLambert);
+    return toonIntensity * lightColor;
+}
+
+float3 RimLight(float3 normal, float3 viewDir, float rimIntensity, float rimThreshold)
+{
+    float rim = 1.0 - max(dot(normal, viewDir), 0.0);
+    rim = smoothstep(rimThreshold, 1.0, rim);
+    return rim * rimIntensity;
+}
+
+float3 ApplyRimLight(float3 normal, float3 viewDir, float3 lightColor)
+{
+    float3 rim = RimLight(normal, viewDir, 1.0, 0.5);
+    return rim * lightColor;
+}
 
 //=============================================================================
 // ピクセルシェーダ
@@ -388,4 +439,168 @@ void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
 	//		outDiffuse.g = 0.0f;			
 	//	}
 	//}
+}
+
+
+void SkinnedMeshPixelShader(PixelInputType input,
+                            out float4 outDiffuse : SV_Target)
+{
+    float4 color;
+    float4 lightColor;
+
+    if (Material.noTexSampling == 0)
+    {
+        color = g_Texture.Sample(g_SamplerState, input.texcoord);
+
+        color *= input.color;
+    }
+    else
+    {
+        color = input.color;
+    }
+	
+    //if (Material.lightmapSampling == 1)
+    //{
+    //    color *= g_LightMap.Sample(g_SamplerState, inTexCoord);
+    //}
+    
+    //  Sample the normal map
+    float3 tangentNormal = g_NormalMap.Sample(g_SamplerState, input.texcoord).rgb;
+
+    // Convert sampled normal from [0,1] range to [-1,1] range
+    tangentNormal = tangentNormal * 2.0 - 1.0;
+
+    // Construct TBN matrix
+    float3x3 TBN = float3x3(input.tangent.xyz, input.bitangent.xyz, input.normal.xyz);
+
+    // Transform the normal from tangent space to world space
+    float3 worldNormal = normalize(mul(TBN, tangentNormal));
+
+
+
+    if (Light.Enable == 0)
+    {
+        color = color * Material.Diffuse;
+    }
+    else
+    {
+        float4 tempColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
+        float4 outColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
+        
+        float3 viewDir = normalize(CameraPos.xyz - input.position.xyz);
+
+        for (int i = 0; i < 5; i++)
+        {
+            float3 lightDir;
+            float light;
+
+            if (Light.Flags[i].y == 1)
+            {
+                lightDir = normalize(Light.Direction[i].xyz);
+                lightColor = Light.Diffuse[i];
+                
+                float4 ambient = color * Material.Diffuse * Light.Ambient[i];
+                if (Light.Flags[i].x == 1)
+                {
+                    
+                    // Half-Lambert Toon
+                    float3 toonColor = HalfLambertToon(worldNormal, lightDir, lightColor.xyz);
+                    
+                    // Rim Light
+                    float3 rimColor = ApplyRimLight(worldNormal, viewDir, lightColor.xyz);
+
+                    // Combine lighting effects
+                    tempColor = color * ((toonColor + rimColor), 0.9f);
+                    
+                }
+                else if (Light.Flags[i].x == 2)
+                {
+                    lightDir = normalize(Light.Position[i].xyz - input.worldPos.xyz);
+                    light = dot(lightDir, input.normal.xyz);
+
+                    tempColor = color * Material.Diffuse * light * Light.Diffuse[i];
+
+                    float distance = length(input.worldPos - Light.Position[i]);
+
+                    float att = saturate((Light.Attenuation[i].x - distance) / Light.Attenuation[i].x);
+                    tempColor *= att;
+                }
+                else
+                {
+                    tempColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
+                }
+                float shadowFactor = 1.0f;
+                if (Light.Flags[i].x == 1)
+                {
+                    float2 shadowTexCoord = float2(input.shadowCoord[i].x, -input.shadowCoord[i].y) / input.shadowCoord[i].w * 0.5f + 0.5f;
+
+                    float currentDepth = input.shadowCoord[i].z / input.shadowCoord[i].w;
+                    currentDepth -= 0.005f;
+                    int kernelSize = 1;
+                    float2 shadowMapDimensions = float2(960, 540);
+                    float shadow = 0.0;
+                    float2 texelSize = 1.0 / shadowMapDimensions;
+                    float totalWeight = 0.0;
+                    for (int x = -kernelSize; x <= kernelSize; x++)
+                    {
+                        for (int y = -kernelSize; y <= kernelSize; y++)
+                        {
+                            float weight = exp(-(x * x + y * y) / (2.0 * kernelSize * kernelSize)); // gaussian weight
+                            shadow += g_ShadowMap[i].SampleCmpLevelZero(g_ShadowSampler, shadowTexCoord + float2(x, y) * texelSize, currentDepth) * weight;
+                            totalWeight += weight;
+                        }
+                    }
+                    shadowFactor = shadow / totalWeight;
+                }
+
+                tempColor *= shadowFactor;
+				
+                outColor += tempColor + ambient;
+
+            }
+        }
+
+        color = outColor;
+        color.a = input.color.a * Material.Diffuse.a;
+
+    }
+
+	//フォグ
+    //if (Fog.Enable == 1)
+    //{
+    //    float z = inPosition.z * inPosition.w;
+    //    float f = (Fog.Distance.y - z) / (Fog.Distance.y - Fog.Distance.x);
+    //    f = saturate(f);
+    //    outDiffuse = f * color + (1 - f) * Fog.FogColor;
+    //    outDiffuse.a = color.a;
+    //}
+    //else
+    //{
+    //    outDiffuse = color;
+    //}
+	
+    //if (md.mode == 1)
+    //{
+
+    //    //color.a *= 0.5f;
+    //    float2 centeredTexcoord = input.texcoord - float2(0.5, 0.5);
+
+    //    float distanceFromCenter = length(centeredTexcoord);
+    //    float angle = distanceFromCenter * 5;
+
+    //    float sinAngle = sin(angle);
+    //    float cosAngle = cos(angle);
+    //    float2 rotatedTexcoord;
+    //    rotatedTexcoord.x = centeredTexcoord.x * cosAngle - centeredTexcoord.y * sinAngle;
+    //    rotatedTexcoord.y = centeredTexcoord.x * sinAngle + centeredTexcoord.y * cosAngle;
+
+    //    rotatedTexcoord += float2(0.5, 0.5);
+		
+    //    color = g_TextureSmall.Sample(g_SamplerState, rotatedTexcoord);
+    //    outDiffuse = color;
+    //    return;
+
+    //}
+
+    outDiffuse = color;
 }
