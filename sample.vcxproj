@@ -135,7 +135,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="AnimationStateMachine.h" />
+    <ClInclude Include="AnimStateMachine.h" />
     <ClInclude Include="camera.h" />
     <ClInclude Include="collision.h" />
     <ClInclude Include="debugproc.h" />
@@ -154,7 +154,6 @@
     <ClInclude Include="offScreenRender.h" />
     <ClInclude Include="Player.h" />
     <ClInclude Include="Sigewinne.h" />
-    <ClInclude Include="tenshi.h" />
     <ClInclude Include="renderer.h" />
     <ClInclude Include="score.h" />
     <ClInclude Include="shadow.h" />
@@ -168,6 +167,7 @@
     <ClInclude Include="Vertex.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AnimStateMachine.cpp" />
     <ClCompile Include="camera.cpp" />
     <ClCompile Include="collision.cpp" />
     <ClCompile Include="debugproc.cpp" />
@@ -184,7 +184,6 @@
     <ClCompile Include="offScreenRender.cpp" />
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="Sigewinne.cpp" />
-    <ClCompile Include="tenshi.cpp" />
     <ClCompile Include="renderer.cpp" />
     <ClCompile Include="score.cpp" />
     <ClCompile Include="shadow.cpp" />

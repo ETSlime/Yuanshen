@@ -78,6 +78,7 @@ enum AnimationClipName
 	ANIM_STANDING_AIM_WALK_LEFT,
 	ANIM_STANDING_AIM_OVERDRAW,
 	ANIM_WALK,
+	ANIM_RUN,
 };
 
 enum class ModelType

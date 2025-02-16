@@ -7,6 +7,7 @@
 //=============================================================================
 #include "FBXLoader.h"
 #include "HashMap.h"
+#include "AnimStateMachine.h"
 //*****************************************************************************
 // É}ÉNÉçíËã`
 //*****************************************************************************
@@ -47,11 +48,38 @@ struct SkinnedMeshModelPool
 	void AddRef() { count++; }
 };
 
+struct BoneTransformData
+{
+	SimpleArray<XMFLOAT4X4> mModelGlobalRot;
+	SimpleArray<XMFLOAT4X4> mModelGlobalScl;
+	SimpleArray<XMFLOAT4X4> mModelTranslate;
+	SimpleArray<XMFLOAT4X4> mModelGlobalTrans;
+	SimpleArray<XMFLOAT4X4> mModelLocalTrans;
+	SimpleArray<XMFLOAT4X4> mBoneFinalTransforms;
+
+	HashMap<uint64_t, int, HashUInt64, EqualUInt64> limbHashMap = HashMap<uint64_t, int, HashUInt64, EqualUInt64>(
+		MAX_NODE_NUM,
+		HashUInt64(),
+		EqualUInt64()
+	);
+
+	BoneTransformData(int numBones)
+	{
+		mModelGlobalRot.resize(numBones);
+		mModelGlobalScl.resize(numBones);
+		mModelTranslate.resize(numBones);
+		mModelGlobalTrans.resize(numBones);
+		mModelLocalTrans.resize(numBones);
+		mBoneFinalTransforms.resize(numBones);
+	}
+};
+
 struct ModelData
 {
 	ModelData()
 	{
 		mesh = new MeshData();
+		boneTransformData = nullptr;
 		shapeCnt = 0;
 		limbCnt = 0;
 		VertexArray = nullptr;
@@ -90,54 +118,23 @@ struct ModelData
 	unsigned int	IndexNum;
 
 	FbxNode* armatureNode;
+	BoneTransformData* boneTransformData;
+
 	SimpleArray<int> mBoneHierarchy;
-	SimpleArray<XMFLOAT4X4> mModelGlobalRot;
-	SimpleArray<XMFLOAT4X4> mModelGlobalScl;
-	SimpleArray<XMFLOAT4X4> mModelTranslate;
-	SimpleArray<XMFLOAT4X4> mModelGlobalTrans;
-	SimpleArray<XMFLOAT4X4> mModelLocalTrans;
 	SimpleArray<XMFLOAT4X4> mBoneOffsets;
 	SimpleArray<XMFLOAT4X4> mBoneToParentTransforms;
-	SimpleArray<XMFLOAT4X4> mBoneFinalTransforms;
 	VertexDataLocation normalLoc;
 	VertexDataLocation texLoc;
 
 	ID3D11Buffer* VertexBuffer;
 	ID3D11Buffer* IndexBuffer;
 
-	XMFLOAT4X4	boneMatrices[BONE_MAX];
+	//XMFLOAT4X4	boneMatrices[BONE_MAX];
 
 	FbxMaterial* material;
 
 	ID3D11ShaderResourceView* diffuseTexture;
 	ID3D11ShaderResourceView* emissiveTexture;
-
-	HashMap<uint64_t, int, HashUInt64, EqualUInt64> limbHashMap = HashMap<uint64_t, int, HashUInt64, EqualUInt64>(
-		MAX_NODE_NUM,
-		HashUInt64(),
-		EqualUInt64()
-	);
-};
-
-struct AnimationClip
-{
-	AnimationClipName name;
-	FbxNode* armatureNode;
-	uint64_t stopTime;
-	uint64_t currentTime;
-
-	AnimationClip()
-	{
-		name = AnimationClipName::ANIM_NONE;
-		armatureNode = nullptr;
-		stopTime = 0;
-		currentTime = 0;
-	}
-
-	XMMATRIX* GetBoneMatrices()
-	{
-
-	}
 };
 
 class SkinnedMeshModel
@@ -146,7 +143,7 @@ public:
 	friend class FBXLoader;
 
 	void DrawModel();
-	void Update();
+	void UpdateBoneTransform(SimpleArray<XMFLOAT4X4>* boneTransforms);
 
 	SkinnedMeshModel();
 	~SkinnedMeshModel();
@@ -159,9 +156,13 @@ public:
 	void SetFaceDiffuseTexture(char* texturePath);
 	void SetFaceLightMapTexture(char* texturePath);
 
+	void GetBoneTransformByAnim(FbxNode* currentClipArmatureNode, uint64_t currentClipTime, SimpleArray<XMFLOAT4X4>* boneFinalTransform);
+
 	void SetCurrentAnim(AnimationClipName clipName, float startTime = 0);
-	AnimationClipName GetCurrentAnim(void) { return currentAnimClip.name; };
+	AnimationClipName GetCurrentAnim(void) { return currentAnimClip->name; };
+	AnimationClip* GetAnimationClip(AnimationClipName clipName);
 	void PlayCurrentAnim(float playSpeed = 1.0f);
+
 
 	static SkinnedMeshModel* StoreModel(char* modelPath, char* modelName, ModelType modelType, AnimationClipName clipName);
 	static SkinnedMeshModelPool* GetModel(char* modelFullPath);
@@ -171,10 +172,10 @@ private:
 
 	static HashMap<char*, SkinnedMeshModelPool, CharPtrHash, CharPtrEquals> modelHashMap;
 
-	void UpdateLimbGlobalTransform(FbxNode* node, FbxNode* deformNode, int& curIdx, int prevIdx, uint64_t time, ModelData* modelData);
-	void UpdateBoneTransform(ModelData* modelData);
-	XMFLOAT3 GetAnimationValue(FbxNode** ppAnimationCurve, XMFLOAT3 defaultValue, uint64_t time);
-	float GetAnimationCurveValue(FbxNode** ppAnimationCurveNode, uint64_t time, float defaultValue);
+	void UpdateLimbGlobalTransform(FbxNode* node, FbxNode* deformNode, int& curIdx, int prevIdx, uint64_t time, BoneTransformData* boneTransformData, BOOL isLoop = TRUE);
+	void GetBoneTransform(SimpleArray<XMFLOAT4X4>& boneFinalTransform, ModelData* modelData);
+	XMFLOAT3 GetAnimationValue(FbxNode** ppAnimationCurve, XMFLOAT3 defaultValue, uint64_t time, BOOL isLoop);
+	float GetAnimationCurveValue(FbxNode** ppAnimationCurveNode, uint64_t time, float defaultValue, BOOL isLoop);
 	void CalculateDrawParameters(ModelData* modelData, float startPercentage, float endPercentage, int& IndexNum, int& StartIndexLocation);
 
 	void DrawSigewinne(ModelData* modelData);
@@ -187,7 +188,7 @@ private:
 	UINT ModelCount;
 	UINT currentRootNodeID;
 
-	AnimationClip currentAnimClip;
+	AnimationClip* currentAnimClip;
 	FbxNode* armatureNode;
 
 	ModelType modelType;
@@ -208,37 +209,43 @@ private:
 
 	BindPose bindPose;
 
-	HashMap<uint64_t, FbxNode*, HashUInt64, EqualUInt64> fbxNodes = HashMap<uint64_t, FbxNode*, HashUInt64, EqualUInt64>(
+	HashMap<uint64_t, FbxNode*, HashUInt64, EqualUInt64> fbxNodes = 
+		HashMap<uint64_t, FbxNode*, HashUInt64, EqualUInt64>(
 		MAX_NODE_NUM,
 		HashUInt64(),
 		EqualUInt64()
 	);
 
-	HashMap<uint64_t, ModelData*, HashUInt64, EqualUInt64> meshDataMap = HashMap<uint64_t, ModelData*, HashUInt64, EqualUInt64>(
+	HashMap<uint64_t, ModelData*, HashUInt64, EqualUInt64> meshDataMap = 
+		HashMap<uint64_t, ModelData*, HashUInt64, EqualUInt64>(
 		MAX_MESH_NUM,
 		HashUInt64(),
 		EqualUInt64()
 	);
 
-	HashMap<int, AnimationClip, HashUInt64, EqualUInt64> animationClips = HashMap<int, AnimationClip, HashUInt64, EqualUInt64>(
+	HashMap<int, AnimationClip*, HashUInt64, EqualUInt64> animationClips = 
+		HashMap<int, AnimationClip*, HashUInt64, EqualUInt64>(
 		MAX_ANIM_NUM,
 		HashUInt64(),
 		EqualUInt64()
 	);
 
-	HashMap<int, uint64_t, HashUInt64, EqualUInt64> deformerHashMap = HashMap<int, uint64_t, HashUInt64, EqualUInt64>(
+	HashMap<int, uint64_t, HashUInt64, EqualUInt64> deformerHashMap = 
+		HashMap<int, uint64_t, HashUInt64, EqualUInt64>(
 		MAX_NODE_NUM,
 		HashUInt64(),
 		EqualUInt64()
 	);
 
-	HashMap<uint64_t, int, HashUInt64, EqualUInt64> deformerIdxHashMap = HashMap<uint64_t, int, HashUInt64, EqualUInt64>(
+	HashMap<uint64_t, int, HashUInt64, EqualUInt64> deformerIdxHashMap = 
+		HashMap<uint64_t, int, HashUInt64, EqualUInt64>(
 		MAX_NODE_NUM,
 		HashUInt64(),
 		EqualUInt64()
 	);
 
-	HashMap<uint64_t, uint64_t, HashUInt64, EqualUInt64> deformerToLimb = HashMap<uint64_t, uint64_t, HashUInt64, EqualUInt64>(
+	HashMap<uint64_t, uint64_t, HashUInt64, EqualUInt64> deformerToLimb = 
+		HashMap<uint64_t, uint64_t, HashUInt64, EqualUInt64>(
 		MAX_NODE_NUM,
 		HashUInt64(),
 		EqualUInt64()

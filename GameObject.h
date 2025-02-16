@@ -98,6 +98,16 @@ protected:
 	T instance;
 };
 
+class ISkinnedMeshModel
+{
+public:
+	virtual void PlayWalkAnim() = 0;
+	virtual void PlayRunAnim() = 0;
+	virtual void PlayJumpAnim() = 0;
+	virtual void PlayIdleAnim() = 0;
+	virtual AnimationStateMachine* GetStateMachine() = 0;
+};
+
 
 template <typename T>
 GameObject<T>::GameObject()

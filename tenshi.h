@@ -88,7 +88,7 @@ enum
 };
 
 // states
-enum
+enum STATE
 {
 	IDLE,
 	WALK,

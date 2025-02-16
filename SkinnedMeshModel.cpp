@@ -1,7 +1,7 @@
 #include "SkinnedMeshModel.h"
 #include "input.h"
 #include "debugproc.h"
-
+#include "AnimStateMachine.h"
 //*****************************************************************************
 // É}ÉNÉçíËã`
 //*****************************************************************************
@@ -22,32 +22,54 @@ FBXLoader& fbxLoader = FBXLoader::get_instance();
 TextureMgr& mTexMgr = TextureMgr::get_instance();
 
 
-void SkinnedMeshModel::Update()
+void SkinnedMeshModel::UpdateBoneTransform(SimpleArray<XMFLOAT4X4>* boneTransforms)
 {
+
     for (auto& it : meshDataMap)
     {
         ModelData* modelData = it.value;
-        FbxNode* armatureNode = modelData->armatureNode;
 
-        
-        if (armatureNode)
+        if (boneTransforms)
         {
-            modelData->mModelGlobalScl.clear();
-            modelData->mModelGlobalRot.clear();
-            modelData->mModelTranslate.clear();
+            modelData->boneTransformData->mBoneFinalTransforms.clear();
 
-            modelData->mModelGlobalTrans.clear();
-            modelData->mModelLocalTrans.clear();
+            int boneSize = boneTransforms->getSize();
+            for (int i = 0; i < boneSize; i++)
+            {
+                modelData->boneTransformData->mBoneFinalTransforms.push_back((*boneTransforms)[i]);
+            }
+        }
+        else
+        {
+            ModelData* modelData = it.value;
+            FbxNode* armatureNode = modelData->armatureNode;
 
-            modelData->limbHashMap.clear();
 
-            int curIdx = 0;
-            int prevIdx = -1;
+            if (armatureNode)
+            {
+                modelData->boneTransformData->mModelGlobalScl.clear();
+                modelData->boneTransformData->mModelGlobalRot.clear();
+                modelData->boneTransformData->mModelTranslate.clear();
 
-            UpdateLimbGlobalTransform(currentAnimClip.armatureNode, armatureNode, curIdx, prevIdx, currentAnimClip.currentTime, modelData);
-            UpdateBoneTransform(modelData);
+                modelData->boneTransformData->mModelGlobalTrans.clear();
+                modelData->boneTransformData->mModelLocalTrans.clear();
+                modelData->boneTransformData->mBoneFinalTransforms.clear();
+
+                modelData->boneTransformData->limbHashMap.clear();
+
+                int curIdx = 0;
+                int prevIdx = -1;
+
+                UpdateLimbGlobalTransform(currentAnimClip->armatureNode, armatureNode, curIdx, prevIdx, currentAnimClip->currentTime, modelData->boneTransformData, currentAnimClip->isLoop);
+                GetBoneTransform(modelData->boneTransformData->mBoneFinalTransforms, modelData);
+            }
         }
     }
+
+    //for (auto& it : meshDataMap)
+    //{
+
+    //}
 }
 
 void SkinnedMeshModel::DrawModel()
@@ -61,10 +83,10 @@ void SkinnedMeshModel::DrawModel()
         if (armatureNode)
         {
             XMMATRIX	boneMatrices[BONE_MAX];
-            int size = modelData->mBoneFinalTransforms.getSize();
+            int size = modelData->boneTransformData->mBoneFinalTransforms.getSize();
             for (int i = 0; i < size; i++)
             {
-                boneMatrices[i] = XMMatrixTranspose(XMLoadFloat4x4(&modelData->mBoneFinalTransforms[i]));
+                boneMatrices[i] = XMMatrixTranspose(XMLoadFloat4x4(&modelData->boneTransformData->mBoneFinalTransforms[i]));
             }
             Renderer::get_instance().SetBoneMatrix(boneMatrices);
         }
@@ -118,55 +140,6 @@ void SkinnedMeshModel::DrawModel()
     }
 }
 
-
-void SkinnedMeshModel::CalculateDrawParameters(ModelData* modelData, float startPercentage, float endPercentage, int& IndexNum, int& StartIndexLocation)
-{
-
-    StartIndexLocation = static_cast<int>(floor(startPercentage * modelData->IndexNum));
-    StartIndexLocation = (StartIndexLocation / 3) * 3;
-
-    int EndIndexLocation = static_cast<int>(ceil(endPercentage * modelData->IndexNum));
-    EndIndexLocation = (EndIndexLocation / 3) * 3;
-
-    IndexNum = EndIndexLocation - StartIndexLocation;
-}
-
-void SkinnedMeshModel::DrawSigewinne(ModelData* modelData)
-{
-    // É|ÉäÉSÉìï`âÊ
-    int IndexNum, StartIndexLocation;
-
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &faceDiffuseTexture);
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &faceLightMapTexture);
-    CalculateDrawParameters(modelData, 0, 0.001894, IndexNum, StartIndexLocation);
-    Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
-
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &bodyDiffuseTexture);
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &bodyLightMapTexture);
-    CalculateDrawParameters(modelData, 0.001894, 0.00715, IndexNum, StartIndexLocation);
-    Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
-
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &faceDiffuseTexture);
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &faceLightMapTexture);
-    CalculateDrawParameters(modelData, 0.00715, 0.047, IndexNum, StartIndexLocation);
-    Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
-
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &hairDiffuseTexture);
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &hairLightMapTexture);
-    CalculateDrawParameters(modelData, 0.047, 0.44, IndexNum, StartIndexLocation);
-    Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
-
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &bodyDiffuseTexture);
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &bodyLightMapTexture);
-    CalculateDrawParameters(modelData, 0.44, 0.916, IndexNum, StartIndexLocation);
-    Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
-
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &faceDiffuseTexture);
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &faceLightMapTexture);
-    CalculateDrawParameters(modelData, 0.916, 0.996, IndexNum, StartIndexLocation);
-    Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
-}
-
 void SkinnedMeshModel::SetBodyDiffuseTexture(char* texturePath)
 {
     bodyDiffuseTexture = TextureMgr::get_instance().CreateTexture(texturePath);
@@ -202,26 +175,68 @@ void SkinnedMeshModel::SetFaceLightMapTexture(char* texturePath)
     faceLightMapTexture = TextureMgr::get_instance().CreateTexture(texturePath);
 }
 
+void SkinnedMeshModel::GetBoneTransformByAnim(FbxNode* currentClipArmatureNode, uint64_t currentClipTime, SimpleArray<XMFLOAT4X4>* boneFinalTransform)
+{
+    (*boneFinalTransform).clear();
+    
+    for (auto& it : meshDataMap)
+    {
+        ModelData* modelData = it.value;
+        FbxNode* armatureNode = modelData->armatureNode;
+
+
+        if (armatureNode)
+        {
+            modelData->boneTransformData->mModelGlobalScl.clear();
+            modelData->boneTransformData->mModelGlobalRot.clear();
+            modelData->boneTransformData->mModelTranslate.clear();
+
+            modelData->boneTransformData->mModelGlobalTrans.clear();
+            modelData->boneTransformData->mModelLocalTrans.clear();
+            modelData->boneTransformData->mBoneFinalTransforms.clear();
+
+            modelData->boneTransformData->limbHashMap.clear();
+
+            int curIdx = 0;
+            int prevIdx = -1;
+
+            UpdateLimbGlobalTransform(currentClipArmatureNode, armatureNode, curIdx, prevIdx, currentClipTime, modelData->boneTransformData);
+            GetBoneTransform(*boneFinalTransform, modelData);
+        }
+    }
+}
+
 void SkinnedMeshModel::SetCurrentAnim(AnimationClipName clipName, float startTime)
 {
-    AnimationClip* animClip = animationClips.search(clipName);
+    AnimationClip** animClip = animationClips.search(clipName);
 
     if (animClip)
     {
         currentAnimClip = *animClip;
-        currentAnimClip.currentTime = animClip->stopTime * startTime;
+        currentAnimClip->currentTime = (*animClip)->stopTime * startTime;
     }
+}
+
+AnimationClip* SkinnedMeshModel::GetAnimationClip(AnimationClipName clipName)
+{
+    AnimationClip** animClip = animationClips.search(clipName);
+    if (animClip)
+        return *animClip;
+
+    return nullptr;
 }
 
 void SkinnedMeshModel::PlayCurrentAnim(float playSpeed)
 {
-    currentAnimClip.currentTime += ANIM_SPD * playSpeed;
+    currentAnimClip->currentTime += ANIM_SPD * playSpeed;
 }
 
 SkinnedMeshModel::SkinnedMeshModel()
 {
     armatureNode = nullptr;
     currentRootNodeID = 0;
+
+    currentAnimClip = nullptr;
 
     armatureNode = nullptr;
 
@@ -306,15 +321,15 @@ void SkinnedMeshModel::RemoveModel(char* modelPath)
     modelHashMap.remove(modelPath);
 }
 
-void SkinnedMeshModel::UpdateLimbGlobalTransform(FbxNode* node, FbxNode* deformNode, int& curIdx, int prevIdx, uint64_t time, ModelData* modelData)
+void SkinnedMeshModel::UpdateLimbGlobalTransform(FbxNode* node, FbxNode* deformNode, 
+    int& curIdx, int prevIdx, uint64_t time, BoneTransformData* boneTransformData, BOOL isLoop)
 {
     ModelProperty* modelProperty = static_cast<ModelProperty*>(node->nodeData);
 
     if (modelProperty)
     {
         modelProperty->modelIdx = curIdx;
-        //modelData->limbHashMap.insert(node->nodeID, curIdx);
-        modelData->limbHashMap.insert(deformNode->nodeID, curIdx);
+        boneTransformData->limbHashMap.insert(deformNode->nodeID, curIdx);
         XMMATRIX mtxLocalScl, mtxLocalRot, mtxLocalTranslate, mtxLcl, mtxGlobalTrans;
 
         mtxLcl = XMMatrixIdentity();
@@ -323,15 +338,15 @@ void SkinnedMeshModel::UpdateLimbGlobalTransform(FbxNode* node, FbxNode* deformN
         if (limbNodeAnimation)
         {
             FbxNode** animationCurveNodeScl = fbxNodes.search(limbNodeAnimation->LclScl);
-            XMFLOAT3 animationValueScl = GetAnimationValue(animationCurveNodeScl, modelProperty->Scaling, time);
+            XMFLOAT3 animationValueScl = GetAnimationValue(animationCurveNodeScl, modelProperty->Scaling, time, isLoop);
             mtxLocalScl = XMMatrixScaling(animationValueScl.x, animationValueScl.y, animationValueScl.z);
 
             FbxNode** animationCurveNodeRot = fbxNodes.search(limbNodeAnimation->LclRot);
-            XMFLOAT3 animationValueRot = GetAnimationValue(animationCurveNodeRot, modelProperty->Rotation, time);
+            XMFLOAT3 animationValueRot = GetAnimationValue(animationCurveNodeRot, modelProperty->Rotation, time, isLoop);
             mtxLocalRot = CreateRotationMatrix(XMConvertToRadians(animationValueRot.x), XMConvertToRadians(animationValueRot.y), XMConvertToRadians(animationValueRot.z));
 
             FbxNode** animationCurveNodeTranslation = fbxNodes.search(limbNodeAnimation->LclTranslation);
-            XMFLOAT3 animationValueTranslation = GetAnimationValue(animationCurveNodeTranslation, modelProperty->Translation, time);
+            XMFLOAT3 animationValueTranslation = GetAnimationValue(animationCurveNodeTranslation, modelProperty->Translation, time, isLoop);
             mtxLocalTranslate = XMMatrixTranslation(animationValueTranslation.x, animationValueTranslation.y, animationValueTranslation.z);
 
         }
@@ -358,10 +373,10 @@ void SkinnedMeshModel::UpdateLimbGlobalTransform(FbxNode* node, FbxNode* deformN
         }
         else
         {
-            mtxParentScl = XMLoadFloat4x4(&modelData->mModelGlobalScl[prevIdx]);
-            parentTranslate = XMLoadFloat4x4(&modelData->mModelTranslate[prevIdx]);
-            mtxParentRot = XMLoadFloat4x4(&modelData->mModelGlobalRot[prevIdx]);
-            parentTrans = XMLoadFloat4x4(&modelData->mModelGlobalTrans[prevIdx]);
+            mtxParentScl = XMLoadFloat4x4(&boneTransformData->mModelGlobalScl[prevIdx]);
+            parentTranslate = XMLoadFloat4x4(&boneTransformData->mModelTranslate[prevIdx]);
+            mtxParentRot = XMLoadFloat4x4(&boneTransformData->mModelGlobalRot[prevIdx]);
+            parentTrans = XMLoadFloat4x4(&boneTransformData->mModelGlobalTrans[prevIdx]);
         }
 
         mtxLcl = XMMatrixMultiply(mtxLcl, mtxLocalScl);
@@ -383,14 +398,13 @@ void SkinnedMeshModel::UpdateLimbGlobalTransform(FbxNode* node, FbxNode* deformN
         mtxGlobalTrans = XMMatrixMultiply(mtxGlobalTrans, mtxGlobalTranslate);
         globalTranslationVec = XMVector3Transform(localTranslationVec, parentTrans);
         XMStoreFloat4x4(&globalTrans, mtxGlobalTrans);
-
         XMStoreFloat4x4(&globalRot, XMMatrixMultiply(mtxLocalRot, mtxParentRot));
-        modelData->mModelGlobalScl.push_back(globalScl);
-        modelData->mModelGlobalRot.push_back(globalRot);
-        modelData->mModelTranslate.push_back(globalTranslate);
 
-        modelData->mModelGlobalTrans.push_back(globalTrans);
-        modelData->mModelLocalTrans.push_back(localTrans);
+        boneTransformData->mModelGlobalScl.push_back(globalScl);
+        boneTransformData->mModelGlobalRot.push_back(globalRot);
+        boneTransformData->mModelTranslate.push_back(globalTranslate);
+        boneTransformData->mModelGlobalTrans.push_back(globalTrans);
+        boneTransformData->mModelLocalTrans.push_back(localTrans);
 
         SimpleArray<FbxNode*> childNodes = node->childNodes;
         for (int i = 0; i < childNodes.getSize(); i++)
@@ -399,7 +413,7 @@ void SkinnedMeshModel::UpdateLimbGlobalTransform(FbxNode* node, FbxNode* deformN
             {
                 int prev = modelProperty->modelIdx;
                 curIdx++;
-                UpdateLimbGlobalTransform(node->childNodes[i], deformNode->childNodes[i], curIdx, prev, time, modelData);
+                UpdateLimbGlobalTransform(node->childNodes[i], deformNode->childNodes[i], curIdx, prev, time, boneTransformData, isLoop);
             }
             else if (childNodes[i]->nodeType == FbxNodeType::Mesh)
             {
@@ -410,24 +424,22 @@ void SkinnedMeshModel::UpdateLimbGlobalTransform(FbxNode* node, FbxNode* deformN
                     {
                         int prev = modelProperty->modelIdx;
                         curIdx++;
-                        UpdateLimbGlobalTransform(node->childNodes[i]->childNodes[j], deformNode->childNodes[i]->childNodes[j], curIdx, prev, time, modelData);
+                        UpdateLimbGlobalTransform(node->childNodes[i]->childNodes[j], deformNode->childNodes[i]->childNodes[j], curIdx, prev, time, boneTransformData, isLoop);
                     }
                 }
             }
-
         }
     }
 }
 
-void SkinnedMeshModel::UpdateBoneTransform(ModelData* modelData)
+void SkinnedMeshModel::GetBoneTransform(SimpleArray<XMFLOAT4X4>& boneFinalTransform, ModelData* modelData)
 {
-
     int numBones = modelData->mBoneHierarchy.getSize();
 
     if (numBones > 0)
     {
-        modelData->mBoneFinalTransforms.clear();
-        modelData->mBoneFinalTransforms.resize(numBones);
+        if (boneFinalTransform.getSize() != numBones)
+            boneFinalTransform.resize(numBones);
 
         SimpleArray<XMFLOAT4X4> toRootTransforms(numBones);
         toRootTransforms[0] = modelData->mBoneToParentTransforms[0];
@@ -453,22 +465,19 @@ void SkinnedMeshModel::UpdateBoneTransform(ModelData* modelData)
             uint64_t* pDeformerID = nullptr;
             uint64_t* pLimbID = nullptr;
 
-            //pDeformerID = modelData->deformerHashMap.search(i);
             pDeformerID = deformerHashMap.search(i);
             if (pDeformerID == nullptr) continue;
 
-            //pDeformerIdx = modelData->deformerIdxHashMap.search(*pDeformerID);
             pDeformerIdx = deformerIdxHashMap.search(*pDeformerID);
             if (pDeformerIdx)
                 deformerIdx = *pDeformerIdx;
 
-            //pLimbID = modelData->deformerToLimb.search(*pDeformerID);
             pLimbID = deformerToLimb.search(*pDeformerID);
             if (pLimbID == nullptr)
                 limbIdx = i;
             else
             {
-                pLimbIdx = modelData->limbHashMap.search(*pLimbID);
+                pLimbIdx = modelData->boneTransformData->limbHashMap.search(*pLimbID);
                 if (pLimbIdx == nullptr) continue;
                 limbIdx = *pLimbIdx;
             }
@@ -477,8 +486,8 @@ void SkinnedMeshModel::UpdateBoneTransform(ModelData* modelData)
 
             XMMATRIX mtxInverseRootTransform;
 
-            XMMATRIX mtxGlobalTrans = XMLoadFloat4x4(&modelData->mModelGlobalTrans[limbIdx]);
-            XMMATRIX mtxLocalTrans = XMLoadFloat4x4(&modelData->mModelLocalTrans[limbIdx]);
+            XMMATRIX mtxGlobalTrans = XMLoadFloat4x4(&modelData->boneTransformData->mModelGlobalTrans[limbIdx]);
+            XMMATRIX mtxLocalTrans = XMLoadFloat4x4(&modelData->boneTransformData->mModelLocalTrans[limbIdx]);
 
             XMMATRIX offset = XMLoadFloat4x4(&modelData->mBoneOffsets[deformerIdx]);
             XMMATRIX toRoot = XMLoadFloat4x4(&toRootTransforms[deformerIdx]);
@@ -502,7 +511,7 @@ void SkinnedMeshModel::UpdateBoneTransform(ModelData* modelData)
 
             if (i > 0)
             {
-                XMMATRIX rootTransform = XMLoadFloat4x4(&modelData->mBoneFinalTransforms[0]);
+                XMMATRIX rootTransform = XMLoadFloat4x4(&boneFinalTransform[0]);
                 rootTransform.r[3] = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
                 mtxInverseRootTransform = XMMatrixInverse(nullptr, rootTransform);
             }
@@ -596,14 +605,13 @@ void SkinnedMeshModel::UpdateBoneTransform(ModelData* modelData)
 
             XMFLOAT4X4 finalTransform;
             XMStoreFloat4x4(&finalTransform, mtxTrans);
-            modelData->mBoneFinalTransforms.push_back(finalTransform);
-
+            boneFinalTransform.push_back(finalTransform);
         }
 
     }
 }
 
-XMFLOAT3 SkinnedMeshModel::GetAnimationValue(FbxNode** ppAnimationCurve, XMFLOAT3 defaultValue, uint64_t time)
+XMFLOAT3 SkinnedMeshModel::GetAnimationValue(FbxNode** ppAnimationCurve, XMFLOAT3 defaultValue, uint64_t time, BOOL isLoop)
 {
 	if (ppAnimationCurve)
 	{
@@ -614,9 +622,9 @@ XMFLOAT3 SkinnedMeshModel::GetAnimationValue(FbxNode** ppAnimationCurve, XMFLOAT
 			FbxNode** animationCurveX = fbxNodes.search(animationCurveNode->dX);
 			FbxNode** animationCurveY = fbxNodes.search(animationCurveNode->dY);
 			FbxNode** animationCurveZ = fbxNodes.search(animationCurveNode->dZ);
-			animationValue.x = GetAnimationCurveValue(animationCurveX, time, defaultValue.x);
-			animationValue.y = GetAnimationCurveValue(animationCurveY, time, defaultValue.y);
-			animationValue.z = GetAnimationCurveValue(animationCurveZ, time, defaultValue.z);
+			animationValue.x = GetAnimationCurveValue(animationCurveX, time, defaultValue.x, isLoop);
+			animationValue.y = GetAnimationCurveValue(animationCurveY, time, defaultValue.y, isLoop);
+			animationValue.z = GetAnimationCurveValue(animationCurveZ, time, defaultValue.z, isLoop);
 			return animationValue;
 		}
 		else
@@ -627,7 +635,7 @@ XMFLOAT3 SkinnedMeshModel::GetAnimationValue(FbxNode** ppAnimationCurve, XMFLOAT
 		return defaultValue;
 }
 
-float SkinnedMeshModel::GetAnimationCurveValue(FbxNode** ppAnimationCurveNode, uint64_t time, float defaultValue)
+float SkinnedMeshModel::GetAnimationCurveValue(FbxNode** ppAnimationCurveNode, uint64_t time, float defaultValue, BOOL isLoop)
 {
 	if (ppAnimationCurveNode)
 	{
@@ -676,3 +684,50 @@ float SkinnedMeshModel::GetAnimationCurveValue(FbxNode** ppAnimationCurveNode, u
 		return defaultValue;
 }
 
+void SkinnedMeshModel::CalculateDrawParameters(ModelData* modelData, float startPercentage, float endPercentage, int& IndexNum, int& StartIndexLocation)
+{
+
+    StartIndexLocation = static_cast<int>(floor(startPercentage * modelData->IndexNum));
+    StartIndexLocation = (StartIndexLocation / 3) * 3;
+
+    int EndIndexLocation = static_cast<int>(ceil(endPercentage * modelData->IndexNum));
+    EndIndexLocation = (EndIndexLocation / 3) * 3;
+
+    IndexNum = EndIndexLocation - StartIndexLocation;
+}
+
+void SkinnedMeshModel::DrawSigewinne(ModelData* modelData)
+{
+    // É|ÉäÉSÉìï`âÊ
+    int IndexNum, StartIndexLocation;
+
+    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &faceDiffuseTexture);
+    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &faceLightMapTexture);
+    CalculateDrawParameters(modelData, 0, 0.001894, IndexNum, StartIndexLocation);
+    Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &bodyDiffuseTexture);
+    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &bodyLightMapTexture);
+    CalculateDrawParameters(modelData, 0.001894, 0.00715, IndexNum, StartIndexLocation);
+    Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &faceDiffuseTexture);
+    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &faceLightMapTexture);
+    CalculateDrawParameters(modelData, 0.00715, 0.047, IndexNum, StartIndexLocation);
+    Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &hairDiffuseTexture);
+    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &hairLightMapTexture);
+    CalculateDrawParameters(modelData, 0.047, 0.44, IndexNum, StartIndexLocation);
+    Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &bodyDiffuseTexture);
+    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &bodyLightMapTexture);
+    CalculateDrawParameters(modelData, 0.44, 0.916, IndexNum, StartIndexLocation);
+    Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &faceDiffuseTexture);
+    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &faceLightMapTexture);
+    CalculateDrawParameters(modelData, 0.916, 0.996, IndexNum, StartIndexLocation);
+    Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+}

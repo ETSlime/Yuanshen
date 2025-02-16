@@ -93,10 +93,16 @@ public:
 
     void clear()
     {
-        delete[] array;
-        array = nullptr;
+        //delete[] array;
+        //array = nullptr;
+        //size = 0;
+        //capacity = 0;
+
+        for (int i = 0; i < size; i++)
+        {
+            array[i].~T();
+        }
         size = 0;
-        capacity = 0;
     }
 
     int getSize() const {
@@ -116,6 +122,28 @@ public:
         array = newArray;
         capacity = newCapacity;
     }
+
+    void shrink_to_fit()
+    {
+        if (size == 0)
+        {
+            delete[] array;
+            array = nullptr;
+            capacity = 0;
+        }
+        else if (size < capacity)
+        {
+            T* newArray = new T[size];
+            for (int i = 0; i < size; i++)
+            {
+                newArray[i] = std::move(array[i]);
+            }
+            delete[] array;
+            array = newArray;
+            capacity = size;
+        }
+    }
+
 
     T& operator[](int index) {
         return array[index];

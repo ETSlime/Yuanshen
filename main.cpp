@@ -50,7 +50,7 @@ Ground* ground = nullptr;
 Player* player = nullptr;
 //TextureMgr& mTexMgr = TextureMgr::get_instance();
 //FBXLoader& fbxLoader = FBXLoader::get_instance();
-SkinnedMeshModel model;
+//SkinnedMeshModel model;
 Renderer& renderer = Renderer::get_instance();
 
 #ifdef _DEBUG
@@ -327,7 +327,7 @@ void Update(void)
 	// エネミーの更新処理
 	enemyManager.Update();
 
-	model.Update();
+	//model.Update();
 
 	ground->Update();
 

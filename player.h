@@ -7,25 +7,6 @@
 //=============================================================================
 #include "Sigewinne.h"
 
-// states
-enum PlayerState
-{
-	IDLE,
-	WALK,
-	RUN,
-	DASH,
-	ATTACK,
-	JUMP,
-	FALL,
-	HARD_LANDING,
-	HIT,
-	KNOCKDOWN,
-	REBOUND,
-	DEFEND,
-	CAST,
-	DIE,
-};
-
 //*****************************************************************************
 // ç\ë¢ëÃíËã`
 //*****************************************************************************
@@ -64,5 +45,6 @@ private:
 	PlayerAttribute playerAttribute;
 
 	Sigewinne* sigewinne;
+	GameObject<SkinnedMeshModelInstance>* playerGO;
 	Renderer& renderer = Renderer::get_instance();
 };

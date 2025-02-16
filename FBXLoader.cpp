@@ -33,6 +33,10 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
 
     model.modelType = modelType;
 
+    model.currentAnimClip = new AnimationClip();
+    model.currentAnimClip->SetModel(&model);
+    model.currentAnimClip->name = animName;
+
     char buffer[1024];
     bool loadSuccess = true;
     long int position = 0;
@@ -53,13 +57,17 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
         }
 
         if (!loadSuccess)
+        {
+            if (model.currentAnimClip)
+                delete model.currentAnimClip;
             return;
+        }
 
         position = ftell(file);
         memset(buffer, 0, sizeof(buffer));
     }
 
-    model.currentAnimClip.name = animName;
+
 
     SimpleArray<FbxNode*> rootNodeChilds;
     for (auto& node : model.fbxNodes)
@@ -236,6 +244,9 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
             modelData->IndexArray[indexCnt] = indexCnt;
         }
 
+        int numBones = modelData->mBoneHierarchy.getSize();
+        modelData->boneTransformData = new BoneTransformData(numBones);
+
         // 頂点バッファ生成
         {
             D3D11_BUFFER_DESC bd;
@@ -298,6 +309,9 @@ void FBXLoader::LoadAnimation(ID3D11Device* device, SkinnedMeshModel& model, con
     FbxNode* rootNode = new FbxNode(model.currentRootNodeID);
     model.fbxNodes.insert(model.currentRootNodeID, rootNode);
     model.currentRootNodeID++;
+    model.currentAnimClip = new AnimationClip();
+    model.currentAnimClip->SetModel(&model);
+    model.currentAnimClip->name = animName;
 
     char buffer[1024];
     bool loadSuccess = true;
@@ -314,13 +328,15 @@ void FBXLoader::LoadAnimation(ID3D11Device* device, SkinnedMeshModel& model, con
         }
 
         if (!loadSuccess)
+        {
+            if (model.currentAnimClip)
+                delete model.currentAnimClip;
             return;
+        }
 
         position = ftell(file);
         memset(buffer, 0, sizeof(buffer));
     }
-
-    model.currentAnimClip.name = animName;
 
     SimpleArray<FbxNode*> rootNodeChilds;
     for (auto& node : model.fbxNodes)
@@ -338,8 +354,8 @@ void FBXLoader::LoadAnimation(ID3D11Device* device, SkinnedMeshModel& model, con
             FbxNode* childNode = rootNodeChilds[i];
             if (childNode->nodeType == FbxNodeType::None)
             {
-                model.currentAnimClip.armatureNode = childNode;
-                model.animationClips.insert(model.currentAnimClip.name, model.currentAnimClip);
+                model.currentAnimClip->armatureNode = childNode;
+                model.animationClips.insert(model.currentAnimClip->name, model.currentAnimClip);
             }
         }
     }
@@ -2686,7 +2702,7 @@ bool FBXLoader::ParseAnimationStackCurve(FILE* file, SkinnedMeshModel& model)
     {
         if (strstr(buffer, "LocalStop"))
         {
-            if (sscanf(buffer, "%*[^0-9]%llu", &model.currentAnimClip.stopTime) != 1)
+            if (sscanf(buffer, "%*[^0-9]%llu", &model.currentAnimClip->stopTime) != 1)
             {
                 return false;
             }
@@ -2874,8 +2890,6 @@ void FBXLoader::HandleDeformer(FbxNode* node, ModelData* modelData, SkinnedMeshM
             }
             else if (node->childNodes[i]->nodeType == FbxNodeType::LimbNode)
             {
-                //modelData->deformerToLimb.insert(node->nodeID, node->childNodes[i]->nodeID);
-
                 model.deformerToLimb.insert(node->nodeID, node->childNodes[i]->nodeID);
             }
 
@@ -2917,8 +2931,8 @@ void FBXLoader::HandleMeshNode(FbxNode* node, SkinnedMeshModel& model)
                 if (modelArmature)
                 {
                     (*ppModelData)->armatureNode = modelArmature;
-                    model.currentAnimClip.armatureNode = modelArmature;
-                    model.animationClips.insert(model.currentAnimClip.name, model.currentAnimClip);
+                    model.currentAnimClip->armatureNode = modelArmature;
+                    model.animationClips.insert(model.currentAnimClip->name, model.currentAnimClip);
                 }
                     
                 HandleDeformer(deformerArmature, *ppModelData, model, 0, -1);
