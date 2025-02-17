@@ -10,11 +10,11 @@
 #include "FBXLoader.h"
 #include "renderer.h"
 #include "HashMap.h"
-
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
-#define MAX_ANIMSTATE_NUM   99
+#define MAX_ANIMSTATE_NUM       99
+#define MAX_STATE_TRANS_NUM     99
 
 // states
 enum PlayerState : uint64_t
@@ -36,6 +36,7 @@ enum PlayerState : uint64_t
 };
 
 class SkinnedMeshModel;
+class ISkinnedMeshModelChar;
 
 struct AnimationClip
 {
@@ -63,27 +64,53 @@ struct AnimationClip
         model = skinnedMeshModel;
     }
 
+    inline bool IsFinished() 
+    {
+        return currentTime >= stopTime;
+    }
+
     SimpleArray<XMFLOAT4X4>* GetBoneMatrices(SimpleArray<XMFLOAT4X4>* currBoneTransform);
+};
+
+// 状態遷移の定義
+struct StateTransition 
+{
+    uint64_t nextState;
+    bool (ISkinnedMeshModelChar::* condition)() const;  // 遷移条件（ラムダ式で実装）
+    bool waitForAnimationEnd;                           // アニメーションが終了してから遷移するか
 };
 
 class AnimationState 
 {
 public:
-    uint64_t   stateName;
+    uint64_t   currentStateName;
     AnimationClip* currentClip; // 現在のアニメーション
     AnimationClip* prevClip;    // 前のアニメーション（ブレンド用）
-    void (*onEndCallback)();    // アニメーション終了時のコールバック関数
+    void (ISkinnedMeshModelChar::* onEndCallback)();    // アニメーション終了時のコールバック関数
     SimpleArray<XMFLOAT4X4> blendedMatrices;
-    float blendFactor;  // ブレンド係数（0~1）
+    float blendFactor;          // ブレンド係数（0~1）
+
+    // 状態遷移リスト
+    HashMap<uint64_t, StateTransition, HashUInt64, EqualUInt64> transitions =
+        HashMap<uint64_t, StateTransition, HashUInt64, EqualUInt64>(
+            MAX_STATE_TRANS_NUM,
+            HashUInt64(),
+            EqualUInt64()
+        );
 
     AnimationState(uint64_t stateName, AnimationClip* animClip)
-        : stateName(stateName), currentClip(animClip), prevClip(nullptr), blendFactor(0.0f), onEndCallback(nullptr) {}
+        : currentStateName(stateName), currentClip(animClip), prevClip(nullptr), blendFactor(0.0f), onEndCallback(nullptr) {}
 
     void StartBlend(AnimationClip* newClip);
 
     void Update(float deltaTime);
 
-    void SetEndCallback(void (*callback)());
+    // 遷移可能な状態があるかをチェック
+    uint64_t GetNextState(ISkinnedMeshModelChar* character);
+
+    void AddTransition(uint64_t nextState, bool (ISkinnedMeshModelChar::* condition)() const, bool waitForAnimationEnd = false);
+
+    void SetEndCallback(void (ISkinnedMeshModelChar::* callback)());
 
     // 各ボーンの変換行列をブレンドする
     void UpdateBlendedMatrix(void);
@@ -102,16 +129,22 @@ private:
     );
     AnimationState* currentState;
 
+    ISkinnedMeshModelChar* character;
+
 public:
-    AnimationStateMachine() : currentState(nullptr) {}
+    AnimationStateMachine(ISkinnedMeshModelChar* c) : currentState(nullptr), character(c) {}
 
     void AddState(uint64_t stateName, AnimationClip* clip);
+
+    void SetEndCallback(uint64_t stateName, void (ISkinnedMeshModelChar::* callback)());
 
     void SetCurrentState(uint64_t newStateName);
 
     uint64_t GetCurrentState(void);
 
-    void Update(float deltaTime);
+    void Update(float deltaTime, ISkinnedMeshModelChar* character);
+
+    void AddTransition(uint64_t from, uint64_t to, bool (ISkinnedMeshModelChar::* condition)() const, bool waitForAnimationEnd = false);
 
     SimpleArray<XMFLOAT4X4>* GetBoneMatrices();
 };

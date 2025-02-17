@@ -703,31 +703,31 @@ void SkinnedMeshModel::DrawSigewinne(ModelData* modelData)
 
     Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &faceDiffuseTexture);
     Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &faceLightMapTexture);
-    CalculateDrawParameters(modelData, 0, 0.001894, IndexNum, StartIndexLocation);
+    CalculateDrawParameters(modelData, 0, 0.001894f, IndexNum, StartIndexLocation);
     Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
 
     Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &bodyDiffuseTexture);
     Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &bodyLightMapTexture);
-    CalculateDrawParameters(modelData, 0.001894, 0.00715, IndexNum, StartIndexLocation);
+    CalculateDrawParameters(modelData, 0.001894f, 0.00715f, IndexNum, StartIndexLocation);
     Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
 
     Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &faceDiffuseTexture);
     Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &faceLightMapTexture);
-    CalculateDrawParameters(modelData, 0.00715, 0.047, IndexNum, StartIndexLocation);
+    CalculateDrawParameters(modelData, 0.00715f, 0.047f, IndexNum, StartIndexLocation);
     Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
 
     Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &hairDiffuseTexture);
     Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &hairLightMapTexture);
-    CalculateDrawParameters(modelData, 0.047, 0.44, IndexNum, StartIndexLocation);
+    CalculateDrawParameters(modelData, 0.047f, 0.44f, IndexNum, StartIndexLocation);
     Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
 
     Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &bodyDiffuseTexture);
     Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &bodyLightMapTexture);
-    CalculateDrawParameters(modelData, 0.44, 0.916, IndexNum, StartIndexLocation);
+    CalculateDrawParameters(modelData, 0.44f, 0.916f, IndexNum, StartIndexLocation);
     Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
 
     Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &faceDiffuseTexture);
     Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &faceLightMapTexture);
-    CalculateDrawParameters(modelData, 0.916, 0.996, IndexNum, StartIndexLocation);
+    CalculateDrawParameters(modelData, 0.916f, 0.996f, IndexNum, StartIndexLocation);
     Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
 }

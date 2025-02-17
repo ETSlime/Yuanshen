@@ -7,7 +7,7 @@
 #include "AnimStateMachine.h"
 #include "SkinnedMeshModel.h"
 #include "debugproc.h"
-
+#include "GameObject.h"
 SimpleArray<XMFLOAT4X4>* AnimationClip::GetBoneMatrices(SimpleArray<XMFLOAT4X4>* currBoneTransform)
 {
     if (model)
@@ -22,7 +22,6 @@ SimpleArray<XMFLOAT4X4>* AnimationClip::GetBoneMatrices(SimpleArray<XMFLOAT4X4>*
 void AnimationState::StartBlend(AnimationClip* prevClip)
 {
     this->prevClip = prevClip; // 旧アニメーションを保存
-    //currentClip = newClip;  // 新アニメーションに切り替え
     blendFactor = 0.0f; // ブレンド開始
 }
 
@@ -32,10 +31,39 @@ void AnimationState::Update(float deltaTime)
     {
         blendFactor += deltaTime * 2.0f;
     }
+    if (blendFactor > 1.0f) blendFactor = 1.0f;
+
     UpdateBlendedMatrix();
 }
 
-void AnimationState::SetEndCallback(void(*callback)())
+uint64_t AnimationState::GetNextState(ISkinnedMeshModelChar* character)
+{
+    for (const auto& transition : transitions) 
+    {
+        if (transition.value.condition && (character->*transition.value.condition)())
+        {
+            if (currentClip && currentClip->IsFinished())
+            {
+                if (onEndCallback)
+                    (character->*onEndCallback)();
+                return transition.key;
+            }
+            else if (!transition.value.waitForAnimationEnd) 
+            {
+                return transition.key;
+            }
+        }
+    }
+    return currentStateName; // 変更なし
+}
+
+void AnimationState::AddTransition(uint64_t nextState, 
+    bool (ISkinnedMeshModelChar::* condition)() const, bool waitForAnimationEnd)
+{
+    transitions[nextState] = { nextState, condition, waitForAnimationEnd };
+}
+
+void AnimationState::SetEndCallback(void (ISkinnedMeshModelChar::* callback)())
 {
     onEndCallback = callback;
 }
@@ -46,8 +74,6 @@ void AnimationState::UpdateBlendedMatrix(void)
 
     SimpleArray<XMFLOAT4X4>* prevMatrices = nullptr;
     SimpleArray<XMFLOAT4X4>* currMatrices = nullptr;
-
-    XMMATRIX mtxTrans;
 
     currMatrices = currentClip->GetBoneMatrices(currentClip->currBoneTransform);
     int boneCount; 
@@ -66,9 +92,7 @@ void AnimationState::UpdateBlendedMatrix(void)
         return;
     }
 
-    mtxTrans = XMLoadFloat4x4(&(*currMatrices)[15]);
     prevMatrices = prevClip->GetBoneMatrices(prevClip->currBoneTransform);
-
 
     for (int i = 0; i < boneCount; i++)
     {
@@ -91,7 +115,6 @@ void AnimationState::UpdateBlendedMatrix(void)
         XMVECTOR blendedScale = XMVectorLerp(prevScale, currScale, blendFactor);
 
         // ブレンド後の行列を再構築
-
         XMMATRIX blendedMtx = XMMatrixScalingFromVector(blendedScale) *
             XMMatrixRotationQuaternion(blendedRot) *
             XMMatrixTranslationFromVector(blendedTrans);
@@ -113,6 +136,15 @@ void AnimationStateMachine::AddState(uint64_t stateName, AnimationClip* clip)
     animStates.insert(stateName, state);
 }
 
+void AnimationStateMachine::SetEndCallback(uint64_t stateName, void (ISkinnedMeshModelChar::* callback)())
+{
+    AnimationState** animState = animStates.search(stateName);
+    if (animState) 
+    {
+        (*animState)->SetEndCallback(callback);
+    }
+}
+
 void AnimationStateMachine::SetCurrentState(uint64_t newStateName)
 {
     AnimationState** newState = animStates.search(newStateName);
@@ -120,7 +152,7 @@ void AnimationStateMachine::SetCurrentState(uint64_t newStateName)
     {
         if (currentState)
         {
-            if (currentState->stateName == newStateName)
+            if (currentState->currentStateName == newStateName)
                 return;
             (*newState)->currentClip->currentTime = 0;
             (*newState)->StartBlend(currentState->currentClip);
@@ -132,16 +164,32 @@ void AnimationStateMachine::SetCurrentState(uint64_t newStateName)
 uint64_t AnimationStateMachine::GetCurrentState(void)
 {
     if (currentState)
-        return currentState->stateName;
+        return currentState->currentStateName;
 
     return UINT64_MAX;
 }
 
-void AnimationStateMachine::Update(float deltaTime)
+void AnimationStateMachine::Update(float deltaTime, ISkinnedMeshModelChar* character)
 {
     if (currentState)
     {
+        // 条件をチェックして次の状態に移行
+        uint64_t nextState = currentState->GetNextState(character);
+        if (nextState != currentState->currentStateName)
+        {
+            SetCurrentState(nextState);
+        }
+
         currentState->Update(deltaTime);
+    }
+}
+
+void AnimationStateMachine::AddTransition(uint64_t from, uint64_t to, bool (ISkinnedMeshModelChar::* condition)() const, bool waitForAnimationEnd)
+{
+    AnimationState** animState = animStates.search(from);
+    if (animState)
+    {
+        (*animState)->AddTransition(to, condition, waitForAnimationEnd);
     }
 }
 

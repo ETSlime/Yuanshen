@@ -32,11 +32,41 @@ struct Transform
 	}
 };
 
+struct Attributes
+{
+	XMFLOAT4X4		mtxWorld;	// ワールドマトリックス
+
+	bool			load;
+
+	float			spd;		// 移動スピード
+	float			dir;		// 向き
+	float			size;		// 当たり判定の大きさ
+	bool			use;
+
+	float			targetDir;
+
+	bool			stopRun;
+	bool			isMoving;
+	bool			isAttacking;
+
+	Attributes()
+	{
+		load = TRUE;
+		spd = 0.0f;
+		dir = 0.0f;
+		size = 0.0f;
+		use = TRUE;
+		targetDir = 0.0f;
+		stopRun = TRUE;
+		isMoving = FALSE;
+		isAttacking = FALSE;
+	}
+};
+
 struct SkinnedMeshModelInstance
 {
 	char*				modelPath;
 	char*				modelName;
-	int					state;
 	bool				use;
 	bool				load;
 	SkinnedMeshModel*	pModel;
@@ -45,6 +75,7 @@ struct SkinnedMeshModelInstance
 	BOOL			isSelected;
 	BOOL			isCursorIn;
 	int				editorIdx;
+	Attributes		attributes;
 };
 
 struct ModelInstance
@@ -56,6 +87,8 @@ struct ModelInstance
 	Model*				pModel;				// モデル情報
 	XMFLOAT4			diffuse[MODEL_MAX_MATERIAL];	// モデルの色
 	Transform			transform;
+
+	Attributes		attributes;
 
 	BOOL			isSelected;
 	BOOL			isCursorIn;
@@ -91,6 +124,9 @@ public:
 	inline void SetIsCursorIn(BOOL cursorIn) { instance.isCursorIn = cursorIn; }
 	inline int GetEditorIndex() { return instance.editorIdx; }
 	inline void SetEditorIndex(int idx) { instance.editorIdx = idx; }
+	inline Attributes GetAttributes() { return instance.attributes; }
+	inline void UpdateAttributes(Attributes attributes) { instance.attributes = attributes; }
+	virtual AnimationStateMachine* GetStateMachine() { return nullptr; }
 
 	Renderer& renderer = Renderer::get_instance();
 
@@ -98,14 +134,20 @@ protected:
 	T instance;
 };
 
-class ISkinnedMeshModel
+class ISkinnedMeshModelChar
 {
 public:
 	virtual void PlayWalkAnim() = 0;
 	virtual void PlayRunAnim() = 0;
 	virtual void PlayJumpAnim() = 0;
 	virtual void PlayIdleAnim() = 0;
-	virtual AnimationStateMachine* GetStateMachine() = 0;
+
+	virtual bool CanWalk() const = 0;
+	virtual bool CanStopWalking() const = 0;
+	virtual bool CanAttack() const = 0;
+	virtual bool CanRun()	const = 0;
+	virtual void OnAttackAnimationEnd() = 0;
+	bool AlwaysTrue() const { return true; }
 };
 
 
@@ -116,7 +158,8 @@ GameObject<T>::GameObject()
 	instance.isSelected = FALSE;
 	instance.isCursorIn = FALSE;
 	instance.editorIdx = -1;
-	instance.state = -1;
+
+
 }
 
 template <typename T>

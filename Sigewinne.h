@@ -7,7 +7,7 @@
 //=============================================================================
 #include "GameObject.h"
 
-class Sigewinne : public GameObject<SkinnedMeshModelInstance>, public ISkinnedMeshModel
+class Sigewinne : public GameObject<SkinnedMeshModelInstance>, public ISkinnedMeshModelChar
 {
 public:
 	Sigewinne();
@@ -21,14 +21,25 @@ public:
 	void PlayJumpAnim(void) override;
 	void PlayIdleAnim(void) override;
 
+	void PlayAttackAnim(void);
+
+	virtual bool CanWalk(void) const override;
+	virtual bool CanStopWalking() const override;
+	virtual bool CanAttack() const override;
+	virtual bool CanRun(void) const override;
+
+	virtual void OnAttackAnimationEnd(void) override;
+
 	void Update(void) override;
 	void Draw(void) override;
 
 	AnimationStateMachine* GetStateMachine(void) override;
 
+	void SetupAnimationStateMachine();
+
 private:
 	GameObject<SkinnedMeshModelInstance> weapon;
-	AnimationStateMachine stateMachine;
+	AnimationStateMachine* stateMachine;
 	float playAnimSpeed;
 	FBXLoader& fbxLoader = FBXLoader::get_instance();
 };
