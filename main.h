@@ -47,8 +47,8 @@ using namespace DirectX;
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
-#define SCREEN_WIDTH	(960)			// ウインドウの幅
-#define SCREEN_HEIGHT	(540)			// ウインドウの高さ
+#define SCREEN_WIDTH	(1920)			// ウインドウの幅
+#define SCREEN_HEIGHT	(1080)			// ウインドウの高さ
 #define SCREEN_CENTER_X	(SCREEN_WIDTH / 2)	// ウインドウの中心Ｘ座標
 #define SCREEN_CENTER_Y	(SCREEN_HEIGHT / 2)	// ウインドウの中心Ｙ座標
 
@@ -58,6 +58,10 @@ using namespace DirectX;
 #define	MAP_DOWN		(-MAP_H/2)
 #define	MAP_LEFT		(-MAP_W/2)
 #define	MAP_RIGHT		(MAP_W/2)
+
+#define SAFE_DELETE(p) { if(p) { delete(p); (p) = nullptr; } }
+#define SAFE_DELETE_ARRAY(p) { if(p) { delete[](p); (p) = nullptr; } }
+#define ZERO(p) ZeroMemory(&p, sizeof(p))
 
 // 補間用のデータ構造体を定義
 struct INTERPOLATION_DATA
@@ -85,3 +89,17 @@ long GetMousePosX(void);
 long GetMousePosY(void);
 char* GetDebugStr(void);
 void DrawScene(void);
+bool GetWindowActive(void);
+
+// Declare additional functions for releasing interfaces, 
+// and macros for error-handling and retrieving the module's base address.
+template<class Interface>
+inline void SafeRelease(
+	Interface** ppInterfaceToRelease)
+{
+	if (*ppInterfaceToRelease != NULL)
+	{
+		(*ppInterfaceToRelease)->Release();
+		(*ppInterfaceToRelease) = NULL;
+	}
+}

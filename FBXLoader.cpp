@@ -1,7 +1,17 @@
+//=============================================================================
+//
+// FbxLoader処理 [FbxLoader.cpp]
+// Author : 
+//
+//=============================================================================
 #include "FBXLoader.h"
 #include "SkinnedMeshModel.h"
+//*****************************************************************************
+// マクロ定義
+//*****************************************************************************
+#define LEFT_HAND_BONE_IDX  (16)
 
-void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshModel& model, 
+bool FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshModel& model, 
     const char* modelPath, const char* modelName, const char* texturePath, AnimationClipName animName, ModelType modelType)
 {
     char* modelFullPath = new char[MODEL_NAME_LENGTH]{};
@@ -21,7 +31,7 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
 	if (file == NULL)
 	{
 		printf("エラー:LoadModel %s \n", modelFullPath);
-		return;
+		return false;
 	}
 
     strcpy(model.modelPath, modelPath);
@@ -33,9 +43,21 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
 
     model.modelType = modelType;
 
-    model.currentAnimClip = new AnimationClip();
-    model.currentAnimClip->SetModel(&model);
-    model.currentAnimClip->name = animName;
+    if (animName != AnimationClipName::ANIM_NONE)
+    {
+        model.currentAnimClip = new AnimationClip();
+        model.currentAnimClip->SetModel(&model);
+        model.currentAnimClip->name = animName;
+    }
+
+    switch (modelType)
+    {
+    case ModelType::Sigewinne:
+        model.weaponTransformIdx = LEFT_HAND_BONE_IDX;
+        break;
+    default:
+        break;
+    }
 
     char buffer[1024];
     bool loadSuccess = true;
@@ -60,7 +82,7 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
         {
             if (model.currentAnimClip)
                 delete model.currentAnimClip;
-            return;
+            return false;
         }
 
         position = ftell(file);
@@ -139,6 +161,10 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
 
         ModelData* modelData = it.value;
         
+        XMFLOAT3 minPoint = XMFLOAT3(FLT_MAX, FLT_MAX, FLT_MAX);
+        XMFLOAT3 maxPoint = XMFLOAT3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+
         char* diffuseTextureName = nullptr;
         if (modelData->material)
             diffuseTextureName = GetTextureName(model.modelPath, modelData->material->DiffuseColorTexName);
@@ -242,10 +268,20 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
 
             modelData->VertexArray[indexCnt] = vertex;
             modelData->IndexArray[indexCnt] = indexCnt;
+
+            minPoint.x = min(minPoint.x, vertex.Position.x);
+            minPoint.y = min(minPoint.y, vertex.Position.y);
+            minPoint.z = min(minPoint.z, vertex.Position.z);
+
+            maxPoint.x = max(maxPoint.x, vertex.Position.x);
+            maxPoint.y = max(maxPoint.y, vertex.Position.y);
+            maxPoint.z = max(maxPoint.z, vertex.Position.z);
         }
 
-        int numBones = modelData->mBoneHierarchy.getSize();
-        modelData->boneTransformData = new BoneTransformData(numBones);
+        model.numBones = modelData->mBoneHierarchy.getSize();
+        modelData->boneTransformData = new BoneTransformData(model.numBones);
+        if (model.numBones == 0)
+            model.numBones = 1;
 
         // 頂点バッファ生成
         {
@@ -261,6 +297,43 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
             sd.pSysMem = modelData->VertexArray;
 
             renderer.GetDevice()->CreateBuffer(&bd, &sd, &modelData->VertexBuffer);
+
+            bd.ByteWidth = sizeof(SKINNED_VERTEX_3D) * 24;
+            for (auto& it : model.meshDataMap)
+            {
+                ModelData* modelData = it.value;
+                int numBones = 1;// model.numBones;
+                modelData->boundingBoxes.resize(numBones);
+                for (int i = 0; i < numBones; i++)
+                {
+                    if ((i == 0) && (numBones > 1)) continue;
+
+                    SKINNED_MESH_BOUNDING_BOX* boundingBox = new SKINNED_MESH_BOUNDING_BOX();
+
+                    if (model.numBones > 1)
+                        boundingBox->boneIdx = i + 1;
+                    else
+                        boundingBox->boneIdx = i;
+                    renderer.GetDevice()->CreateBuffer(&bd, NULL, &boundingBox->BBVertexBuffer);
+
+
+                    boundingBox->maxPoint = maxPoint;
+                    boundingBox->minPoint = minPoint;
+                    boundingBox->baseMaxPoint = maxPoint;
+                    boundingBox->baseMinPoint = minPoint;
+
+                    modelData->boundingBoxes.push_back(boundingBox);
+
+                    model.CreateBoundingBoxVertex(boundingBox);
+                    
+                }
+
+                model.boundingBox.maxPoint = modelData->boundingBoxes[0]->maxPoint;
+                model.boundingBox.minPoint = modelData->boundingBoxes[0]->minPoint;
+                
+            }
+
+
         }
 
         // インデックスバッファ生成
@@ -279,9 +352,11 @@ void FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
             renderer.GetDevice()->CreateBuffer(&bd, &sd, &modelData->IndexBuffer);
         }
     }
+
+    return true;
 }
 
-void FBXLoader::LoadAnimation(ID3D11Device* device, SkinnedMeshModel& model, const char* modelPath, const char* modelName, AnimationClipName animName)
+bool FBXLoader::LoadAnimation(ID3D11Device* device, SkinnedMeshModel& model, const char* modelPath, const char* modelName, AnimationClipName animName)
 {
     char* modelFilename = new char[MODEL_NAME_LENGTH] {};
 
@@ -300,7 +375,7 @@ void FBXLoader::LoadAnimation(ID3D11Device* device, SkinnedMeshModel& model, con
     if (file == NULL)
     {
         printf("エラー:LoadModel %s \n", modelFilename);
-        return;
+        return false;
     }
 
     strcpy(model.modelPath, modelPath);
@@ -331,7 +406,7 @@ void FBXLoader::LoadAnimation(ID3D11Device* device, SkinnedMeshModel& model, con
         {
             if (model.currentAnimClip)
                 delete model.currentAnimClip;
-            return;
+            return false;
         }
 
         position = ftell(file);
@@ -352,13 +427,16 @@ void FBXLoader::LoadAnimation(ID3D11Device* device, SkinnedMeshModel& model, con
         for (int i = 0; i < rootNodeChilds.getSize(); i++)
         {
             FbxNode* childNode = rootNodeChilds[i];
-            if (childNode->nodeType == FbxNodeType::None)
+            if (childNode->nodeType == FbxNodeType::None
+                || childNode->nodeType == FbxNodeType::LimbNode)
             {
                 model.currentAnimClip->armatureNode = childNode;
                 model.animationClips.insert(model.currentAnimClip->name, model.currentAnimClip);
             }
         }
     }
+
+    return true;
 }
 
 
@@ -2702,7 +2780,7 @@ bool FBXLoader::ParseAnimationStackCurve(FILE* file, SkinnedMeshModel& model)
     {
         if (strstr(buffer, "LocalStop"))
         {
-            if (sscanf(buffer, "%*[^0-9]%llu", &model.currentAnimClip->stopTime) != 1)
+            if (model.currentAnimClip && sscanf(buffer, "%*[^0-9]%llu", &model.currentAnimClip->stopTime) != 1)
             {
                 return false;
             }
@@ -2931,8 +3009,13 @@ void FBXLoader::HandleMeshNode(FbxNode* node, SkinnedMeshModel& model)
                 if (modelArmature)
                 {
                     (*ppModelData)->armatureNode = modelArmature;
-                    model.currentAnimClip->armatureNode = modelArmature;
-                    model.animationClips.insert(model.currentAnimClip->name, model.currentAnimClip);
+                    if (model.currentAnimClip)
+                    {
+                        model.currentAnimClip->armatureNode = modelArmature;
+                        if (!model.animationClips.search(model.currentAnimClip->name))
+                            model.animationClips.insert(model.currentAnimClip->name, model.currentAnimClip);
+                    }
+
                 }
                     
                 HandleDeformer(deformerArmature, *ppModelData, model, 0, -1);
@@ -2997,7 +3080,10 @@ FbxNode* FBXLoader::GetModelArmatureNodeByModel(FbxNode* modelNode)
     {
         if (parentModelNodes[i]->nodeType == FbxNodeType::LimbNode)
         {
-            return GetModelArmatureNodeByModel(parentModelNodes[i]);
+            if (parentModelNodes[i]->parentNodes[0]->nodeID == 0)
+                return parentModelNodes[i];
+            else
+                return GetModelArmatureNodeByModel(parentModelNodes[i]);
         }
         else if (parentModelNodes[i]->nodeType == FbxNodeType::None)
             return parentModelNodes[i];

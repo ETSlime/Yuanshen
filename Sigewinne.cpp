@@ -11,13 +11,30 @@
 //*****************************************************************************
 // ƒ}ƒNƒ’è‹`
 //*****************************************************************************
-#define PLAY_ANIM_SPD		1.0f
-#define ANIM_BLEND_SPD		0.032f
+#define PLAY_ANIM_SPD				1.0f
+#define ANIM_BLEND_SPD				0.032f
+
+#define WEAPON_SIZE						30.0f
+#define WEAPON_ON_HANDS_POS_OFFSET_X	25.0f
+#define WEAPON_ON_HANDS_POS_OFFSET_Y	65.0f
+#define WEAPON_ON_HANDS_POS_OFFSET_Z	-5.0f
+#define WEAPON_ON_HANDS_ROT_OFFSET_X	25.0f
+#define WEAPON_ON_HANDS_ROT_OFFSET_Y	65.0f
+#define WEAPON_ON_HANDS_ROT_OFFSET_Z	-5.0f
+#define WEAPON_ON_BACK_POS_OFFSET_X		0.0f
+#define WEAPON_ON_BACK_POS_OFFSET_Y		XM_PI
+#define WEAPON_ON_BACK_POS_OFFSET_Z		0.0f
+
 Sigewinne::Sigewinne()
 {
 	Instantiate("data/MODEL/character/Sigewinne", "Character_output.fbx", ModelType::Sigewinne);
+	instance.collider.type = ColliderType::PLAYER;
+	instance.collider.owner = this;
+	//instance.pModel->SetBoundingBoxSize(XMFLOAT3(0.9f, 0.9f, 0.9f));
+	CollisionManager::get_instance().RegisterCollider(&instance.collider);
+
 	LoadWeapon("data/MODEL/character/Sigewinne", "bow.fbx");
-	weapon.SetScale(XMFLOAT3(100.0f, 100.0f, 100.0f));
+
 
 	AddAnimation("data/MODEL/character/Sigewinne/", "Breathing Idle.fbx", AnimationClipName::ANIM_IDLE);
 	AddAnimation("data/MODEL/character/Sigewinne/", "Standing Draw Arrow.fbx", AnimationClipName::ANIM_STANDING_DRAW_ARROW);
@@ -28,12 +45,12 @@ Sigewinne::Sigewinne()
 	AddAnimation("data/MODEL/character/Sigewinne/", "Breakdance Uprock Var 2.fbx", AnimationClipName::ANIM_BREAKDANCE_UPROCK);
 
 	instance.pModel->SetBodyDiffuseTexture("data/MODEL/character/Sigewinne/texture_0.png");
-	instance.pModel->SetBodyLightMapTexture("data/MODEL/character/Sigewinne/Avatar_Loli_Bow_Sigewinne_Tex_Body_Lightmap.png");
-	instance.pModel->SetBodyNormalMapTexture("data/MODEL/character/Sigewinne/Avatar_Loli_Bow_Sigewinne_Tex_Body_Normalmap.png");
+	//instance.pModel->SetBodyLightMapTexture("data/MODEL/character/Sigewinne/Avatar_Loli_Bow_Sigewinne_Tex_Body_Lightmap.png");
+	//instance.pModel->SetBodyNormalMapTexture("data/MODEL/character/Sigewinne/Avatar_Loli_Bow_Sigewinne_Tex_Body_Normalmap.png");
 	instance.pModel->SetHairDiffuseTexture("data/MODEL/character/Sigewinne/Avatar_Loli_Bow_Sigewinne_Tex_Hair_Diffuse.png");
-	instance.pModel->SetHairLightMapTexture("data/MODEL/character/Sigewinne/Avatar_Loli_Bow_Sigewinne_Tex_Hair_Lightmap.png");
+	//instance.pModel->SetHairLightMapTexture("data/MODEL/character/Sigewinne/Avatar_Loli_Bow_Sigewinne_Tex_Hair_Lightmap.png");
 	instance.pModel->SetFaceDiffuseTexture("data/MODEL/character/Sigewinne/face.png");
-	instance.pModel->SetFaceLightMapTexture("data/MODEL/character/Sigewinne/Avatar_Loli_Tex_FaceLightmap.png");
+	//instance.pModel->SetFaceLightMapTexture("data/MODEL/character/Sigewinne/Avatar_Loli_Tex_FaceLightmap.png");
 
 	playAnimSpeed = PLAY_ANIM_SPD;
 
@@ -42,7 +59,7 @@ Sigewinne::Sigewinne()
 
 Sigewinne::~Sigewinne()
 {
-
+	SAFE_DELETE(stateMachine);
 }
 
 void Sigewinne::AddAnimation(char* animPath, char* animName, AnimationClipName clipName)
@@ -54,11 +71,104 @@ void Sigewinne::AddAnimation(char* animPath, char* animName, AnimationClipName c
 void Sigewinne::LoadWeapon(char* modelPath, char* modelName)
 {
 	weapon.Instantiate(modelPath, modelName, ModelType::Weapon);
+	weapon.SetScale(XMFLOAT3(WEAPON_SIZE, WEAPON_SIZE, WEAPON_SIZE));
+	weapon.SetPosition(XMFLOAT3(WEAPON_ON_HANDS_POS_OFFSET_X, WEAPON_ON_HANDS_POS_OFFSET_Y, WEAPON_ON_HANDS_POS_OFFSET_Z));
+	weapon.SetRotation(XMFLOAT3(WEAPON_ON_BACK_POS_OFFSET_X, WEAPON_ON_BACK_POS_OFFSET_Y, WEAPON_ON_BACK_POS_OFFSET_Z));
 }
 
 void Sigewinne::SetCurrentAnim(AnimationClipName clipName, float startTime)
 {
 	instance.pModel->SetCurrentAnim(clipName, startTime);
+}
+
+void Sigewinne::Update(void)
+{
+
+	if (stateMachine->GetCurrentState() == STATE(PlayerState::IDLE))
+	{
+		if (IsMouseLeftTriggered())
+		{
+			instance.attributes.isAttacking = true;
+		}
+	}
+
+	if (!GetKeyboardPress(DIK_W)
+		&& !GetKeyboardPress(DIK_S)
+		&& !GetKeyboardPress(DIK_A)
+		&& !GetKeyboardPress(DIK_D))
+		instance.attributes.isMoving = false;
+
+	
+
+	stateMachine->Update(ANIM_BLEND_SPD, dynamic_cast<ISkinnedMeshModelChar*>(this));
+
+	switch (stateMachine->GetCurrentState())
+	{
+	case STATE(PlayerState::IDLE):
+		PlayIdleAnim();
+		break;
+	case STATE(PlayerState::WALK):
+		PlayWalkAnim();
+		break;
+	case STATE(PlayerState::RUN):
+		PlayRunAnim();
+		break;
+	case STATE(PlayerState::DASH):
+		PlayDashAnim();
+		break;
+	case STATE(PlayerState::JUMP):
+		break;
+	case STATE(PlayerState::ATTACK):
+		PlayAttackAnim();
+		break;
+	default:
+		break;
+	}
+
+	instance.pModel->UpdateBoneTransform(stateMachine->GetBoneMatrices());
+
+	GameObject::Update();
+	weapon.Update();
+
+	XMMATRIX weaponMtx = instance.pModel->GetWeaponTransformMtx();
+	weaponMtx = XMMatrixMultiply(weapon.GetWorldMatrix(), weaponMtx);
+	weaponMtx = XMMatrixMultiply(weaponMtx, instance.transform.mtxWorld);
+
+	weapon.SetWorldMatrix(weaponMtx);
+}
+
+void Sigewinne::Draw(void)
+{
+	GameObject::Draw();
+	weapon.Draw();
+}
+
+AnimationStateMachine* Sigewinne::GetStateMachine(void)
+{
+	return stateMachine;
+}
+
+void Sigewinne::SetupAnimationStateMachine()
+{
+	stateMachine = new AnimationStateMachine(dynamic_cast<ISkinnedMeshModelChar*>(this));
+
+	stateMachine->AddState(STATE(PlayerState::IDLE), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_IDLE));
+	stateMachine->AddState(STATE(PlayerState::WALK), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_WALK));
+	stateMachine->AddState(STATE(PlayerState::RUN), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_RUN));
+	stateMachine->AddState(STATE(PlayerState::ATTACK), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_STANDING_DRAW_ARROW));
+
+	//ó‘Ô‘JˆÚ
+	stateMachine->AddTransition(STATE(PlayerState::IDLE), STATE(PlayerState::WALK), &ISkinnedMeshModelChar::CanWalk);
+	stateMachine->AddTransition(STATE(PlayerState::WALK), STATE(PlayerState::RUN), &ISkinnedMeshModelChar::CanRun);
+	stateMachine->AddTransition(STATE(PlayerState::WALK), STATE(PlayerState::IDLE), &ISkinnedMeshModelChar::CanStopWalking);
+	stateMachine->AddTransition(STATE(PlayerState::RUN), STATE(PlayerState::IDLE), &ISkinnedMeshModelChar::CanStopWalking);
+	stateMachine->AddTransition(STATE(PlayerState::IDLE), STATE(PlayerState::ATTACK), &ISkinnedMeshModelChar::CanAttack);
+	stateMachine->AddTransition(STATE(PlayerState::WALK), STATE(PlayerState::ATTACK), &ISkinnedMeshModelChar::CanAttack);
+	stateMachine->AddTransition(STATE(PlayerState::ATTACK), STATE(PlayerState::IDLE), &ISkinnedMeshModelChar::AlwaysTrue, true);
+
+	stateMachine->SetEndCallback(STATE(PlayerState::ATTACK), &ISkinnedMeshModelChar::OnAttackAnimationEnd);
+
+	stateMachine->SetCurrentState(STATE(PlayerState::IDLE));
 }
 
 void Sigewinne::PlayWalkAnim(void)
@@ -117,102 +227,4 @@ bool Sigewinne::CanRun(void) const
 void Sigewinne::OnAttackAnimationEnd(void)
 {
 	instance.attributes.isAttacking = false;
-}
-
-void Sigewinne::Update(void)
-{
-	if (GetKeyboardPress(DIK_UP))
-	{
-		instance.transform.pos.y--;
-	}
-	if (GetKeyboardPress(DIK_DOWN))
-	{
-		instance.transform.pos.y++;
-	}
-
-	if (GetKeyboardPress(DIK_LEFT))
-	{
-		instance.transform.rot.y += 0.03f;
-	}
-	if (GetKeyboardPress(DIK_RIGHT))
-	{
-		instance.transform.rot.y -= 0.03f;
-	}
-
-	if (stateMachine->GetCurrentState() == PlayerState::IDLE)
-	{
-		if (IsMouseLeftTriggered())
-		{
-			instance.attributes.isAttacking = true;
-		}
-	}
-
-	if (!GetKeyboardPress(DIK_W)
-		&& !GetKeyboardPress(DIK_S)
-		&& !GetKeyboardPress(DIK_A)
-		&& !GetKeyboardPress(DIK_D))
-		instance.attributes.isMoving = false;
-
-	GameObject::Update();
-
-	stateMachine->Update(ANIM_BLEND_SPD, dynamic_cast<ISkinnedMeshModelChar*>(this));
-
-	switch (stateMachine->GetCurrentState())
-	{
-	case PlayerState::IDLE:
-		PlayIdleAnim();
-		break;
-	case PlayerState::WALK:
-		PrintDebugProc("dsdfds\n");
-		PlayWalkAnim();
-		break;
-	case PlayerState::RUN:
-		PlayRunAnim();
-		break;
-	case PlayerState::JUMP:
-		break;
-	case PlayerState::ATTACK:
-		PlayAttackAnim();
-		break;
-	default:
-		break;
-	}
-
-	instance.pModel->UpdateBoneTransform(stateMachine->GetBoneMatrices());
-	weapon.Update();
-	//weapon.instance.pModel->UpdateBoneTransform(nullptr);
-}
-
-void Sigewinne::Draw(void)
-{
-	GameObject::Draw();
-	weapon.Draw();
-}
-
-AnimationStateMachine* Sigewinne::GetStateMachine(void)
-{
-	return stateMachine;
-}
-
-void Sigewinne::SetupAnimationStateMachine()
-{
-	stateMachine = new AnimationStateMachine(dynamic_cast<ISkinnedMeshModelChar*>(this));
-
-	stateMachine->AddState(PlayerState::IDLE, instance.pModel->GetAnimationClip(AnimationClipName::ANIM_IDLE));
-	stateMachine->AddState(PlayerState::WALK, instance.pModel->GetAnimationClip(AnimationClipName::ANIM_WALK));
-	stateMachine->AddState(PlayerState::RUN, instance.pModel->GetAnimationClip(AnimationClipName::ANIM_RUN));
-	stateMachine->AddState(PlayerState::ATTACK, instance.pModel->GetAnimationClip(AnimationClipName::ANIM_STANDING_DRAW_ARROW));
-
-	//ó‘Ô‘JˆÚ
-	stateMachine->AddTransition(PlayerState::IDLE, PlayerState::WALK, &ISkinnedMeshModelChar::CanWalk);
-	stateMachine->AddTransition(PlayerState::WALK, PlayerState::RUN, &ISkinnedMeshModelChar::CanRun);
-	stateMachine->AddTransition(PlayerState::WALK, PlayerState::IDLE, &ISkinnedMeshModelChar::CanStopWalking);
-	stateMachine->AddTransition(PlayerState::RUN, PlayerState::IDLE, &ISkinnedMeshModelChar::CanStopWalking);
-	stateMachine->AddTransition(PlayerState::IDLE, PlayerState::ATTACK, &ISkinnedMeshModelChar::CanAttack);
-	stateMachine->AddTransition(PlayerState::WALK, PlayerState::ATTACK, &ISkinnedMeshModelChar::CanAttack);
-	stateMachine->AddTransition(PlayerState::ATTACK, PlayerState::IDLE, &ISkinnedMeshModelChar::AlwaysTrue, true);
-
-	stateMachine->SetEndCallback(PlayerState::ATTACK, &ISkinnedMeshModelChar::OnAttackAnimationEnd);
-
-	stateMachine->SetCurrentState(PlayerState::IDLE);
 }

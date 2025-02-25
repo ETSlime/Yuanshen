@@ -59,12 +59,12 @@ public:
         if (size >= capacity) {
             int newCapacity = (capacity == 0) ? 4 : capacity * 2;
             T* newArray = new T[newCapacity];
-            //for (int i = 0; i < size; i++) {
-            //    newArray[i] = array[i];
-            //}
             for (int i = 0; i < size; i++) {
-                newArray[i] = std::move(array[i]);
+                newArray[i] = array[i];
             }
+            //for (int i = 0; i < size; i++) {
+            //    newArray[i] = std::move(array[i]);
+            //}
             delete[] array;
             array = newArray;
             capacity = newCapacity;

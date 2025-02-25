@@ -6,12 +6,10 @@
 // Author : 
 //
 //=============================================================================
-
-#include "main.h"
 #include "renderer.h"
 #include "model.h"
 #include "SkinnedMeshModel.h"
-
+#include "CollisionManager.h"
 //*****************************************************************************
 // 構造体定義
 //*****************************************************************************
@@ -48,6 +46,9 @@ struct Attributes
 	bool			stopRun;
 	bool			isMoving;
 	bool			isAttacking;
+	bool			isDashing;
+	bool			isGrounded;
+	bool			isMoveBlocked;
 
 	Attributes()
 	{
@@ -60,6 +61,9 @@ struct Attributes
 		stopRun = TRUE;
 		isMoving = FALSE;
 		isAttacking = FALSE;
+		isDashing = FALSE;
+		isGrounded = FALSE;
+		isMoveBlocked = FALSE;
 	}
 };
 
@@ -67,8 +71,10 @@ struct SkinnedMeshModelInstance
 {
 	char*				modelPath;
 	char*				modelName;
+	char*				modelFullPath;
 	bool				use;
 	bool				load;
+	bool				renderShadow;
 	SkinnedMeshModel*	pModel;
 	Transform			transform;
 
@@ -76,6 +82,7 @@ struct SkinnedMeshModelInstance
 	BOOL			isCursorIn;
 	int				editorIdx;
 	Attributes		attributes;
+	Collider		collider;
 };
 
 struct ModelInstance
@@ -84,16 +91,19 @@ struct ModelInstance
 	int					state;
 	bool				use;
 	bool				load;
+	bool				renderShadow;
 	Model*				pModel;				// モデル情報
 	XMFLOAT4			diffuse[MODEL_MAX_MATERIAL];	// モデルの色
 	Transform			transform;
 
 	Attributes		attributes;
+	Collider		collider;
 
 	BOOL			isSelected;
 	BOOL			isCursorIn;
 	int				editorIdx;
 };
+
 
 template<typename T>
 class GameObject
@@ -102,7 +112,7 @@ public:
 	GameObject();
 	~GameObject();
 	void Instantiate(char* modelPath);
-	void Instantiate(char* modelPath, char* modelName, ModelType modelType, 
+	void Instantiate(char* modelPath, char* modelName, ModelType modelType = ModelType::Default, 
 		AnimationClipName clipName = AnimationClipName::ANIM_NONE);
 	virtual void Update();
 	virtual void Draw();
@@ -115,10 +125,15 @@ public:
 	inline void SetTransform(Transform transform) { instance.transform = transform; }
 	inline void SetWorldMatrix(XMMATRIX mtxWorld) { instance.transform.mtxWorld = mtxWorld; }
 	inline Transform GetTransform() { return instance.transform; }
+	inline XMMATRIX	GetWorldMatrix() { return instance.transform.mtxWorld; }
+	inline const T* GetInstance() const { return &instance; }
 	inline Model* GetModel() { return instance.pModel; }
+	inline SkinnedMeshModel* GetSkinnedMeshModel() { return instance.pModel; }
 	inline XMFLOAT4* GetDiffuse() { return instance.diffuse; }
 	inline bool GetUse() { return instance.use; }
 	inline void SetUse(bool use) { instance.use = use; }
+	inline bool GetRenderShadow() { return instance.renderShadow; }
+	inline void SetRenderShadow(bool render) { instance.renderShadow = render; }
 	inline BOOL GetIsModelSelected() { return instance.isSelected; }
 	inline BOOL GetIsCursorIn() { return instance.isCursorIn; }
 	inline void SetIsCursorIn(BOOL cursorIn) { instance.isCursorIn = cursorIn; }
@@ -126,7 +141,21 @@ public:
 	inline void SetEditorIndex(int idx) { instance.editorIdx = idx; }
 	inline Attributes GetAttributes() { return instance.attributes; }
 	inline void UpdateAttributes(Attributes attributes) { instance.attributes = attributes; }
+	inline void SetDrawBoundingBox(bool draw) { instance.pModel.SetDrawBoundingBox(draw); }
+	inline void SetColliderType(ColliderType type) { instance.collider.type = type; }
+	inline const Collider& GetCollider(void) { return instance.collider; }
+	inline void SetGrounded(bool grounded) { instance.attributes.isGrounded = grounded; }
+	inline void SetMoveBlock(bool blocked) { instance.attributes.isMoveBlocked = blocked; }
 	virtual AnimationStateMachine* GetStateMachine() { return nullptr; }
+
+	void SetBoundingboxSize(XMFLOAT3 size)
+	{
+		UINT numBones = instance.pModel.GetNumBones();
+		for (int i = 0; i < numBones; i++)
+		{
+			instance.pModel.SetBoundingBoxSize(size, i);
+		}
+	}
 
 	Renderer& renderer = Renderer::get_instance();
 
@@ -142,11 +171,14 @@ public:
 	virtual void PlayJumpAnim() = 0;
 	virtual void PlayIdleAnim() = 0;
 
+	virtual void PlayDashAnim() {}
+
 	virtual bool CanWalk() const = 0;
 	virtual bool CanStopWalking() const = 0;
 	virtual bool CanAttack() const = 0;
 	virtual bool CanRun()	const = 0;
-	virtual void OnAttackAnimationEnd() = 0;
+	virtual void OnAttackAnimationEnd() {};
+	virtual void OnDashAnimationEnd() {}
 	bool AlwaysTrue() const { return true; }
 };
 
@@ -158,7 +190,7 @@ GameObject<T>::GameObject()
 	instance.isSelected = FALSE;
 	instance.isCursorIn = FALSE;
 	instance.editorIdx = -1;
-
+	instance.renderShadow = true;
 
 }
 
@@ -197,6 +229,9 @@ template <>
 void GameObject<SkinnedMeshModelInstance>::Instantiate(char* modelPath, char* modelName, 
 	ModelType modelType, AnimationClipName clipName);
 
+template<>
+void GameObject< SkinnedMeshModelInstance>::Update();
+
 template <typename T>
 void GameObject<T>::Update()
 {
@@ -218,6 +253,40 @@ void GameObject<T>::Update()
 	mtxWorld = XMMatrixMultiply(mtxWorld, mtxTranslate);
 
 	instance.transform.mtxWorld = mtxWorld;
+
+	XMFLOAT3 worldPos1, worldPos2;
+
+	XMVECTOR localAABBMax = XMVectorSet(
+		instance.pModel->GetBoundingBox().maxPoint.x,
+		instance.pModel->GetBoundingBox().maxPoint.y,
+		instance.pModel->GetBoundingBox().maxPoint.z,
+		1.0f
+	);
+
+	XMVECTOR worldPosMax = XMVector3Transform(localAABBMax, mtxWorld);
+	XMStoreFloat3(&worldPos1, worldPosMax);
+
+	XMVECTOR localAABBMin = XMVectorSet(
+		instance.pModel->GetBoundingBox().minPoint.x,
+		instance.pModel->GetBoundingBox().minPoint.y,
+		instance.pModel->GetBoundingBox().minPoint.z,
+		1.0f
+	);
+
+	XMVECTOR worldPosMin = XMVector3Transform(localAABBMin, mtxWorld);
+	XMStoreFloat3(&worldPos2, worldPosMin);
+
+	instance.collider.aabb.maxPoint = XMFLOAT3(
+		max(worldPos1.x, worldPos2.x),
+		max(worldPos1.y, worldPos2.y),
+		max(worldPos1.z, worldPos2.z)
+	);
+
+	instance.collider.aabb.minPoint = XMFLOAT3(
+		min(worldPos1.x, worldPos2.x),
+		min(worldPos1.y, worldPos2.y),
+		min(worldPos1.z, worldPos2.z)
+	);
 }
 
 

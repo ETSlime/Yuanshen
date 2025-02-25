@@ -598,7 +598,7 @@ void Model::LoadMaterial( char *FileName, MODEL_MATERIAL **MaterialArray, unsign
 // モデルの全マテリアルのディフューズを取得する。Max16個分にしてある
 void Model::GetModelDiffuse(XMFLOAT4 *diffuse)
 {
-	int max = (this->SubsetNum < MODEL_MAX_MATERIAL) ? this->SubsetNum : MODEL_MAX_MATERIAL;
+	unsigned int max = (this->SubsetNum < MODEL_MAX_MATERIAL) ? this->SubsetNum : MODEL_MAX_MATERIAL;
 
 	for (unsigned int i = 0; i < max; i++)
 	{

@@ -1,6 +1,6 @@
-//=============================================================================
+ï»¿//=============================================================================
 //
-// ƒJƒƒ‰ˆ— [camera.cpp]
+// ã‚«ãƒ¡ãƒ©å‡¦ç† [camera.cpp]
 // Author : 
 //
 //=============================================================================
@@ -10,29 +10,25 @@
 #include "debugproc.h"
 
 //*****************************************************************************
-// ƒ}ƒNƒ’è‹`
+// ãƒã‚¯ãƒ­å®šç¾©
 //*****************************************************************************
-#define	POS_X_CAM			(0.0f)			// ƒJƒƒ‰‚Ì‰ŠúˆÊ’u(XÀ•W)
-#define	POS_Y_CAM			(50.0f)			// ƒJƒƒ‰‚Ì‰ŠúˆÊ’u(YÀ•W)
-#define	POS_Z_CAM			(-140.0f)		// ƒJƒƒ‰‚Ì‰ŠúˆÊ’u(ZÀ•W)
-
-//#define	POS_X_CAM		(0.0f)			// ƒJƒƒ‰‚Ì‰ŠúˆÊ’u(XÀ•W)
-//#define	POS_Y_CAM		(200.0f)		// ƒJƒƒ‰‚Ì‰ŠúˆÊ’u(YÀ•W)
-//#define	POS_Z_CAM		(-400.0f)		// ƒJƒƒ‰‚Ì‰ŠúˆÊ’u(ZÀ•W)
+#define	POS_X_CAM			(0.0f)			// ã‚«ãƒ¡ãƒ©ã®åˆæœŸä½ç½®(Xåº§æ¨™)
+#define	POS_Y_CAM			(50.0f)			// ã‚«ãƒ¡ãƒ©ã®åˆæœŸä½ç½®(Yåº§æ¨™)
+#define	POS_Z_CAM			(-380.0f)		// ã‚«ãƒ¡ãƒ©ã®åˆæœŸä½ç½®(Zåº§æ¨™)
 
 
-#define	VIEW_ANGLE		(XMConvertToRadians(45.0f))						// ƒrƒ…[•½–Ê‚Ì‹–ìŠp
-#define	VIEW_ASPECT		((float)SCREEN_WIDTH / (float)SCREEN_HEIGHT)	// ƒrƒ…[•½–Ê‚ÌƒAƒXƒyƒNƒg”ä	
-#define	VIEW_NEAR_Z		(10.0f)											// ƒrƒ…[•½–Ê‚ÌNearZ’l
-#define	VIEW_FAR_Z		(10000.0f)										// ƒrƒ…[•½–Ê‚ÌFarZ’l
+#define	VIEW_ANGLE		(XMConvertToRadians(45.0f))						// ãƒ“ãƒ¥ãƒ¼å¹³é¢ã®è¦–é‡è§’
+#define	VIEW_ASPECT		((float)SCREEN_WIDTH / (float)SCREEN_HEIGHT)	// ãƒ“ãƒ¥ãƒ¼å¹³é¢ã®ã‚¢ã‚¹ãƒšã‚¯ãƒˆæ¯”	
+#define	VIEW_NEAR_Z		(10.0f)											// ãƒ“ãƒ¥ãƒ¼å¹³é¢ã®NearZå€¤
+#define	VIEW_FAR_Z		(200000.0f)										// ãƒ“ãƒ¥ãƒ¼å¹³é¢ã®FarZå€¤
 
-#define	VALUE_MOVE_CAMERA	(2.0f)										// ƒJƒƒ‰‚ÌˆÚ“®—Ê
-#define	VALUE_ROTATE_CAMERA	(XM_PI * 0.01f)								// ƒJƒƒ‰‚Ì‰ñ“]—Ê
+#define	VALUE_MOVE_CAMERA	(2.0f)										// ã‚«ãƒ¡ãƒ©ã®ç§»å‹•é‡
+#define	VALUE_ROTATE_CAMERA	(XM_PI * 0.01f)								// ã‚«ãƒ¡ãƒ©ã®å›è»¢é‡
 
 //*****************************************************************************
-// ƒOƒ[ƒoƒ‹•Ï”
+// ã‚°ãƒ­ãƒ¼ãƒãƒ«å¤‰æ•°
 //*****************************************************************************
-static CAMERA			g_Camera;		// ƒJƒƒ‰ƒf[ƒ^
+static CAMERA			g_Camera;		// ã‚«ãƒ¡ãƒ©ãƒ‡ãƒ¼ã‚¿
 
 static int				g_ViewPortType = TYPE_FULL_SCREEN;
 static BOOL isDragging = FALSE;
@@ -42,7 +38,7 @@ static long deltaX = 0, deltaY = 0;
 
 static Renderer& renderer = Renderer::get_instance();
 //=============================================================================
-// ‰Šú‰»ˆ—
+// åˆæœŸåŒ–å‡¦ç†
 //=============================================================================
 void InitCamera(void)
 {
@@ -52,7 +48,7 @@ void InitCamera(void)
 	g_Camera.rot = { 0.0f, 0.0f, 0.0f };
 	g_Camera.fov = VIEW_ANGLE;
 
-	// ‹“_‚Æ’‹“_‚Ì‹——£‚ğŒvZ
+	// è¦–ç‚¹ã¨æ³¨è¦–ç‚¹ã®è·é›¢ã‚’è¨ˆç®—
 	float vx, vz;
 	vx = g_Camera.pos.x - g_Camera.at.x;
 	vz = g_Camera.pos.z - g_Camera.at.z;
@@ -62,13 +58,13 @@ void InitCamera(void)
 	g_Camera.pos.z = g_Camera.at.z - cosf(g_Camera.rot.y) * g_Camera.len;
 	g_Camera.pos.y = g_Camera.at.y + sinf(g_Camera.rot.x) * g_Camera.len;
 
-	// ƒrƒ…[ƒ|[ƒgƒ^ƒCƒv‚Ì‰Šú‰»
+	// ãƒ“ãƒ¥ãƒ¼ãƒãƒ¼ãƒˆã‚¿ã‚¤ãƒ—ã®åˆæœŸåŒ–
 	SetViewPort(g_ViewPortType);
 }
 
 
 //=============================================================================
-// ƒJƒƒ‰‚ÌI—¹ˆ—
+// ã‚«ãƒ¡ãƒ©ã®çµ‚äº†å‡¦ç†
 //=============================================================================
 void UninitCamera(void)
 {
@@ -77,15 +73,133 @@ void UninitCamera(void)
 
 
 //=============================================================================
-// ƒJƒƒ‰‚ÌXVˆ—
+// ã‚«ãƒ¡ãƒ©ã®æ›´æ–°å‡¦ç†
 //=============================================================================
 void UpdateCamera(void)
 {
+	if (!GetWindowActive()) return; // éã‚¢ã‚¯ãƒ†ã‚£ãƒ–ãªã‚‰ã‚«ãƒ¡ãƒ©æ›´æ–°ã‚¹ã‚­ãƒƒãƒ—
+
+	// ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿è¨­å®š
+	const float MOUSE_SENSITIVITY = 0.003f;
+	const float ZOOM_SENSITIVITY = 0.05f;
+	const float MIN_CAMERA_DISTANCE = 120.0f;
+	const float MAX_CAMERA_DISTANCE = 560.0f;
+	const float CAMERA_APPROACH_SPEED = 3.0f;
+	const float CAMERA_RETREAT_SPEED = 5.0f;
+	const float GROUND_LIMIT_ANGLE = 0.3f;
+
+	// å‚ç›´å›è»¢è§’åº¦ã®åˆ¶é™ (æ­£å€¤ã¯ä¸Šæ–¹å‘ã€è² å€¤ã¯ä¸‹æ–¹å‘)
+	const float MAX_VERTICAL_ANGLE = XM_PIDIV2 - 0.1f;
+	const float MIN_VERTICAL_ANGLE = -0.1f;
+
+	// ãƒã‚¦ã‚¹ã®å‰å›ä½ç½®ã‚’ä¿æŒã™ã‚‹é™çš„å¤‰æ•°
+	static long prevMouseX = 0;
+	static long prevMouseY = 0;
+	// å…ƒã®ã‚«ãƒ¡ãƒ©è·é›¢ã‚’ä¿å­˜
+	static float originalDistance = g_Camera.len;
+	static bool rotated = false;
+
+
+	if (IsMouseRecentered())
+	{
+		prevMouseX = GetMousePosX();
+		prevMouseY = GetMousePosY();
+		SetMouseRecentered(false);  // æ¬¡ã®ãƒ•ãƒ¬ãƒ¼ãƒ ã‹ã‚‰æœ‰åŠ¹
+	}
+	else
+	{
+		long currentMouseX = GetMousePosX();
+		long currentMouseY = GetMousePosY();
+
+		// ãƒã‚¦ã‚¹ã®ç§»å‹•é‡ï¼ˆãƒ•ãƒ¬ãƒ¼ãƒ é–“ã®å·®åˆ†ï¼‰ã‚’è¨ˆç®—
+		float deltaX = static_cast<float>(currentMouseX - prevMouseX);
+		float deltaY = static_cast<float>(currentMouseY - prevMouseY);
+
+		if (deltaX != 0 || deltaY != 0)
+			int a = 1;
+		// å‰å›ã®ãƒã‚¦ã‚¹ä½ç½®ã‚’æ›´æ–°
+		prevMouseX = currentMouseX;
+		prevMouseY = currentMouseY;
+
+		// æ°´å¹³æ–¹å‘ã®å›è»¢å‡¦ç† (ãƒã‚¦ã‚¹å·¦å³ç§»å‹•)
+		g_Camera.rot.y += deltaX * MOUSE_SENSITIVITY;
+
+		// æ°´å¹³æ–¹å‘ã®å›è»¢è§’åº¦ã‚’ -Ï€ ã€œ Ï€ ã«æ­£è¦åŒ–
+		if (g_Camera.rot.y > XM_PI)
+			g_Camera.rot.y -= XM_PI * 2.0f;
+		if (g_Camera.rot.y < -XM_PI)
+			g_Camera.rot.y += XM_PI * 2.0f;
+
+		// å‚ç›´æ–¹å‘ã®å›è»¢å‡¦ç† (ãƒã‚¦ã‚¹ä¸Šä¸‹ç§»å‹•)
+		float desiredRotX = g_Camera.rot.x + deltaY * MOUSE_SENSITIVITY;
+		if (desiredRotX > MIN_VERTICAL_ANGLE && desiredRotX <= MAX_VERTICAL_ANGLE)
+		{
+			if (g_Camera.len < originalDistance && deltaY > 0)
+			{
+				g_Camera.len += CAMERA_RETREAT_SPEED;
+				if (g_Camera.len > originalDistance) g_Camera.len = originalDistance;
+			}
+			else
+				g_Camera.rot.x = desiredRotX;
+		}
+		else if (desiredRotX <= MIN_VERTICAL_ANGLE)
+		{
+			// åœ°é¢ã«è¿‘ã¥ãã™ããŸå ´åˆã®å‡¦ç†
+			if (deltaY < 0)
+			{
+				g_Camera.len -= CAMERA_APPROACH_SPEED;
+				//if (g_Camera.len > MIN_CAMERA_DISTANCE)
+				//	g_Camera.rot.x += deltaY* MOUSE_SENSITIVITY * 0.3f;
+				if (g_Camera.len < MIN_CAMERA_DISTANCE)
+					g_Camera.len = MIN_CAMERA_DISTANCE;
+			}
+			else if (deltaY > 0 && g_Camera.len < originalDistance)
+			{
+
+				g_Camera.len += CAMERA_RETREAT_SPEED;
+				//if (g_Camera.len < originalDistance)
+				//	g_Camera.rot.x -= deltaY * MOUSE_SENSITIVITY * 0.6f;
+				if (g_Camera.len > originalDistance)
+					g_Camera.len = originalDistance;
+			}
+		}
+		else if (desiredRotX > MAX_VERTICAL_ANGLE)
+		{
+			// æœ€å¤§ä»°è§’ã‚’è¶…ãˆãªã„ã‚ˆã†ã«åˆ¶é™
+			g_Camera.rot.x = MAX_VERTICAL_ANGLE;
+		}
+
+		// ãƒã‚¦ã‚¹ãƒ›ã‚¤ãƒ¼ãƒ«ã«ã‚ˆã‚‹ã‚ºãƒ¼ãƒ å‡¦ç†
+		long wheelDelta = GetMouseZ();
+		if (wheelDelta != 0)
+		{
+			g_Camera.len -= wheelDelta * ZOOM_SENSITIVITY;
+
+			if (g_Camera.len < MIN_CAMERA_DISTANCE) g_Camera.len = MIN_CAMERA_DISTANCE;
+			if (g_Camera.len > MAX_CAMERA_DISTANCE) g_Camera.len = MAX_CAMERA_DISTANCE;
+
+			originalDistance = g_Camera.len;
+		}
+
+
+		// ãƒã‚¦ã‚¹ä½ç½®ã‚’ä¸­å¤®ã«æˆ»ã™
+		//if (rotated)
+		SetMousePosCenter();
+	}
+
+
+
+	// ã‚«ãƒ¡ãƒ©ä½ç½®ã®æ›´æ–°
+	g_Camera.pos.x = g_Camera.at.x - sinf(g_Camera.rot.y) * cosf(g_Camera.rot.x) * g_Camera.len;
+	g_Camera.pos.z = g_Camera.at.z - cosf(g_Camera.rot.y) * cosf(g_Camera.rot.x) * g_Camera.len;
+	g_Camera.pos.y = g_Camera.at.y + sinf(g_Camera.rot.x) * g_Camera.len;
+
+	//if (!IsMouseRecentered())
+	//	SetMousePosCenter();
 
 #ifdef _DEBUG
-
 	if (GetKeyboardPress(DIK_Z))
-	{// ‹“_ù‰ñu¶v
+	{// è¦–ç‚¹æ—‹å›ã€Œå·¦ã€
 		g_Camera.rot.y += VALUE_ROTATE_CAMERA;
 		if (g_Camera.rot.y > XM_PI)
 		{
@@ -97,7 +211,7 @@ void UpdateCamera(void)
 	}
 
 	if (GetKeyboardPress(DIK_C))
-	{// ‹“_ù‰ñu‰Ev
+	{// è¦–ç‚¹æ—‹å›ã€Œå³ã€
 		g_Camera.rot.y -= VALUE_ROTATE_CAMERA;
 		if (g_Camera.rot.y < -XM_PI)
 		{
@@ -109,17 +223,17 @@ void UpdateCamera(void)
 	}
 
 	if (GetKeyboardPress(DIK_Y))
-	{// ‹“_ˆÚ“®uãv
+	{// è¦–ç‚¹ç§»å‹•ã€Œä¸Šã€
 		g_Camera.pos.y += VALUE_MOVE_CAMERA;
 	}
 
 	if (GetKeyboardPress(DIK_N))
-	{// ‹“_ˆÚ“®u‰ºv
+	{// è¦–ç‚¹ç§»å‹•ã€Œä¸‹ã€
 		g_Camera.pos.y -= VALUE_MOVE_CAMERA;
 	}
 
 	if (GetKeyboardPress(DIK_Q))
-	{// ’‹“_ù‰ñu¶v
+	{// æ³¨è¦–ç‚¹æ—‹å›ã€Œå·¦ã€
 		g_Camera.rot.y -= VALUE_ROTATE_CAMERA;
 		if (g_Camera.rot.y < -XM_PI)
 		{
@@ -131,7 +245,7 @@ void UpdateCamera(void)
 	}
 
 	if (GetKeyboardPress(DIK_E))
-	{// ’‹“_ù‰ñu‰Ev
+	{// æ³¨è¦–ç‚¹æ—‹å›ã€Œå³ã€
 		g_Camera.rot.y += VALUE_ROTATE_CAMERA;
 		if (g_Camera.rot.y > XM_PI)
 		{
@@ -189,30 +303,30 @@ void UpdateCamera(void)
 	
 
 	if (GetKeyboardPress(DIK_T))
-	{// ’‹“_ˆÚ“®uãv
+	{// æ³¨è¦–ç‚¹ç§»å‹•ã€Œä¸Šã€
 		g_Camera.at.y += VALUE_MOVE_CAMERA;
 	}
 
 	if (GetKeyboardPress(DIK_B))
-	{// ’‹“_ˆÚ“®u‰ºv
+	{// æ³¨è¦–ç‚¹ç§»å‹•ã€Œä¸‹ã€
 		g_Camera.at.y -= VALUE_MOVE_CAMERA;
 	}
 
 	if (GetKeyboardPress(DIK_U))
-	{// ‹ß‚Ã‚­
+	{// è¿‘ã¥ã
 		g_Camera.len -= VALUE_MOVE_CAMERA;
 		g_Camera.pos.x = g_Camera.at.x - sinf(g_Camera.rot.y) * g_Camera.len;
 		g_Camera.pos.z = g_Camera.at.z - cosf(g_Camera.rot.y) * g_Camera.len;
 	}
 
 	if (GetKeyboardPress(DIK_M))
-	{// —£‚ê‚é
+	{// é›¢ã‚Œã‚‹
 		g_Camera.len += VALUE_MOVE_CAMERA;
 		g_Camera.pos.x = g_Camera.at.x - sinf(g_Camera.rot.y) * g_Camera.len;
 		g_Camera.pos.z = g_Camera.at.z - cosf(g_Camera.rot.y) * g_Camera.len;
 	}
 
-	// ƒJƒƒ‰‚ğ‰Šú‚É–ß‚·
+	// ã‚«ãƒ¡ãƒ©ã‚’åˆæœŸã«æˆ»ã™
 	if (GetKeyboardPress(DIK_R))
 	{
 		UninitCamera();
@@ -223,18 +337,18 @@ void UpdateCamera(void)
 
 
 
-#ifdef _DEBUG	// ƒfƒoƒbƒOî•ñ‚ğ•\¦‚·‚é
+#ifdef _DEBUG	// ãƒ‡ãƒãƒƒã‚°æƒ…å ±ã‚’è¡¨ç¤ºã™ã‚‹
 	PrintDebugProc("Camera:ZC QE TB YN UM R\n");
 #endif
 }
 
 
 //=============================================================================
-// ƒJƒƒ‰‚ÌXV
+// ã‚«ãƒ¡ãƒ©ã®æ›´æ–°
 //=============================================================================
 void SetCamera(void) 
 {
-	// ƒrƒ…[ƒ}ƒgƒŠƒbƒNƒXİ’è
+	// ãƒ“ãƒ¥ãƒ¼ãƒãƒˆãƒªãƒƒã‚¯ã‚¹è¨­å®š
 	XMMATRIX mtxView;
 	mtxView = XMMatrixLookAtLH(XMLoadFloat3(&g_Camera.pos), XMLoadFloat3(&g_Camera.at), XMLoadFloat3(&g_Camera.up));
 	renderer.SetViewMatrix(&mtxView);
@@ -245,7 +359,7 @@ void SetCamera(void)
 	XMStoreFloat4x4(&g_Camera.mtxInvView, mtxInvView);
 
 
-	// ƒvƒƒWƒFƒNƒVƒ‡ƒ“ƒ}ƒgƒŠƒbƒNƒXİ’è
+	// ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ã‚·ãƒ§ãƒ³ãƒãƒˆãƒªãƒƒã‚¯ã‚¹è¨­å®š
 	XMMATRIX mtxProjection;
 	mtxProjection = XMMatrixPerspectiveFovLH(VIEW_ANGLE, VIEW_ASPECT, VIEW_NEAR_Z, VIEW_FAR_Z);
 
@@ -257,7 +371,7 @@ void SetCamera(void)
 
 
 //=============================================================================
-// ƒJƒƒ‰‚Ìæ“¾
+// ã‚«ãƒ¡ãƒ©ã®å–å¾—
 //=============================================================================
 CAMERA *GetCamera(void) 
 {
@@ -265,7 +379,7 @@ CAMERA *GetCamera(void)
 }
 
 //=============================================================================
-// ƒrƒ…[ƒ|[ƒg‚Ìİ’è
+// ãƒ“ãƒ¥ãƒ¼ãƒãƒ¼ãƒˆã®è¨­å®š
 //=============================================================================
 void SetViewPort(int type)
 {
@@ -274,7 +388,7 @@ void SetViewPort(int type)
 
 	g_ViewPortType = type;
 
-	// ƒrƒ…[ƒ|[ƒgİ’è
+	// ãƒ“ãƒ¥ãƒ¼ãƒãƒ¼ãƒˆè¨­å®š
 	switch (g_ViewPortType)
 	{
 	case TYPE_FULL_SCREEN:
@@ -336,13 +450,13 @@ int GetViewPortType(void)
 
 
 
-// ƒJƒƒ‰‚Ì‹“_‚Æ’‹“_‚ğƒZƒbƒg
+// ã‚«ãƒ¡ãƒ©ã®è¦–ç‚¹ã¨æ³¨è¦–ç‚¹ã‚’ã‚»ãƒƒãƒˆ
 void SetCameraAT(XMFLOAT3 pos)
 {
-	// ƒJƒƒ‰‚Ì’‹“_‚ğˆø”‚ÌÀ•W‚É‚µ‚Ä‚İ‚é
+	// ã‚«ãƒ¡ãƒ©ã®æ³¨è¦–ç‚¹ã‚’å¼•æ•°ã®åº§æ¨™ã«ã—ã¦ã¿ã‚‹
 	g_Camera.at = pos;
 
-	// ƒJƒƒ‰‚Ì‹“_‚ğƒJƒƒ‰‚ÌY²‰ñ“]‚É‘Î‰‚³‚¹‚Ä‚¢‚é
+	// ã‚«ãƒ¡ãƒ©ã®è¦–ç‚¹ã‚’ã‚«ãƒ¡ãƒ©ã®Yè»¸å›è»¢ã«å¯¾å¿œã•ã›ã¦ã„ã‚‹
 	g_Camera.pos.x = g_Camera.at.x - sinf(g_Camera.rot.y) * g_Camera.len;
 	g_Camera.pos.z = g_Camera.at.z - cosf(g_Camera.rot.y) * g_Camera.len;
 

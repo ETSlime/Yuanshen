@@ -301,10 +301,12 @@ void Renderer::SetShaderCamera(XMFLOAT3 pos)
 void Renderer::SetRenderShadowMap(int lightIdx)
 {
 	g_RenderMode = RENDER_MODE_SHADOW;
+	renderObjModel = true;
+	renderSkinnedMeshModel = false;
+
 	ID3D11ShaderResourceView* nullSRV[1] = { nullptr };
 	GetDeviceContext()->PSSetShaderResources(1, 1, nullSRV);
 
-	GetDeviceContext()->ClearDepthStencilView(g_ShadowDSV[lightIdx], D3D11_CLEAR_DEPTH, 1.0f, 0);
 	GetDeviceContext()->OMSetRenderTargets(0, nullptr, g_ShadowDSV[lightIdx]);
 
 
@@ -315,12 +317,39 @@ void Renderer::SetRenderShadowMap(int lightIdx)
 
 }
 
+void Renderer::SetRenderSkinnedMeshShadowMap(int lightIdx)
+{
+	g_RenderMode = RENDER_MODE_SHADOW;
+	renderObjModel = false;
+	renderSkinnedMeshModel = true;
+
+	ID3D11ShaderResourceView* nullSRV[1] = { nullptr };
+	GetDeviceContext()->PSSetShaderResources(1, 1, nullSRV);
+
+	GetDeviceContext()->OMSetRenderTargets(0, nullptr, g_ShadowDSV[lightIdx]);
+
+
+	GetDeviceContext()->VSSetShader(g_DepthSkinnedMeshVertexShader, nullptr, 0);
+	GetDeviceContext()->PSSetShader(nullptr, nullptr, 0);
+
+	SetLightViewProjBuffer(lightIdx);
+
+}
+
 void Renderer::SetRenderSkinnedMeshModel(void)
 {
+	g_RenderMode = RENDER_MODE_SCENE;
+	renderObjModel = false;
+	renderSkinnedMeshModel = true;
+
+	ResetRenderTarget();
+
 	g_ImmediateContext->VSSetShader(g_SkinnedMeshVertexShader, nullptr, 0);
 	g_ImmediateContext->PSSetShader(g_SkinnedMeshPixelShader, nullptr, 0);
 	g_ImmediateContext->VSSetConstantBuffers(11, 1, &g_BoneMatrixBuffer);
 	g_ImmediateContext->PSSetConstantBuffers(11, 1, &g_BoneMatrixBuffer);
+
+	GetDeviceContext()->PSSetShaderResources(1, LIGHT_MAX, g_ShadowMapSRV);
 }
 
 void Renderer::SetModelInputLayout(void)
@@ -336,8 +365,10 @@ void Renderer::SetSkinnedMeshInputLayout(void)
 void Renderer::SetRenderObject(void)
 {
 	g_RenderMode = RENDER_MODE_SCENE;
+	renderObjModel = true;
+	renderSkinnedMeshModel = false;
 	ResetRenderTarget();
-	GetDeviceContext()->ClearDepthStencilView(g_SceneDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	//GetDeviceContext()->ClearDepthStencilView(g_SceneDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
 
 	GetDeviceContext()->VSSetShader(g_VertexShader, NULL, 0);
@@ -348,6 +379,11 @@ void Renderer::SetRenderObject(void)
 void Renderer::ResetRenderTarget(void)
 {
 	GetDeviceContext()->OMSetRenderTargets(1, &g_RenderTargetView, g_SceneDepthStencilView);
+}
+
+void Renderer::ClearShadowDSV(int lightIdx)
+{
+	GetDeviceContext()->ClearDepthStencilView(g_ShadowDSV[lightIdx], D3D11_CLEAR_DEPTH, 1.0f, 0);
 }
 
 //=============================================================================
@@ -624,6 +660,16 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 
 	pVSBlob2->Release();
 
+	hr = D3DX11CompileFromFile("DepthMap.hlsl", NULL, NULL, "SkinnedMeshVertexShaderPolygon", "vs_4_0", 0, 0, NULL, &pVSBlob2, &pErrorBlob2, NULL);
+	if (FAILED(hr))
+	{
+		MessageBox(NULL, (char*)pErrorBlob2->GetBufferPointer(), "SkinnedMeshVertexShaderPolygon", MB_OK | MB_ICONERROR);
+	}
+
+	g_D3DDevice->CreateVertexShader(pVSBlob2->GetBufferPointer(), pVSBlob2->GetBufferSize(), NULL, &g_DepthSkinnedMeshVertexShader);
+
+	pVSBlob2->Release();
+
 	ID3DBlob* pErrorBlob3;
 	ID3DBlob* pVSBlob3 = NULL;
 	hr = D3DX11CompileFromFile("shader.hlsl", NULL, NULL, "SkinnedMeshVertexShaderPolygon", "vs_4_0", 0, 0, NULL, &pVSBlob3, &pErrorBlob3, NULL);
@@ -651,7 +697,6 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 
 	g_D3DDevice->CreateVertexShader( pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), NULL, &g_VertexShader );
 
-	//pVSBlob->Release();
 
 	// 入力レイアウト生成
 	D3D11_INPUT_ELEMENT_DESC layout[] =
@@ -775,6 +820,11 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 
 	hBufferDesc.ByteWidth = sizeof(BoneMatrices);
 	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_BoneMatrixBuffer);
+
+	hBufferDesc.ByteWidth = sizeof(LIGHTMODE_CBUFFER);
+	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_LightModeBuffer);
+	g_ImmediateContext->VSSetConstantBuffers(10, 1, &g_LightModeBuffer);
+	g_ImmediateContext->PSSetConstantBuffers(10, 1, &g_LightModeBuffer);
 
 	// 入力レイアウト設定
 	g_ImmediateContext->IASetInputLayout( g_VertexLayout );
@@ -913,6 +963,13 @@ void Renderer::DebugTextOut(char* text, int x, int y)
 		g_ImmediateContext->OMSetRenderTargets(1, &g_RenderTargetView, g_SceneDepthStencilView);
 	}
 #endif
+}
+
+void Renderer::SetLightModeBuffer(int mode)
+{
+	LIGHTMODE_CBUFFER md;
+	md.mode = mode;
+	g_ImmediateContext->UpdateSubresource(g_LightModeBuffer, 0, NULL, &md, 0, 0);
 }
 
 int Renderer::GetRenderMode(void)

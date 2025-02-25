@@ -79,13 +79,22 @@ enum AnimationClipName
 	ANIM_STANDING_AIM_OVERDRAW,
 	ANIM_WALK,
 	ANIM_RUN,
+	ANIM_DASH,
 };
 
 enum class ModelType
 {
 	Default,
 	Sigewinne,
+	Klee,
+	Lumine,
 	Weapon,
+	Hilichurl,
+	Mitachurl,
+	AbyssMage,
+	Tree,
+	Field,
+	Town,
 };
 
 //*****************************************************************************
@@ -372,10 +381,10 @@ class FBXLoader : public SingletonBase<FBXLoader>
 {
 public:
 	FBXLoader() {};
-	void LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshModel& model, 
+	bool LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshModel& model, 
 		const char* modelPath, const char* modelName, const char* texturePath, AnimationClipName name = AnimationClipName::ANIM_NONE, ModelType modelType = ModelType::Default);
 
-	void LoadAnimation(ID3D11Device* device, SkinnedMeshModel& model,
+	bool LoadAnimation(ID3D11Device* device, SkinnedMeshModel& model,
 		const char* modelPath, const char* modelName, AnimationClipName name);
 
 private:

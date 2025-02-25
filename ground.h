@@ -1,6 +1,6 @@
 //=============================================================================
 //
-// エネミーモデル処理 [ground.h]
+// エネミーモデル処理 [Ground.h]
 // Author : 
 //
 //=============================================================================
@@ -10,9 +10,13 @@
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
-#define MAX_GROUND		(15)					// エネミーの数
-#define	GROUND_SIZE		(5.0f)				// 当たり判定の大きさ
-#define ROTATION_SPEED				(0.18f)
+// 読み込むモデル名
+#define	MODEL_ENVIRONMENT_PATH		"data/MODEL/Environment/"
+#define	MODEL_TOWN_PATH				"data/MODEL/Environment/Knight"
+#define	MODEL_FIELD					"data/MODEL/Environment/Land.obj"
+#define	MODEL_TREE_NAME				"Tree.fbx"
+#define	MODEL_FIELD_NAME			"Land.fbx"
+#define	MODEL_TOWN_NAME				"Knight.fbx"
 
 //*****************************************************************************
 // 構造体定義
@@ -44,6 +48,7 @@ public:
 	void Update(void);
 	void Draw(void);
 private:
-	SimpleArray<GameObject<ModelInstance>*> groundGO;
+	SimpleArray<GameObject<SkinnedMeshModelInstance>*> skinnedMeshGroundGO;
+	SimpleArray<GameObject<ModelInstance>*>	groundGO;
 	Renderer& renderer = Renderer::get_instance();
 };

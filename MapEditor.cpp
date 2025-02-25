@@ -73,8 +73,8 @@ void MapEditor::Update()
 			// ワールドマトリックスの初期化
 			mtxWorld = XMMatrixIdentity();
 
-			XMVECTOR minPoint = XMLoadFloat3(&cur->data->GetModel()->GetBondingBox().minPoint);
-			XMVECTOR maxPoint = XMLoadFloat3(&cur->data->GetModel()->GetBondingBox().maxPoint);
+			XMVECTOR minPoint = XMLoadFloat3(&cur->data->GetModel()->GetBoundingBox().minPoint);
+			XMVECTOR maxPoint = XMLoadFloat3(&cur->data->GetModel()->GetBoundingBox().maxPoint);
 			XMMATRIX worldMatrix = cur->data->GetTransform().mtxWorld;
 			XMVECTOR corners[8];
 			corners[0] = XMVectorSet(minPoint.m128_f32[0], minPoint.m128_f32[1], minPoint.m128_f32[2], 1.0f);
@@ -521,8 +521,8 @@ BOOL MapEditor::UpdateEditorSelect(CursorInstance* cursor, int sx, int sy)
 	// Make the ray direction unit length for the intersection tests.
 	rayDir = XMVector3Normalize(rayDir);
 
-	XMVECTOR minPoint = XMLoadFloat3(&cursor->GetModel()->GetBondingBox().minPoint);
-	XMVECTOR maxPoint = XMLoadFloat3(&cursor->GetModel()->GetBondingBox().maxPoint);
+	XMVECTOR minPoint = XMLoadFloat3(&cursor->GetModel()->GetBoundingBox().minPoint);
+	XMVECTOR maxPoint = XMLoadFloat3(&cursor->GetModel()->GetBoundingBox().maxPoint);
 
 
 	float tMin = 0.0f;

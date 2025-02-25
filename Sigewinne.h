@@ -16,6 +16,13 @@ public:
 	void LoadWeapon(char* modelPath, char* modelName);
 	void SetCurrentAnim(AnimationClipName clipName, float startTime = 0);
 
+	void Update(void) override;
+	void Draw(void) override;
+
+	void SetupAnimationStateMachine();
+
+	AnimationStateMachine* GetStateMachine(void) override;
+
 	void PlayWalkAnim(void) override;
 	void PlayRunAnim(void) override;
 	void PlayJumpAnim(void) override;
@@ -29,13 +36,6 @@ public:
 	virtual bool CanRun(void) const override;
 
 	virtual void OnAttackAnimationEnd(void) override;
-
-	void Update(void) override;
-	void Draw(void) override;
-
-	AnimationStateMachine* GetStateMachine(void) override;
-
-	void SetupAnimationStateMachine();
 
 private:
 	GameObject<SkinnedMeshModelInstance> weapon;

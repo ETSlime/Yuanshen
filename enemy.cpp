@@ -198,8 +198,8 @@ void Enemy::UpdateEditorSelect(int sx, int sy)
 	// Make the ray direction unit length for the intersection tests.
 	rayDir = XMVector3Normalize(rayDir);
 	
-	XMVECTOR minPoint = XMLoadFloat3(&instance.pModel->GetBondingBox().minPoint);
-	XMVECTOR maxPoint = XMLoadFloat3(&instance.pModel->GetBondingBox().maxPoint);
+	XMVECTOR minPoint = XMLoadFloat3(&instance.pModel->GetBoundingBox().minPoint);
+	XMVECTOR maxPoint = XMLoadFloat3(&instance.pModel->GetBoundingBox().maxPoint);
 
 
 	float tMin = 0.0f;
@@ -269,13 +269,11 @@ void Enemy::PlayEnemyWalkAnim(void)
 	{
 		instance.transform.scl.y += 0.008f;
 		instance.transform.pos.y += instance.jumpYMax * cosf(angle);
-		//SetShadowSize(enemy->shadowIdx, enemy->shadowSize, enemy->shadowSize);
 	}
 	else
 	{
 		instance.transform.scl.y -= 0.008f;
 		instance.transform.pos.y -= instance.jumpYMax * cosf(angle);
-		//SetShadowSize(enemy->shadowIdx, enemy->shadowSize, enemy->shadowSize);
 	}
 
 	if (instance.jumpCnt > JUMP_CNT_MAX * 0.5f)

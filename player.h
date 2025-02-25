@@ -6,7 +6,10 @@
 //
 //=============================================================================
 #include "Sigewinne.h"
-
+#include "Klee.h"
+#include "Lumine.h"
+#include "Hilichurl.h"
+#include "Mitachurl.h"
 //*****************************************************************************
 // ç\ë¢ëÃíËã`
 //*****************************************************************************
@@ -20,13 +23,19 @@ public:
 	~Player();
 	void Update(void);
 	void Draw(void);
-	void HandlePlayerMove(void);
+	void HandlePlayerMove(Transform& transform);
 	Transform GetTransform(void);
 
 private:
 
 	Attributes playerAttr;
 	Sigewinne* sigewinne;
+	Klee* klee;
+	Lumine* lumine;
+
+	Hilichurl* hilichurl;
+	Mitachurl* mitachurl;
+
 	GameObject<SkinnedMeshModelInstance>* playerGO;
 	Renderer& renderer = Renderer::get_instance();
 };

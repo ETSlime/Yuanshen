@@ -63,4 +63,6 @@ long GetMouseZ(void);               // マウスホイールが動いた相対値
 BOOL IsButtonPressed(int padNo,DWORD button);
 BOOL IsButtonTriggered(int padNo,DWORD button);
 
-
+void SetMousePosCenter(void);
+void SetMouseRecentered(BOOL recenter);
+BOOL IsMouseRecentered(void);

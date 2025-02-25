@@ -9,7 +9,7 @@
 #include "main.h"
 #include "renderer.h"
 #include "HashMap.h"
-
+#include "OctreeNode.h"
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
@@ -89,13 +89,6 @@ struct MODEL_POOL
 	void AddRef() { count++; }
 };
 
-
-struct BOUNDING_BOX
-{
-	XMFLOAT3 minPoint;
-	XMFLOAT3 maxPoint;
-};
-
 class Model
 {
 public:
@@ -112,7 +105,7 @@ public:
 	// モデルの指定マテリアルのディフューズをセットする。
 	void SetModelDiffuse(int mno, XMFLOAT4 diffuse);
 
-	BOUNDING_BOX GetBondingBox() { return boundingBox; }
+	BOUNDING_BOX GetBoundingBox() { return boundingBox; }
 
 	static Model* StoreModel(char* modelPath);
 	static MODEL_POOL* GetModel(char* modelPath);

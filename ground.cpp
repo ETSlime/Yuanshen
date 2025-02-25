@@ -1,6 +1,6 @@
 //=============================================================================
 //
-// エネミーモデル処理 [Ground.cpp]
+// Ground処理 [Ground.cpp]
 // Author : 
 //
 //=============================================================================
@@ -10,40 +10,74 @@
 #include "input.h"
 #include "debugproc.h"
 #include "ground.h"
-
+#include "CollisionManager.h"
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
-#define	MODEL_GROUND		"data/MODEL/tree.obj"		// 読み込むモデル名
 
-#define	VALUE_MOVE			(5.0f)						// 移動量
-#define	VALUE_ROTATE		(XM_PI * 0.02f)				// 回転量
+#define MAX_TREE			(0)
 
-#define GROUND_SHADOW_SIZE	(0.4f)						// 影の大きさ
-#define GROUND_OFFSET_Y		(7.0f)						// エネミーの足元をあわせる
-
+#define TREE_SIZE			(350.0f)
+#define TOWN_SIZE			(125850.0f)
+#define FIELD_SIZE			(76850.0f)
+#define WORLD_MAX			(XMFLOAT3(200000.0f, 200000.0f, 200000.0f))
+#define WORLD_MIN			(XMFLOAT3(-200000.0f, -200000.0f, -200000.0f))
 
 //=============================================================================
 // 初期化処理
 //=============================================================================
 Ground::Ground()
 {
-	for (int i = 0; i < MAX_GROUND; i++)
+	for (int i = 0; i < MAX_TREE; i++)
 	{
-		GameObject<ModelInstance>* GO = new GameObject<ModelInstance>();
-		GO->Instantiate(MODEL_GROUND);
+		GameObject<SkinnedMeshModelInstance>* treeGO = new GameObject<SkinnedMeshModelInstance>();
+		treeGO->Instantiate(MODEL_ENVIRONMENT_PATH, MODEL_TREE_NAME, ModelType::Tree);
+		treeGO->GetInstance()->pModel->SetBodyDiffuseTexture("data/MODEL/Environment/Bark.jpg");
+		treeGO->SetPosition(XMFLOAT3(110.0f + i * 430.0f, 180.0f, 0.0f));
+		treeGO->SetRotation(XMFLOAT3(0.0f, 0.0f, 0.0f));
+		treeGO->SetScale(XMFLOAT3(TREE_SIZE, TREE_SIZE, TREE_SIZE));
+		
+		treeGO->GetSkinnedMeshModel()->SetBoundingBoxSize(XMFLOAT3(0.1f, 1.0f, 0.1f));
+		treeGO->GetSkinnedMeshModel()->SetBoundingBoxLocationOffset(XMFLOAT3(-0.55f, 0.0f, 0.2f));
+		treeGO->SetColliderType(ColliderType::WALL);
+		CollisionManager::get_instance().RegisterCollider(&treeGO->GetCollider());
 
-		GO->SetPosition(XMFLOAT3(-50.0f + i * 130.0f, -70.0f, -1720.0f - i * 130.0f));
-		GO->SetRotation(XMFLOAT3(0.0f, 0.0f, 0.0f));
-		GO->SetScale(XMFLOAT3(12.5f, 12.5f, 12.5f));
-
-		// モデルのディフューズを保存しておく。色変え対応の為。
-		Model* pModel = GO->GetModel();
-		pModel->GetModelDiffuse(&GO->GetDiffuse()[0]);
-
-		groundGO.push_back(GO);
-
+		skinnedMeshGroundGO.push_back(treeGO);
 	}
+
+	BOUNDING_BOX worldBB;
+	worldBB.maxPoint = WORLD_MAX;
+	worldBB.minPoint = WORLD_MIN;
+	CollisionManager::get_instance().InitOctree(worldBB);
+
+	GameObject<SkinnedMeshModelInstance>* townGO = new GameObject<SkinnedMeshModelInstance>();
+	townGO->Instantiate(MODEL_TOWN_PATH, MODEL_TOWN_NAME, ModelType::Town);
+	townGO->SetScale(XMFLOAT3(TOWN_SIZE, TOWN_SIZE, TOWN_SIZE));
+	townGO->SetRotation(XMFLOAT3(0, XM_PI * 0.5f, 0.0f));
+	townGO->SetPosition(XMFLOAT3(TOWN_SIZE * 0.2f, -TOWN_SIZE * 0.05f, -TOWN_SIZE * 0.5f));
+	townGO->GetSkinnedMeshModel()->LoadTownTexture();
+	townGO->Update();
+	XMMATRIX worldMatrix = townGO->GetWorldMatrix();
+	townGO->GetSkinnedMeshModel()->BuildTrianglesByWorldMatrix(worldMatrix);
+
+	townGO->GetSkinnedMeshModel()->BuildOctree();
+	townGO->SetRenderShadow(false);
+	townGO->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
+	skinnedMeshGroundGO.push_back(townGO);
+
+	GameObject<SkinnedMeshModelInstance>* fieldGO = new GameObject<SkinnedMeshModelInstance>();
+	fieldGO->Instantiate(MODEL_ENVIRONMENT_PATH, MODEL_FIELD_NAME, ModelType::Field);
+	fieldGO->SetScale(XMFLOAT3(FIELD_SIZE, FIELD_SIZE, FIELD_SIZE));
+	fieldGO->SetRotation(XMFLOAT3(XM_PI / 2, XM_PI, 0.0f));
+	fieldGO->SetPosition(XMFLOAT3(0.0f, -650.0f, 0.0f));
+	fieldGO->Update();
+	worldMatrix = fieldGO->GetWorldMatrix();
+	fieldGO->GetSkinnedMeshModel()->BuildTrianglesByWorldMatrix(worldMatrix);
+	fieldGO->GetSkinnedMeshModel()->BuildOctree();
+	fieldGO->SetRenderShadow(false);
+	fieldGO->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
+	skinnedMeshGroundGO.push_back(fieldGO);
+
 }
 
 //=============================================================================
@@ -65,12 +99,17 @@ Ground::~Ground()
 void Ground::Update(void)
 {
 	int size = groundGO.getSize();
-
 	for (int i = 0; i < size; i++)
 	{
 		if (groundGO[i]->GetUse() == false) continue;
-
 		groundGO[i]->Update();
+	}
+
+	size = skinnedMeshGroundGO.getSize();
+	for (int i = 0; i < size; i++)
+	{
+		if (skinnedMeshGroundGO[i]->GetUse() == false) continue;
+		skinnedMeshGroundGO[i]->Update();
 	}
 }
 
@@ -79,18 +118,26 @@ void Ground::Update(void)
 //=============================================================================
 void Ground::Draw(void)
 {
-	int size = groundGO.getSize();
-
-	// カリング無効
-	renderer.SetCullingMode(CULL_MODE_NONE);
-
-	for (int i = 0; i < size; i++)
+	renderer.SetLightModeBuffer(1);
+	if (renderer.IsRenderObjModel())
 	{
-		if (groundGO[i]->GetUse() == false) continue;
+		int size = groundGO.getSize();
+		for (int i = 0; i < size; i++)
+		{
+			if (groundGO[i]->GetUse() == false) continue;
 
-		groundGO[i]->Draw();
+			groundGO[i]->Draw();
+		}
 	}
+	else if (renderer.IsRenderSkinnedMeshModel())
+	{
+		int size = skinnedMeshGroundGO.getSize();
+		for (int i = 0; i < size; i++)
+		{
+			if (skinnedMeshGroundGO[i]->GetUse() == false) continue;
 
-	// カリング設定を戻す
-	renderer.SetCullingMode(CULL_MODE_BACK);
+			skinnedMeshGroundGO[i]->Draw();
+		}
+	}
+	renderer.SetLightModeBuffer(0);
 }

@@ -207,7 +207,7 @@ PixelInputType SkinnedMeshVertexShaderPolygon(SkinnedMeshVertexInputType input)
     output.color = input.color;
 
     // Compute shadow coordinates for multiple light sources
-    output.worldPos = worldPosition;
+    output.worldPos = mul(input.position, World);
     for (int j = 0; j < 5; ++j)
     {
         output.shadowCoord[j] = mul(output.worldPos, ProjView.ProjView[i]);
@@ -220,12 +220,12 @@ PixelInputType SkinnedMeshVertexShaderPolygon(SkinnedMeshVertexInputType input)
 //*****************************************************************************
 // ƒOƒ[ƒoƒ‹•Ï”
 //*****************************************************************************
-Texture2D		g_Texture : register( t0 );
-SamplerState	g_SamplerState : register( s0 );
+Texture2D g_Texture : register( t0 );
 Texture2D g_ShadowMap[5] : register(t1);
 Texture2D g_TextureSmall : register(t7);
 Texture2D g_LightMap : register(t8);
 Texture2D g_NormalMap : register(t9);
+SamplerState g_SamplerState : register(s0);
 SamplerComparisonState g_ShadowSampler : register(s1);
 
 float ToonLighting(float NdotL)
@@ -354,7 +354,7 @@ void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
                     //float shadowMapValue = g_ShadowMap[2].Sample(g_SamplerState, shadowTexCoord).r;
                    // tempColor = float4(shadowMapValue, shadowMapValue, shadowMapValue, 1.0f);
                     int kernelSize = 1;
-                    float2 shadowMapDimensions = float2(960, 540);
+                    float2 shadowMapDimensions = float2(1920, 1080);
                     float shadow = 0.0;
                     float2 texelSize = 1.0 / shadowMapDimensions;
                     float totalWeight = 0.0;
@@ -368,11 +368,6 @@ void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
                         }
                     }
                     shadowFactor = shadow / totalWeight;
-                    //shadowFactor = g_ShadowMap[i].SampleCmpLevelZero(g_ShadowSampler, shadowTexCoord, currentDepth);
-					//if (shadowFactor == 0.0f)
-     //                   shadowFactor = 0.4f;
-					
-                    //shadowFactor = g_ShadowMap.SampleCmpLevelZero(g_ShadowSampler, shadowTexCoord, currentDepth);
                 }
 
                 tempColor *= shadowFactor;
@@ -402,28 +397,28 @@ void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
 		outDiffuse = color;
 	}
 	
-    if (md.mode == 1)
-    {
+    //if (md.mode == 1)
+    //{
 
-        //color.a *= 0.5f;
-        float2 centeredTexcoord = inTexCoord - float2(0.5, 0.5);
+    //    //color.a *= 0.5f;
+    //    float2 centeredTexcoord = inTexCoord - float2(0.5, 0.5);
 
-        float distanceFromCenter = length(centeredTexcoord);
-        float angle = distanceFromCenter * 5;
+    //    float distanceFromCenter = length(centeredTexcoord);
+    //    float angle = distanceFromCenter * 5;
 
-        float sinAngle = sin(angle);
-        float cosAngle = cos(angle);
-        float2 rotatedTexcoord;
-        rotatedTexcoord.x = centeredTexcoord.x * cosAngle - centeredTexcoord.y * sinAngle;
-        rotatedTexcoord.y = centeredTexcoord.x * sinAngle + centeredTexcoord.y * cosAngle;
+    //    float sinAngle = sin(angle);
+    //    float cosAngle = cos(angle);
+    //    float2 rotatedTexcoord;
+    //    rotatedTexcoord.x = centeredTexcoord.x * cosAngle - centeredTexcoord.y * sinAngle;
+    //    rotatedTexcoord.y = centeredTexcoord.x * sinAngle + centeredTexcoord.y * cosAngle;
 
-        rotatedTexcoord += float2(0.5, 0.5);
+    //    rotatedTexcoord += float2(0.5, 0.5);
 		
-        color = g_TextureSmall.Sample(g_SamplerState, rotatedTexcoord);
-        outDiffuse = color;
-        return;
+    //    color = g_TextureSmall.Sample(g_SamplerState, rotatedTexcoord);
+    //    outDiffuse = color;
+    //    return;
 
-    }
+    //}
 	
  
 
@@ -453,6 +448,10 @@ void SkinnedMeshPixelShader(PixelInputType input,
         color = g_Texture.Sample(g_SamplerState, input.texcoord);
 
         color *= input.color;
+        
+        if (color.a <= 0.0f)
+            discard;
+
     }
     else
     {
@@ -503,14 +502,28 @@ void SkinnedMeshPixelShader(PixelInputType input,
                 if (Light.Flags[i].x == 1)
                 {
                     
-                    // Half-Lambert Toon
-                    float3 toonColor = HalfLambertToon(worldNormal, lightDir, lightColor.xyz);
+                    if (md.mode == 0 || md.mode == 2)
+                    {
+                        // Half-Lambert Toon
+                        float3 toonColor = HalfLambertToon(worldNormal, lightDir, lightColor.xyz);
                     
-                    // Rim Light
-                    float3 rimColor = ApplyRimLight(worldNormal, viewDir, lightColor.xyz);
+                        // Rim Light
+                        float3 rimColor = ApplyRimLight(worldNormal, viewDir, lightColor.xyz);
 
-                    // Combine lighting effects
-                    tempColor = color * ((toonColor + rimColor), 0.9f);
+                        // Combine lighting effects
+                        tempColor = color * ((toonColor + rimColor), 0.9f);
+                        tempColor *= 0.5f;
+
+                    }
+                    else
+                    {
+                        lightDir = normalize(Light.Direction[i].xyz);
+                        light = saturate(dot(lightDir, input.normal.xyz));
+                        float backlightFactor = saturate(dot(-lightDir, input.normal.xyz));
+
+                        light = 0.5 - 0.5 * light;
+                        tempColor = color * Material.Diffuse * light * Light.Diffuse[i];
+                    }
                     
                 }
                 else if (Light.Flags[i].x == 2)
@@ -536,24 +549,44 @@ void SkinnedMeshPixelShader(PixelInputType input,
 
                     float currentDepth = input.shadowCoord[i].z / input.shadowCoord[i].w;
                     currentDepth -= 0.005f;
+                    
+
+                    //tempColor = float4(currentDepth, currentDepth, currentDepth, 1.0f);
+      //              float shadowMapValue = g_ShadowMap[2].Sample(g_SamplerState, shadowTexCoord).r;
+      //              tempColor = float4(shadowMapValue, shadowMapValue, shadowMapValue, 1.0f);
+                    
+                    
                     int kernelSize = 1;
-                    float2 shadowMapDimensions = float2(960, 540);
+                    float2 shadowMapDimensions = float2(1920, 1080);
                     float shadow = 0.0;
                     float2 texelSize = 1.0 / shadowMapDimensions;
                     float totalWeight = 0.0;
-                    for (int x = -kernelSize; x <= kernelSize; x++)
+                    if (shadowTexCoord.x >= 0.0f && shadowTexCoord.y >= 0.0f &&
+						shadowTexCoord.x <= 1.0f && shadowTexCoord.y <= 1.0f &&
+						currentDepth >= 0.0f && currentDepth <= 1.0f)
                     {
-                        for (int y = -kernelSize; y <= kernelSize; y++)
+                        for (int x = -kernelSize; x <= kernelSize; x++)
                         {
-                            float weight = exp(-(x * x + y * y) / (2.0 * kernelSize * kernelSize)); // gaussian weight
-                            shadow += g_ShadowMap[i].SampleCmpLevelZero(g_ShadowSampler, shadowTexCoord + float2(x, y) * texelSize, currentDepth) * weight;
-                            totalWeight += weight;
+                            for (int y = -kernelSize; y <= kernelSize; y++)
+                            {
+                                float weight = exp(-(x * x + y * y) / (2.0 * kernelSize * kernelSize)); // gaussian weight
+                                shadow += g_ShadowMap[i].SampleCmpLevelZero(g_ShadowSampler, shadowTexCoord + float2(x, y) * texelSize, currentDepth) * weight;
+                                totalWeight += weight;
+                            }
                         }
                     }
+                    else
+                    {
+                        shadow = 1;
+                        totalWeight = 1;
+                    }
+
+ 
                     shadowFactor = shadow / totalWeight;
                 }
 
-                tempColor *= shadowFactor;
+                if (md.mode != 2)
+                    tempColor *= shadowFactor;
 				
                 outColor += tempColor + ambient;
 

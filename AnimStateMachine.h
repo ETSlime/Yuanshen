@@ -16,8 +16,9 @@
 #define MAX_ANIMSTATE_NUM       99
 #define MAX_STATE_TRANS_NUM     99
 
+#define STATE(state)                  (static_cast<uint64_t>(state))
 // states
-enum PlayerState : uint64_t
+enum class PlayerState : uint64_t
 {
     IDLE,
     WALK,
@@ -33,6 +34,14 @@ enum PlayerState : uint64_t
     DEFEND,
     CAST,
     DIE,
+};
+
+enum class EnemyState : uint64_t
+{
+    IDLE,
+    HILI_DANCE,
+    HILI_STAND_UP,
+    HILI_SIT,
 };
 
 class SkinnedMeshModel;
@@ -57,6 +66,11 @@ struct AnimationClip
         model = nullptr;
         isLoop = TRUE;
         currBoneTransform = new SimpleArray<XMFLOAT4X4>();
+    }
+
+    ~AnimationClip()
+    {
+        SAFE_DELETE(currBoneTransform);
     }
 
     inline void SetModel(SkinnedMeshModel* skinnedMeshModel)

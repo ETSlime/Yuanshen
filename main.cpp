@@ -12,9 +12,8 @@
 #include "field.h"
 #include "model.h"
 #include "enemy.h"
-#include "shadow.h"
 #include "light.h"
-#include "ground.h"
+#include "Ground.h"
 #include "sprite.h"
 #include "score.h"
 #include "offScreenRender.h"
@@ -23,6 +22,8 @@
 #include "TextureMgr.h"
 #include "SkinnedMeshModel.h"
 #include "Player.h"
+#include "CollisionManager.h"
+#include "Skybox.h"
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
@@ -44,14 +45,18 @@ void Draw(void);
 long g_MouseX = 0;
 long g_MouseY = 0;
 
+bool g_IsWindowActive = true; // デフォルトでアクティブ
+
 MapEditor& mapEditor = MapEditor::get_instance();
 EnemyManager& enemyManager = EnemyManager::get_instance();
+CollisionManager& collisionManager = CollisionManager::get_instance();
+Renderer& renderer = Renderer::get_instance();
 Ground* ground = nullptr;
 Player* player = nullptr;
+Skybox* skybox = nullptr;
+CAMERA* camera = GetCamera();
 //TextureMgr& mTexMgr = TextureMgr::get_instance();
 //FBXLoader& fbxLoader = FBXLoader::get_instance();
-//SkinnedMeshModel model;
-Renderer& renderer = Renderer::get_instance();
 
 #ifdef _DEBUG
 int		g_CountFPS;							// FPSカウンタ
@@ -209,6 +214,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		g_MouseY = HIWORD(lParam);
 		break;
 
+	case WM_ACTIVATE:
+		if (LOWORD(wParam) != WA_INACTIVE)
+		{
+			// ウィンドウがアクティブになった
+			g_IsWindowActive = true;
+			ShowCursor(FALSE); // 必要に応じてカーソルを非表示
+		}
+		else
+		{
+			// ウィンドウが非アクティブになった
+			g_IsWindowActive = false;
+			ShowCursor(TRUE);  // カーソル表示
+		}
+		break;
+
 	default:
 		return DefWindowProc(hWnd, message, wParam, lParam);
 	}
@@ -224,25 +244,17 @@ HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	// レンダラーの初期化
 	renderer.Init(hInstance, hWnd, bWindow);
 
-	// ライトの初期化
-	InitLight();
-
 	// カメラの初期化
 	InitCamera();
 
 	// 入力処理の初期化
 	InitInput(hInstance, hWnd);
 
-	//InitVertex();
-
-	// 影の初期化処理
-	InitShadow();
-
-	// フィールドの初期化
-	InitField();
-
 	// プレイヤーの初期化
 	player = new Player();
+
+	// ライトの初期化
+	InitLight(player);
 
 	// エネミーの初期化
 	enemyManager.Init();
@@ -254,6 +266,9 @@ HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	InitScore();
 
 	mapEditor.Init();
+
+	// skyboxの初期化
+	skybox = new Skybox(renderer.GetDevice(), renderer.GetDeviceContext());
 
 	// ライトを有効化
 	renderer.SetLightEnable(TRUE);
@@ -269,23 +284,12 @@ HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 //=============================================================================
 void Uninit(void)
 {
-	//UninitGround();
 	delete ground;
 
-	// エネミーの終了処理
-	//UninitEnemy();
-
-	// プレイヤーの終了処理
-	//UninitPlayer();
 	delete player;
 
 	// フィールドの終了処理
 	UninitField();
-
-	// 影の終了処理
-	UninitShadow();
-
-	//UninitVertex();
 
 	// カメラの終了処理
 	UninitCamera();
@@ -301,8 +305,6 @@ void Uninit(void)
 	UninitOffScreenRender();
 
 	mapEditor.Uninit();
-
-	//mTexMgr.Uninit();
 }
 
 //=============================================================================
@@ -318,8 +320,7 @@ void Update(void)
 
 	UpdateLight();
 
-	// フィールドの更新処理
-	UpdateField();
+	skybox->Update();
 
 	// プレイヤーの更新処理
 	player->Update();
@@ -327,14 +328,11 @@ void Update(void)
 	// エネミーの更新処理
 	enemyManager.Update();
 
-	//model.Update();
-
 	ground->Update();
 
-	// 影の更新処理
-	UpdateShadow();
-
 	mapEditor.Update();
+
+	collisionManager.Update();
 }
 
 //=============================================================================
@@ -345,11 +343,16 @@ void Draw(void)
 	// バックバッファクリア
 	renderer.Clear();
 
-	// プレイヤー視点
-	XMFLOAT3 pos = player->GetTransform().pos;
-	pos.y = 0.0f;			// カメラ酔いを防ぐためにクリアしている
-	SetCameraAT(pos);
-	SetCamera();
+
+	skybox->Draw(XMLoadFloat4x4(&camera->mtxView), XMLoadFloat4x4(&camera->mtxProjection));
+
+	for (int lightIdx = 2; lightIdx >= 0; lightIdx--)
+	{
+		LIGHT* light = GetLightData(lightIdx);
+		if (light->Enable == FALSE) continue;
+
+		renderer.ClearShadowDSV(lightIdx);
+	}
 
 	renderer.SetModelInputLayout();
 	for (int i = 2; i >= 0; i--)
@@ -362,18 +365,32 @@ void Draw(void)
 		DrawScene();
 	}
 
+	renderer.SetSkinnedMeshInputLayout();
+
+	for (int i = 2; i >= 0; i--)
+	{
+		LIGHT* light = GetLightData(i);
+		if (light->Enable == FALSE) continue;
+
+		renderer.SetRenderSkinnedMeshShadowMap(i);
+		player->Draw();
+		ground->Draw();
+	}
+
+	renderer.SetModelInputLayout();
 	renderer.SetRenderObject();
 	DrawScene();
 
-	renderer.SetLightEnable(FALSE);
-	mapEditor.Draw();
-	//DrawScore();
-	renderer.SetLightEnable(TRUE);
+	//renderer.SetLightEnable(FALSE);
+	//mapEditor.Draw();
+	//renderer.SetLightEnable(TRUE);
 	
-	renderer.SetRenderSkinnedMeshModel();
+
 	renderer.SetSkinnedMeshInputLayout();
+	renderer.SetRenderSkinnedMeshModel();
+
 	player->Draw();
-	//model.Draw();
+	ground->Draw();
 
 	//SetOffScreenRender();
 	//DrawScene();
@@ -393,13 +410,14 @@ void Draw(void)
 
 void DrawScene()
 {
-	DrawField();
-
-	//DrawPlayer();
-
 	enemyManager.Draw();
 
 	ground->Draw();
+}
+
+bool GetWindowActive(void)
+{
+	return g_IsWindowActive;
 }
 
 long GetMousePosX(void)

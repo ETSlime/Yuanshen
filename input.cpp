@@ -53,7 +53,7 @@ static LPDIRECTINPUTDEVICE8 pMouse = NULL; // mouse
 
 static DIMOUSESTATE2   mouseState;		// マウスのダイレクトな状態
 static DIMOUSESTATE2   mouseTrigger;	// 押された瞬間だけON
-
+static BOOL			g_isMouseRecentered = FALSE;
 //--------------------------------- game pad
 
 static LPDIRECTINPUTDEVICE8	pGamePad[GAMEPADMAX] = {NULL,NULL,NULL,NULL};// パッドデバイス
@@ -115,6 +115,8 @@ void UninitInput(void)
 //=============================================================================
 void UpdateInput(void)
 {
+	if (!GetWindowActive()) return; // 非アクティブなら入力処理をスキップ
+
 	// キーボードの更新
 	UpdateKeyboard();
 	
@@ -316,6 +318,8 @@ void UninitMouse()
 //-----------------------------------------------------------
 HRESULT UpdateMouse()
 {
+	if (!GetWindowActive()) return S_OK; // 非アクティブ時は更新しない
+
 	HRESULT result;
 	// 前回の値保存
 	DIMOUSESTATE2 lastMouseState = mouseState;
@@ -540,5 +544,32 @@ BOOL IsButtonTriggered(int padNo,DWORD button)
 	return (button & padTrigger[padNo]);
 }
 
+void SetMousePosCenter(void)
+{
+	HWND hwnd = GetForegroundWindow();
+
+	RECT rect;
+	GetClientRect(hwnd, &rect);  // クライアント領域取得
+
+	POINT center;
+	center.x = (rect.right - rect.left) / 2;
+	center.y = (rect.bottom - rect.top) / 2;
+
+	ClientToScreen(hwnd, &center); // スクリーン座標に変換
+	SetCursorPos(center.x, center.y); // マウス位置を設定
+
+	g_isMouseRecentered = true;            // センタリングフラグを有効化
+}
+
+void SetMouseRecentered(BOOL recenter)
+{
+	g_isMouseRecentered = recenter;
+}
+
+BOOL IsMouseRecentered(void)
+{
+	return g_isMouseRecentered;
+}
+	
 
 

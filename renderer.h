@@ -227,6 +227,12 @@ struct FUCHI
 	int			fill[3];
 };
 
+struct LIGHTMODE_CBUFFER
+{
+	int			mode;
+	int			padding[3];
+};
+
 struct BoneMatrices
 {
 	XMMATRIX bones[BONE_MAX];
@@ -276,12 +282,18 @@ public:
 	void SetClearColor(float* color4);
 
 	void SetRenderShadowMap(int lightIdx);
+	void SetRenderSkinnedMeshShadowMap(int lightIdx);
 	void SetRenderObject(void);
 	void SetRenderSkinnedMeshModel(void);
 	void SetModelInputLayout(void);
 	void SetSkinnedMeshInputLayout(void);
 	void ResetRenderTarget(void);
+	void SetLightModeBuffer(int mode);
+	void ClearShadowDSV(int lightIdx);
+
 	int GetRenderMode(void);
+	bool IsRenderSkinnedMeshModel(void) { return renderSkinnedMeshModel; }
+	bool IsRenderObjModel(void) { return renderObjModel; }
 
 
 private:
@@ -290,6 +302,9 @@ private:
 	void SetFogBuffer(void);
 
 	D3D_FEATURE_LEVEL       g_FeatureLevel = D3D_FEATURE_LEVEL_11_0;
+
+	bool renderSkinnedMeshModel = false;
+	bool renderObjModel = false;
 
 	ID3D11Device* g_D3DDevice = NULL;
 	ID3D11DeviceContext* g_ImmediateContext = NULL;
@@ -303,6 +318,7 @@ private:
 	ID3D11VertexShader* g_VertexShader = NULL;
 	ID3D11VertexShader* g_SkinnedMeshVertexShader = NULL;
 	ID3D11VertexShader* g_DepthVertexShader = NULL;
+	ID3D11VertexShader* g_DepthSkinnedMeshVertexShader = NULL;
 	ID3D11PixelShader* g_PixelShader = NULL;
 	ID3D11PixelShader* g_SkinnedMeshPixelShader = NULL;
 	ID3D11InputLayout* g_VertexLayout = NULL;
@@ -317,6 +333,7 @@ private:
 	ID3D11Buffer* g_CameraPosBuffer = NULL;
 	ID3D11Buffer* g_LightProjViewBuffer = NULL;
 	ID3D11Buffer* g_BoneMatrixBuffer = NULL;
+	ID3D11Buffer* g_LightModeBuffer = NULL;
 
 	ID3D11ShaderResourceView* g_ShadowMapSRV[LIGHT_MAX];
 
