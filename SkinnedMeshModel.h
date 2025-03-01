@@ -216,7 +216,8 @@ private:
 	void DrawLumine(ModelData* modelData);
 	void DrawTree(ModelData* modelData);
 	void DrawField(ModelData* modelData);
-	void DrawTown(ModelData* modelData);
+	void DrawChurch(ModelData* modelData);
+	void DrawTownLoD(ModelData* modelData, int LoD);
 
 	void DrawBoundingBox(ModelData* modelData);
 	void CreateBoundingBoxVertex(SKINNED_MESH_BOUNDING_BOX* boundingBox) const;
@@ -225,6 +226,7 @@ private:
 	char modelName[MODEL_NAME_LENGTH];
 
 	UINT ModelCount;
+	UINT MeshDataCnt = 0;
 	UINT currentRootNodeID;
 	UINT numBones;
 	ModelType modelType;
@@ -251,8 +253,42 @@ private:
 
 	ID3D11ShaderResourceView* Area_Mdcity_Lvy01_Diffuse;
 	ID3D11ShaderResourceView* Area_MdCity_Plot02_Diffuse;
+	ID3D11ShaderResourceView* Area_MdCity_Plot03_Diffuse;
+	ID3D11ShaderResourceView* Area_MdCity_Plot04_Diffuse;
+	ID3D11ShaderResourceView* Area_MdCity_Plot05_Diffuse;
+	ID3D11ShaderResourceView* Area_MdCity_Plot09_Diffuse;
 	ID3D11ShaderResourceView* Area_Mdbuild_Wall06_Diffuse;
 	ID3D11ShaderResourceView* Indoor_OutDoor_MDSkyBox;
+	ID3D11ShaderResourceView* Area_MdBuild_KnightHQ02_Assembly01_Diffuse;
+	ID3D11ShaderResourceView* Area_MdBuild_All_Diffuse;
+	ID3D11ShaderResourceView* Area_Mdbuild_Edge01_Diffuse;
+	ID3D11ShaderResourceView* Area_MdBuild_Wall09_Diffuse; 
+	ID3D11ShaderResourceView* Area_MdBuild_Column01_Diffuse;
+	ID3D11ShaderResourceView* Area_MdBuild_House_Roof04_Diffuse;
+	ID3D11ShaderResourceView* Area_MdBuild_House_Roof05_Diffuse;
+	ID3D11ShaderResourceView* Stages_Wood_Pillar_02_T2_Diffuse;
+	ID3D11ShaderResourceView* Area_MdProps_Gadget02_Diffuse;
+	ID3D11ShaderResourceView* Area_MdBuild_Window50_Diffuse;
+	ID3D11ShaderResourceView* Area_MdBuild_Window30_Diffuse;
+	ID3D11ShaderResourceView* Area_MdBuild_Window_A_Diffuse;
+	ID3D11ShaderResourceView* Area_Mdbuild_ManorWall01_Diffuse;
+	ID3D11ShaderResourceView* Area_MdBuild_House_Wall07_Diffuse; 
+	ID3D11ShaderResourceView* Stages_CyTree02_Leaf_Diffuse; 
+	ID3D11ShaderResourceView* Stages_Tree04_Bark_Diffuse;
+	ID3D11ShaderResourceView* Area_MdBuild_Wall08_Diffuse; 
+
+	ID3D11ShaderResourceView* Area_MdBuild_Church01_Diffuse;
+	ID3D11ShaderResourceView* Area_MdBuild_Church02_Diffuse;
+	ID3D11ShaderResourceView* Area_MdBuild_Flag_Diffuse;
+	ID3D11ShaderResourceView* Indoor_MdBuild_Church_Ground01_Diffuse;
+	ID3D11ShaderResourceView* Indoor_MdBuild_Church_GroundPattern01_Diffuse;
+	ID3D11ShaderResourceView* Indoor_MdBuild_Church_Stairs01_Diffuse;
+	ID3D11ShaderResourceView* Indoor_MdBuild_Church_Wall01_Diffuse;
+	ID3D11ShaderResourceView* Indoor_MdBuild_Church_Wall02_Diffuse;
+	ID3D11ShaderResourceView* Indoor_Mdprops_Church_Squate02_Diffuse; 
+	ID3D11ShaderResourceView* Indoor_MdProps_Church_Item01_Diffuse;
+	ID3D11ShaderResourceView* Indoor_Mdprops_Church_Lights01_Diffuse; 
+	ID3D11ShaderResourceView* Indoor_MdBuild_WindowEffect04_NoStream;
 
 	HashMap<uint64_t, FbxNode*, HashUInt64, EqualUInt64> fbxNodes = 
 		HashMap<uint64_t, FbxNode*, HashUInt64, EqualUInt64>(

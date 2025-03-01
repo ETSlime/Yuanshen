@@ -1,7 +1,7 @@
 //*****************************************************************************
 // 定数バッファ
 //*****************************************************************************
-cbuffer SkyBoxBuffer : register(b12)
+cbuffer SkyBoxBuffer : register(b9)
 {
     matrix view;
     matrix projection;
@@ -22,6 +22,12 @@ struct VS_OUTPUT
     int faceIndex : TEXCOORD1;
 };
 
+//*****************************************************************************
+// グローバル変数
+//*****************************************************************************
+Texture2D skyboxDayTextures[6] : register(t0);
+Texture2D skyboxNightTextures[6] : register(t6);
+SamplerState samplerState : register(s2);
 
 //=============================================================================
 // 頂点シェーダ
@@ -38,44 +44,43 @@ VS_OUTPUT VS(VS_INPUT input)
     return output;
 }
 
-
-//*****************************************************************************
-// グローバル変数
-//*****************************************************************************
-Texture2D skyboxDayTextures[6] : register(t0);
-Texture2D skyboxNightTextures[6] : register(t6);
-SamplerState samplerState : register(s2);
-
 //=============================================================================
 // ピクセルシェーダ
 //=============================================================================
 float4 PS(VS_OUTPUT input) : SV_TARGET
 {
     int faceIndex = input.faceIndex;
-    float4 color = float4(0.0f, 0.0f, 0.0f, 0.0f);
-    
+    float4 dayColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    float4 nightColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
     switch (input.faceIndex)
     {
         case 0:
-            color = skyboxDayTextures[0].Sample(samplerState, input.texCoord);
+            dayColor = skyboxDayTextures[0].Sample(samplerState, input.texCoord);
+            nightColor = skyboxNightTextures[0].Sample(samplerState, input.texCoord);
             break;
         case 1:
-            color = skyboxDayTextures[1].Sample(samplerState, input.texCoord);
+            dayColor = skyboxDayTextures[1].Sample(samplerState, input.texCoord);
+            nightColor = skyboxNightTextures[1].Sample(samplerState, input.texCoord);
             break;
         case 2:
-            color = skyboxDayTextures[2].Sample(samplerState, input.texCoord);
+            dayColor = skyboxDayTextures[2].Sample(samplerState, input.texCoord);
+            nightColor = skyboxNightTextures[2].Sample(samplerState, input.texCoord);
             break;
         case 3:
-            color = skyboxDayTextures[3].Sample(samplerState, input.texCoord);
+            dayColor = skyboxDayTextures[3].Sample(samplerState, input.texCoord);
+            nightColor = skyboxNightTextures[3].Sample(samplerState, input.texCoord);
             break;
         case 4:
-            color = skyboxDayTextures[4].Sample(samplerState, input.texCoord);
+            dayColor = skyboxDayTextures[4].Sample(samplerState, input.texCoord);
+            nightColor = skyboxNightTextures[4].Sample(samplerState, input.texCoord);
             break;
         case 5:
-            color = skyboxDayTextures[5].Sample(samplerState, input.texCoord);
+            dayColor = skyboxDayTextures[5].Sample(samplerState, input.texCoord);
+            nightColor = skyboxNightTextures[5].Sample(samplerState, input.texCoord);
             break;
     }
-    
-    return color;
+    float4 finalColor = lerp(dayColor, nightColor, saturate(blendFactor));
+
+    return finalColor;
 
 }

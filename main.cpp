@@ -24,6 +24,7 @@
 #include "Player.h"
 #include "CollisionManager.h"
 #include "Skybox.h"
+#include <random>
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
@@ -268,7 +269,7 @@ HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	mapEditor.Init();
 
 	// skyboxの初期化
-	skybox = new Skybox(renderer.GetDevice(), renderer.GetDeviceContext());
+	skybox = new Skybox();
 
 	// ライトを有効化
 	renderer.SetLightEnable(TRUE);
@@ -343,8 +344,7 @@ void Draw(void)
 	// バックバッファクリア
 	renderer.Clear();
 
-
-	skybox->Draw(XMLoadFloat4x4(&camera->mtxView), XMLoadFloat4x4(&camera->mtxProjection));
+	//skybox->Draw(XMLoadFloat4x4(&camera->mtxView), XMLoadFloat4x4(&camera->mtxProjection));
 
 	for (int lightIdx = 2; lightIdx >= 0; lightIdx--)
 	{
@@ -392,6 +392,10 @@ void Draw(void)
 	player->Draw();
 	ground->Draw();
 
+	renderer.SetRenderInstance();
+	ground->Draw();
+
+
 	//SetOffScreenRender();
 	//DrawScene();
 
@@ -438,3 +442,29 @@ char* GetDebugStr(void)
 	return g_DebugStr;
 }
 #endif
+
+int GetRand(int min, int max)
+{
+	static int flagRand = 0;
+	static std::mt19937 g_mt;
+
+	if (flagRand == 0)
+	{
+		// ランダム生成準備
+		std::random_device rnd;	// 非決定的な乱数生成器
+		g_mt.seed(rnd());		// メルセンヌ・ツイスタ版　引数は初期SEED
+		flagRand = 1;
+	}
+
+	std::uniform_int_distribution<> random(min, max);	// 生成ランダムは0～100の範囲
+	int answer = random(g_mt);
+	return answer;
+}
+
+
+float GetRandFloat(float min, float max) 
+{
+	static std::mt19937 g_mt(std::random_device{}());
+	std::uniform_real_distribution<float> dist(min, max);
+	return dist(g_mt);
+}

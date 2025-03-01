@@ -7,6 +7,8 @@
 #pragma once
 #include "GameObject.h"
 #include "SimpleArray.h"
+#include "Grass.h"
+#include "Town.h"
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
@@ -16,8 +18,10 @@
 #define	MODEL_FIELD					"data/MODEL/Environment/Land.obj"
 #define	MODEL_TREE_NAME				"Tree.fbx"
 #define	MODEL_FIELD_NAME			"Land.fbx"
-#define	MODEL_TOWN_NAME				"Knight.fbx"
+#define	MODEL_TOWN_NAME				"kt.fbx"
 
+#define WORLD_MAX			(XMFLOAT3(200000.0f, 200000.0f, 200000.0f))
+#define WORLD_MIN			(XMFLOAT3(-200000.0f, -200000.0f, -200000.0f))
 //*****************************************************************************
 // 構造体定義
 //*****************************************************************************
@@ -40,6 +44,8 @@ struct GROUND
 
 };
 
+
+
 class Ground
 {
 public:
@@ -50,5 +56,7 @@ public:
 private:
 	SimpleArray<GameObject<SkinnedMeshModelInstance>*> skinnedMeshGroundGO;
 	SimpleArray<GameObject<ModelInstance>*>	groundGO;
+	Town* town;
+	Grass* grass;
 	Renderer& renderer = Renderer::get_instance();
 };

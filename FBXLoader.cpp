@@ -158,7 +158,7 @@ bool FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
 
     for (auto& it : model.meshDataMap)
     {
-
+        model.MeshDataCnt++;
         ModelData* modelData = it.value;
         
         XMFLOAT3 minPoint = XMFLOAT3(FLT_MAX, FLT_MAX, FLT_MAX);
@@ -2453,9 +2453,9 @@ bool FBXLoader::ParseUV(FILE* file, SkinnedMeshModel& model, GeometryType geomet
                         }
                         else if (modelData->normalLoc == VertexDataLocation::Vertex)
                         {
-                            normal0 = modelData->mesh->VerticesTemp[i].Normal;
-                            normal1 = modelData->mesh->VerticesTemp[i - 1].Normal;
-                            normal2 = modelData->mesh->VerticesTemp[i - 2].Normal;
+                            //normal0 = modelData->mesh->VerticesTemp[i].Normal;
+                            //normal1 = modelData->mesh->VerticesTemp[i - 1].Normal;
+                            //normal2 = modelData->mesh->VerticesTemp[i - 2].Normal;
                         }
                         int vertexIndex0 = modelData->mesh->IndicesData[i].Index;
                         int vertexIndex1 = modelData->mesh->IndicesData[i - 1].Index;

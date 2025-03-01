@@ -415,7 +415,7 @@ void MapEditor::UpdateMouseDrag()
 
 void MapEditor::Draw()
 {
-	if (renderer.GetRenderMode() == RENDER_MODE_SHADOW) return;
+	if (renderer.GetRenderMode() == RenderMode::OBJ_SHADOW) return;
 
 	Model* model = GetCurSelectedModel();
 

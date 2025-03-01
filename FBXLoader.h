@@ -94,7 +94,10 @@ enum class ModelType
 	AbyssMage,
 	Tree,
 	Field,
-	Town,
+	Town_LOD0,
+	Town_LOD1,
+	Town_LOD2,
+	Church,
 };
 
 //*****************************************************************************

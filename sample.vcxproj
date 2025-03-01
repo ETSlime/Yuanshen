@@ -143,6 +143,7 @@
     <ClInclude Include="enemy.h" />
     <ClInclude Include="field.h" />
     <ClInclude Include="GameObject.h" />
+    <ClInclude Include="Grass.h" />
     <ClInclude Include="Ground.h" />
     <ClInclude Include="HashMap.h" />
     <ClInclude Include="Hilichurl.h" />
@@ -154,7 +155,7 @@
     <ClInclude Include="MapEditor.h" />
     <ClInclude Include="FBXLoader.h" />
     <ClInclude Include="Mitachurl.h" />
-    <ClInclude Include="model.h" />
+    <ClInclude Include="Model.h" />
     <ClInclude Include="OctreeNode.h" />
     <ClInclude Include="offScreenRender.h" />
     <ClInclude Include="Player.h" />
@@ -169,6 +170,7 @@
     <ClInclude Include="Skybox.h" />
     <ClInclude Include="sprite.h" />
     <ClInclude Include="TextureMgr.h" />
+    <ClInclude Include="Town.h" />
     <ClInclude Include="Vertex.h" />
   </ItemGroup>
   <ItemGroup>
@@ -181,6 +183,7 @@
     <ClCompile Include="FBXLoader.cpp" />
     <ClCompile Include="field.cpp" />
     <ClCompile Include="GameObject.cpp" />
+    <ClCompile Include="Grass.cpp" />
     <ClCompile Include="Ground.cpp" />
     <ClCompile Include="Hilichurl.cpp" />
     <ClCompile Include="input.cpp" />
@@ -190,7 +193,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MapEditor.cpp" />
     <ClCompile Include="Mitachurl.cpp" />
-    <ClCompile Include="model.cpp" />
+    <ClCompile Include="Model.cpp" />
     <ClCompile Include="offScreenRender.cpp" />
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="Sigewinne.cpp" />
@@ -201,6 +204,7 @@
     <ClCompile Include="Skybox.cpp" />
     <ClCompile Include="sprite.cpp" />
     <ClCompile Include="TextureMgr.cpp" />
+    <ClCompile Include="Town.cpp" />
     <ClCompile Include="Vertex.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

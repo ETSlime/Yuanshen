@@ -11,7 +11,10 @@
 // ƒ}ƒNƒ’è‹`
 //*****************************************************************************
 constexpr float SKYBOX_SIZE = 100.0f;
-constexpr float CYCLE_DURATION = 500.0f;
+constexpr float CYCLE_DURATION = 3000.0f;
+
+float Skybox::blendFactor = 0.0f;
+
 static char* dayTextures[6] =
 {
     "data/TEXTURE/SkyBox/LS cartoon 05_out_0.png",
@@ -31,9 +34,11 @@ static char* nightTextures[6] =
     "data/TEXTURE/SkyBox/LS nigth 02_out_5.png",
 };
 
-Skybox::Skybox(ID3D11Device* device, ID3D11DeviceContext* context) 
-	: m_device(device), m_context(context) 
+Skybox::Skybox() 
+	: m_device(Renderer::get_instance().GetDevice()), m_context(Renderer::get_instance().GetDeviceContext())
 {
+    dayToNight = true;
+    m_timeOfDay = 0.0f;
     Initialize();
 }
 
@@ -44,6 +49,8 @@ Skybox::~Skybox()
     if (m_vertexShader) m_vertexShader->Release();
     if (m_pixelShader) m_pixelShader->Release();
     if (m_samplerState) m_samplerState->Release();
+    if (m_skyboxBuffer) m_skyboxBuffer->Release();
+
     for (auto& srv : skyboxDaySRVs)
     {
         if (srv) srv->Release();
@@ -85,7 +92,7 @@ bool Skybox::Initialize()
     matrixBufferDesc.ByteWidth = sizeof(SkyBoxBuffer);
     matrixBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     matrixBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    m_device->CreateBuffer(&matrixBufferDesc, nullptr, &m_matrixBuffer);
+    m_device->CreateBuffer(&matrixBufferDesc, nullptr, &m_skyboxBuffer);
 
     D3D11_DEPTH_STENCIL_DESC depthStencilDesc = {};
     depthStencilDesc.DepthEnable = TRUE;
@@ -98,9 +105,25 @@ bool Skybox::Initialize()
 
 void Skybox::Update(void)
 {
-    m_timeOfDay++;
-    if (m_timeOfDay > CYCLE_DURATION)
-        m_timeOfDay -= CYCLE_DURATION;
+    if (dayToNight)
+    {
+        m_timeOfDay++;
+        if (m_timeOfDay >= CYCLE_DURATION)
+        {
+            m_timeOfDay = CYCLE_DURATION;
+            dayToNight = false;
+        }
+    }
+    else
+    {
+        m_timeOfDay--;
+        if (m_timeOfDay <= 0.0f)
+        {
+            m_timeOfDay = 0.0f;
+            dayToNight = true;
+        }
+    }
+
 }
 
 void Skybox::CreateCube() 
@@ -201,6 +224,21 @@ void Skybox::LoadShaders()
     pPSBlob->Release();
 }
 
+float Skybox::AdjustBlendFactor(float time)
+{
+    if (time < 0.5f) 
+    {
+        // ’©‚©‚ç—[•ûi’x‚ß‚Ì•Ï‰»j
+        return 8.0f * powf(time, 4.0f);
+    }
+    else 
+    {
+        // —[•û‚©‚ç–éi‘¬‚ß‚Ì•Ï‰»j
+        float t = (time - 0.5f) * 2.0f; // 0.0`1.0‚É³‹K‰»
+        return 1.0f - powf(1.0f - t, 4.0f) * 0.5f;
+    }
+}
+
 void Skybox::Draw(const XMMATRIX& viewMatrix, const XMMATRIX& projectionMatrix)
 {
     Renderer::get_instance().ResetRenderTarget();
@@ -213,24 +251,25 @@ void Skybox::Draw(const XMMATRIX& viewMatrix, const XMMATRIX& projectionMatrix)
     view.r[3] = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f); // Remove translation
 
     D3D11_MAPPED_SUBRESOURCE mappedResource;
-    m_context->Map(m_matrixBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+    m_context->Map(m_skyboxBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
     SkyBoxBuffer* dataPtr = (SkyBoxBuffer*)mappedResource.pData;
     dataPtr->view = XMMatrixTranspose(view);
     dataPtr->projection = XMMatrixTranspose(projectionMatrix);
-    float blendFactor = abs(sin(m_timeOfDay / CYCLE_DURATION * DirectX::XM_PI));
-    //dataPtr->blendFactor = blendFactor;
-    m_context->Unmap(m_matrixBuffer, 0);
+    blendFactor = AdjustBlendFactor(m_timeOfDay / CYCLE_DURATION);
+    dataPtr->blendFactor = blendFactor;
+    m_context->Unmap(m_skyboxBuffer, 0);
 
     m_context->IASetInputLayout(m_inputLayout);
     m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_context->IASetVertexBuffers(0, 1, &m_vertexBuffer, &stride, &offset);
 
     m_context->VSSetShader(m_vertexShader, nullptr, 0);
-    m_context->VSSetConstantBuffers(12, 1, &m_matrixBuffer);
+    m_context->VSSetConstantBuffers(9, 1, &m_skyboxBuffer);
     m_context->PSSetShader(m_pixelShader, nullptr, 0);
     m_context->PSSetShaderResources(0, 6, skyboxDaySRVs);
     m_context->PSSetShaderResources(6, 6, skyboxNightSRVs);
     m_context->PSSetSamplers(2, 1, &m_samplerState);
+    m_context->PSSetConstantBuffers(9, 1, &m_skyboxBuffer);
 
     m_context->OMSetDepthStencilState(m_depthStencilState, 0);
     m_context->Draw(36, 0);

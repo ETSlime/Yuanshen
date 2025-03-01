@@ -105,6 +105,9 @@ public:
 	// モデルの指定マテリアルのディフューズをセットする。
 	void SetModelDiffuse(int mno, XMFLOAT4 diffuse);
 
+	const MODEL_DATA* GetModelData(void) { return modelData; }
+	const SUBSET* GetSubset(void) { return SubsetArray; }
+	unsigned int GetSubNum(void) { return SubsetNum; }
 	BOUNDING_BOX GetBoundingBox() { return boundingBox; }
 
 	static Model* StoreModel(char* modelPath);

@@ -30,7 +30,6 @@ Sigewinne::Sigewinne()
 	Instantiate("data/MODEL/character/Sigewinne", "Character_output.fbx", ModelType::Sigewinne);
 	instance.collider.type = ColliderType::PLAYER;
 	instance.collider.owner = this;
-	//instance.pModel->SetBoundingBoxSize(XMFLOAT3(0.9f, 0.9f, 0.9f));
 	CollisionManager::get_instance().RegisterCollider(&instance.collider);
 
 	LoadWeapon("data/MODEL/character/Sigewinne", "bow.fbx");

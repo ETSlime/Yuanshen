@@ -140,7 +140,9 @@ void SkinnedMeshModel::DrawModel()
             material.noTexSampling = FALSE;
         else
             material.noTexSampling = TRUE;
-        if (modelType == ModelType::Town)
+        if (modelType == ModelType::Town_LOD0 ||
+            modelType == ModelType::Town_LOD1 ||
+            modelType == ModelType::Town_LOD2)
             material.noTexSampling = FALSE;
 
         Renderer::get_instance().SetMaterial(material);
@@ -164,8 +166,17 @@ void SkinnedMeshModel::DrawModel()
         case ModelType::Field:
             DrawField(modelData);
             break;
-        case ModelType::Town:
-            DrawTown(modelData);
+        case ModelType::Town_LOD0:
+            DrawTownLoD(modelData, 0);
+            break;
+        case ModelType::Town_LOD1:
+            DrawTownLoD(modelData, 1);
+            break;
+        case ModelType::Town_LOD2:
+            DrawTownLoD(modelData, 2);
+            break;
+        case ModelType::Church:
+            DrawChurch(modelData);
             break;
         case ModelType::Weapon:
         default:
@@ -224,6 +235,43 @@ void SkinnedMeshModel::LoadTownTexture(void)
     Area_Mdcity_Lvy01_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Area_Mdcity_Lvy01_Diffuse.png");
     Area_Mdbuild_Wall06_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Area_Mdbuild_Wall06_Diffuse.png");
     Indoor_OutDoor_MDSkyBox = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Indoor_OutDoor_MDSkyBox.png");
+    Area_MdBuild_KnightHQ02_Assembly01_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Area_MdBuild_KnightHQ02_Assembly01_Diffuse.png");
+    Area_MdBuild_House_Roof05_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Area_MdBuild_House_Roof05_Diffuse.png");
+    Area_MdBuild_All_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Area_MdBuild_All_Diffuse.png");
+    Area_Mdbuild_Edge01_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Area_Mdbuild_Edge01_Diffuse.png");
+    Area_MdBuild_Wall09_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Area_MdBuild_Wall09_Diffuse.png");
+    Area_MdBuild_Column01_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Area_MdBuild_Column01_Diffuse.png");
+    Area_MdCity_Plot02_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Area_MdCity_Plot02_Diffuse.png");
+    Area_MdCity_Plot05_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Area_MdCity_Plot05_Diffuse.png");
+    Area_MdCity_Plot09_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Area_MdCity_Plot09_Diffuse.png");
+    Area_MdCity_Plot04_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Area_MdCity_Plot04_Diffuse.png");
+    Area_MdCity_Plot03_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Area_MdCity_Plot03_Diffuse.png");
+    Area_MdBuild_House_Roof04_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Area_MdBuild_House_Roof04_Diffuse.png");
+    Area_MdBuild_House_Roof05_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Area_MdBuild_House_Roof05_Diffuse.png");
+    Stages_Wood_Pillar_02_T2_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Stages_Wood_Pillar_02_T2_Diffuse.png");
+    Area_MdProps_Gadget02_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Area_MdProps_Gadget02_Diffuse.png");
+    Area_MdBuild_Window50_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Area_MdBuild_Window50_Diffuse.png");
+    Area_MdBuild_Window_A_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Area_MdBuild_Window_A_Diffuse.png");
+    Area_MdBuild_Window30_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Area_MdBuild_Window30_Diffuse.png");
+    Area_Mdbuild_ManorWall01_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Area_Mdbuild_ManorWall01_Diffuse.png");
+    Area_MdBuild_House_Wall07_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Area_MdBuild_House_Wall07_Diffuse.png");
+    Stages_CyTree02_Leaf_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Stages_CyTree02_Leaf_Diffuse.png");
+    Stages_Tree04_Bark_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Stages_Tree04_Bark_Diffuse.png");
+    Area_MdBuild_Wall08_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Knight/Area_MdBuild_Wall08_Diffuse.png");
+
+
+    Area_MdBuild_Church01_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Church/Area_MdBuild_Church01_Diffuse.png");
+    Area_MdBuild_Church02_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Church/Area_MdBuild_Church02_Diffuse.png");
+    Area_MdBuild_Flag_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Church/Area_MdBuild_Flag_Diffuse.png");
+    Indoor_MdBuild_Church_Ground01_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Church/Indoor_MdBuild_Church_Ground01_Diffuse.png");
+    Indoor_MdBuild_Church_GroundPattern01_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Church/Indoor_MdBuild_Church_GroundPattern01_Diffuse.png");
+    Indoor_MdBuild_Church_Stairs01_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Church/Indoor_MdBuild_Church_Stairs01_Diffuse.png");
+    Indoor_MdBuild_Church_Wall01_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Church/Indoor_MdBuild_Church_Wall01_Diffuse.png");
+    Indoor_MdBuild_Church_Wall02_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Church/Indoor_MdBuild_Church_Wall02_Diffuse.png");
+    Indoor_Mdprops_Church_Squate02_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Church/Indoor_Mdprops_Church_Squate02_Diffuse.png");
+    Indoor_MdProps_Church_Item01_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Church/Indoor_MdProps_Church_Item01_Diffuse.png");
+    Indoor_Mdprops_Church_Lights01_Diffuse = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Church/Indoor_Mdprops_Church_Lights01_Diffuse.png");
+    Indoor_MdBuild_WindowEffect04_NoStream = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Church/Indoor_MdBuild_WindowEffect04_NoStream.png");
 }
 
 void SkinnedMeshModel::GetBoneTransformByAnim(FbxNode* currentClipArmatureNode, uint64_t currentClipTime, SimpleArray<XMFLOAT4X4>* boneFinalTransform)
@@ -1117,28 +1165,313 @@ void SkinnedMeshModel::DrawField(ModelData* modelData)
     Renderer::get_instance().GetDeviceContext()->DrawIndexed(modelData->IndexNum, 0, 0);
 }
 
-void SkinnedMeshModel::DrawTown(ModelData* modelData)
+void SkinnedMeshModel::DrawChurch(ModelData* modelData)
 {
     int IndexNum, StartIndexLocation;
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_Mdbuild_Wall06_Diffuse);
-    CalculateDrawParameters(modelData, 0, 0.190335f, IndexNum, StartIndexLocation);
+
+    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Indoor_Mdprops_Church_Lights01_Diffuse);
+    CalculateDrawParameters(modelData, 0, 0.262f, IndexNum, StartIndexLocation);
     Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
 
-    Renderer::get_instance().SetLightModeBuffer(2);
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Indoor_OutDoor_MDSkyBox);
-    CalculateDrawParameters(modelData, 0.190335f, 0.20087f, IndexNum, StartIndexLocation);
+    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_Flag_Diffuse);
+    CalculateDrawParameters(modelData, 0.262f, 0.33f, IndexNum, StartIndexLocation);
     Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
-    Renderer::get_instance().SetLightModeBuffer(0);
 
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_Mdbuild_Wall06_Diffuse);
-    CalculateDrawParameters(modelData, 0.20087f, 1.0f, IndexNum, StartIndexLocation);
+    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Indoor_MdProps_Church_Item01_Diffuse);
+    CalculateDrawParameters(modelData, 0.33f, 0.42f, IndexNum, StartIndexLocation);
     Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+}
+
+void SkinnedMeshModel::DrawTownLoD(ModelData* modelData, int LoD)
+{
+    int IndexNum, StartIndexLocation;
+
+    if (LoD == 0)
+    {
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_Wall09_Diffuse);
+        CalculateDrawParameters(modelData, 0, 0.25f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_Mdbuild_Edge01_Diffuse);
+        CalculateDrawParameters(modelData, 0.25f, 0.79f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_House_Roof05_Diffuse);
+        CalculateDrawParameters(modelData, 0.79f, 0.81f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_Mdbuild_ManorWall01_Diffuse);
+        CalculateDrawParameters(modelData, 0.81f, 0.84f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_Window50_Diffuse);
+        CalculateDrawParameters(modelData, 0.84f, 0.92f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+    }
+    else if (LoD == 1)
+    {
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_House_Roof05_Diffuse);
+        CalculateDrawParameters(modelData, 0, 0.006f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Stages_Wood_Pillar_02_T2_Diffuse);
+        CalculateDrawParameters(modelData, 0.006f, 0.105f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_Window_A_Diffuse);
+        CalculateDrawParameters(modelData, 0.105f, 0.115f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_Mdbuild_Edge01_Diffuse);
+        CalculateDrawParameters(modelData, 0.115f, 0.123f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_Mdbuild_ManorWall01_Diffuse);
+        CalculateDrawParameters(modelData, 0.123f, 0.126f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_Wall09_Diffuse);
+        CalculateDrawParameters(modelData, 0.126f, 0.13f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_House_Wall07_Diffuse);
+        CalculateDrawParameters(modelData, 0.13f, 0.1305f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_House_Roof05_Diffuse);
+        CalculateDrawParameters(modelData, 0.1305f, 0.1365f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Stages_Wood_Pillar_02_T2_Diffuse);
+        CalculateDrawParameters(modelData, 0.1365f, 0.2355f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_Window_A_Diffuse);
+        CalculateDrawParameters(modelData, 0.2355f, 0.2455f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_Mdbuild_Edge01_Diffuse);
+        CalculateDrawParameters(modelData, 0.2455f, 0.2535f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_Mdbuild_ManorWall01_Diffuse);
+        CalculateDrawParameters(modelData, 0.2535f, 0.2565f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_Wall09_Diffuse);
+        CalculateDrawParameters(modelData, 0.2565f, 0.2616f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_House_Roof05_Diffuse);
+        CalculateDrawParameters(modelData, 0.2616f, 0.2665f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Stages_Wood_Pillar_02_T2_Diffuse);
+        CalculateDrawParameters(modelData, 0.2665f, 0.3655f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_Window_A_Diffuse);
+        CalculateDrawParameters(modelData, 0.3655f, 0.3755f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_Mdbuild_Edge01_Diffuse);
+        CalculateDrawParameters(modelData, 0.3755f, 0.3835f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_Mdbuild_ManorWall01_Diffuse);
+        CalculateDrawParameters(modelData, 0.3835f, 0.3865f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_Wall09_Diffuse);
+        CalculateDrawParameters(modelData, 0.3865f, 0.391f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_Mdbuild_Edge01_Diffuse);
+        CalculateDrawParameters(modelData, 0.391f, 0.39385f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_House_Roof04_Diffuse);
+        CalculateDrawParameters(modelData, 0.39385f, 0.39626f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Stages_Wood_Pillar_02_T2_Diffuse);
+        CalculateDrawParameters(modelData, 0.39626f, 0.471f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_Window_A_Diffuse);
+        CalculateDrawParameters(modelData, 0.471f, 0.483f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_Mdbuild_ManorWall01_Diffuse);
+        CalculateDrawParameters(modelData, 0.483f, 0.4874f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_Mdbuild_Edge01_Diffuse);
+        CalculateDrawParameters(modelData, 0.4874f, 0.4895f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_House_Roof04_Diffuse);
+        CalculateDrawParameters(modelData, 0.4895f, 0.49191f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Stages_Wood_Pillar_02_T2_Diffuse);
+        CalculateDrawParameters(modelData, 0.49191f, 0.56665f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_Window_A_Diffuse);
+        CalculateDrawParameters(modelData, 0.56665f, 0.57865f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_Mdbuild_ManorWall01_Diffuse);
+        CalculateDrawParameters(modelData, 0.57865f, 0.58378f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Stages_Wood_Pillar_02_T2_Diffuse);
+        CalculateDrawParameters(modelData, 0.58378f, 0.6708f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_Mdbuild_ManorWall01_Diffuse);
+        CalculateDrawParameters(modelData, 0.6708f, 0.672f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_Mdbuild_Edge01_Diffuse);
+        CalculateDrawParameters(modelData, 0.672f, 0.6752f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_Mdbuild_ManorWall01_Diffuse);
+        CalculateDrawParameters(modelData, 0.6752f, 0.677f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_Mdbuild_Edge01_Diffuse);
+        CalculateDrawParameters(modelData, 0.677f, 0.67754f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_House_Roof04_Diffuse);
+        CalculateDrawParameters(modelData, 0.67754f, 0.67882f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_House_Wall07_Diffuse);
+        CalculateDrawParameters(modelData, 0.67882f, 0.682f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_Window_A_Diffuse);
+        CalculateDrawParameters(modelData, 0.682f, 0.6878f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Stages_Wood_Pillar_02_T2_Diffuse);
+        CalculateDrawParameters(modelData, 0.6878f, 0.77482f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_Mdbuild_ManorWall01_Diffuse);
+        CalculateDrawParameters(modelData, 0.77482f, 0.7761f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_Mdbuild_Edge01_Diffuse);
+        CalculateDrawParameters(modelData, 0.7761f, 0.7793f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_Mdbuild_ManorWall01_Diffuse);
+        CalculateDrawParameters(modelData, 0.7793f, 0.7811f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_Mdbuild_Edge01_Diffuse);
+        CalculateDrawParameters(modelData, 0.7811f, 0.78164f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_House_Roof04_Diffuse);
+        CalculateDrawParameters(modelData, 0.78164f, 0.78292f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_House_Wall07_Diffuse);
+        CalculateDrawParameters(modelData, 0.78292f, 0.7861f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_Window_A_Diffuse);
+        CalculateDrawParameters(modelData, 0.7861f, 0.7919f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_Column01_Diffuse);
+        CalculateDrawParameters(modelData, 0.7919f, 0.8339f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Stages_CyTree02_Leaf_Diffuse);
+        CalculateDrawParameters(modelData, 0.8339f, 0.843f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Stages_Tree04_Bark_Diffuse);
+        CalculateDrawParameters(modelData, 0.843f, 0.845f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Stages_CyTree02_Leaf_Diffuse);
+        CalculateDrawParameters(modelData, 0.845f, 0.86f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Stages_Tree04_Bark_Diffuse);
+        CalculateDrawParameters(modelData, 0.86f, 0.865f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Stages_CyTree02_Leaf_Diffuse);
+        CalculateDrawParameters(modelData, 0.865f, 0.878f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Stages_Tree04_Bark_Diffuse);
+        CalculateDrawParameters(modelData, 0.878f, 0.885f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Stages_CyTree02_Leaf_Diffuse);
+        CalculateDrawParameters(modelData, 0.885f, 1.0f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+    }
+    else if (LoD == 2)
+    {
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_All_Diffuse);
+        CalculateDrawParameters(modelData, 0, 0.265f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdCity_Plot05_Diffuse);
+        CalculateDrawParameters(modelData, 0.265f, 0.277f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdCity_Plot04_Diffuse);
+        CalculateDrawParameters(modelData, 0.277f, 0.29f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdCity_Plot03_Diffuse);
+        CalculateDrawParameters(modelData, 0.29f, 0.29576f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdCity_Plot02_Diffuse);
+        CalculateDrawParameters(modelData, 0.29576f, 0.479485f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_All_Diffuse);
+        CalculateDrawParameters(modelData, 0.479485f, 0.564f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdProps_Gadget02_Diffuse);
+        CalculateDrawParameters(modelData, 0.59f, 0.60255f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdBuild_All_Diffuse);
+        CalculateDrawParameters(modelData, 0.60255f, 0.986f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+
+        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &Area_MdCity_Plot09_Diffuse);
+        CalculateDrawParameters(modelData, 0.986f, 1.0f, IndexNum, StartIndexLocation);
+        Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
+    }
 }
 
 
 void SkinnedMeshModel::DrawBoundingBox(ModelData* modelData)
 {
-    if (Renderer::get_instance().GetRenderMode() == RENDER_MODE_SHADOW) return;
+    if (Renderer::get_instance().GetRenderMode() == RenderMode::SKINNED_MESH_SHADOW) return;
 
     Renderer::get_instance().SetFillMode(D3D11_FILL_WIREFRAME);
 

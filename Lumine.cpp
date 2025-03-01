@@ -28,6 +28,9 @@
 Lumine::Lumine()
 {
 	Instantiate("data/MODEL/character/Lumine", "Character_output.fbx", ModelType::Lumine);
+	instance.collider.type = ColliderType::PLAYER;
+	instance.collider.owner = this;
+	CollisionManager::get_instance().RegisterCollider(&instance.collider);
 
 	LoadWeapon("data/MODEL/character/Lumine", "Mitsurugi.fbx");
 

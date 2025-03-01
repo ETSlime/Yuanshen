@@ -42,10 +42,14 @@ enum CULL_MODE
 	CULL_MODE_NUM
 };
 
-enum RenderMode
+enum class RenderMode
 {
-	RENDER_MODE_SCENE,
-	RENDER_MODE_SHADOW,
+	OBJ,
+	SKINNED_MESH,
+	OBJ_SHADOW,
+	SKINNED_MESH_SHADOW,
+	INSTANCE,
+	INSTANCE_SHADOW,
 };
 
 //*********************************************************
@@ -285,15 +289,16 @@ public:
 	void SetRenderSkinnedMeshShadowMap(int lightIdx);
 	void SetRenderObject(void);
 	void SetRenderSkinnedMeshModel(void);
+	void SetRenderInstance(void);
+	void SetRenderInstanceShadowMap(void);
 	void SetModelInputLayout(void);
 	void SetSkinnedMeshInputLayout(void);
 	void ResetRenderTarget(void);
 	void SetLightModeBuffer(int mode);
 	void ClearShadowDSV(int lightIdx);
 
-	int GetRenderMode(void);
-	bool IsRenderSkinnedMeshModel(void) { return renderSkinnedMeshModel; }
-	bool IsRenderObjModel(void) { return renderObjModel; }
+	RenderMode GetRenderMode(void);
+	void SetRenderMode(RenderMode mode);
 
 
 private:
@@ -302,9 +307,6 @@ private:
 	void SetFogBuffer(void);
 
 	D3D_FEATURE_LEVEL       g_FeatureLevel = D3D_FEATURE_LEVEL_11_0;
-
-	bool renderSkinnedMeshModel = false;
-	bool renderObjModel = false;
 
 	ID3D11Device* g_D3DDevice = NULL;
 	ID3D11DeviceContext* g_ImmediateContext = NULL;
@@ -357,7 +359,7 @@ private:
 	FOG_CBUFFER		g_Fog;
 
 	FUCHI			g_Fuchi;
-	INT				g_RenderMode = RENDER_MODE_SCENE;
+	RenderMode		g_RenderMode;
 
 	float g_ClearColor[4] = { 0.3f, 0.3f, 0.3f, 1.0f };	// îwåiêF
 };

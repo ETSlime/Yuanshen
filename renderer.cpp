@@ -300,9 +300,7 @@ void Renderer::SetShaderCamera(XMFLOAT3 pos)
 
 void Renderer::SetRenderShadowMap(int lightIdx)
 {
-	g_RenderMode = RENDER_MODE_SHADOW;
-	renderObjModel = true;
-	renderSkinnedMeshModel = false;
+	g_RenderMode = RenderMode::OBJ_SHADOW;
 
 	ID3D11ShaderResourceView* nullSRV[1] = { nullptr };
 	GetDeviceContext()->PSSetShaderResources(1, 1, nullSRV);
@@ -319,9 +317,8 @@ void Renderer::SetRenderShadowMap(int lightIdx)
 
 void Renderer::SetRenderSkinnedMeshShadowMap(int lightIdx)
 {
-	g_RenderMode = RENDER_MODE_SHADOW;
-	renderObjModel = false;
-	renderSkinnedMeshModel = true;
+	g_RenderMode = RenderMode::SKINNED_MESH_SHADOW;
+
 
 	ID3D11ShaderResourceView* nullSRV[1] = { nullptr };
 	GetDeviceContext()->PSSetShaderResources(1, 1, nullSRV);
@@ -338,9 +335,7 @@ void Renderer::SetRenderSkinnedMeshShadowMap(int lightIdx)
 
 void Renderer::SetRenderSkinnedMeshModel(void)
 {
-	g_RenderMode = RENDER_MODE_SCENE;
-	renderObjModel = false;
-	renderSkinnedMeshModel = true;
+	g_RenderMode = RenderMode::SKINNED_MESH;
 
 	ResetRenderTarget();
 
@@ -350,6 +345,16 @@ void Renderer::SetRenderSkinnedMeshModel(void)
 	g_ImmediateContext->PSSetConstantBuffers(11, 1, &g_BoneMatrixBuffer);
 
 	GetDeviceContext()->PSSetShaderResources(1, LIGHT_MAX, g_ShadowMapSRV);
+}
+
+void Renderer::SetRenderInstance(void)
+{
+	g_RenderMode = RenderMode::INSTANCE;
+}
+
+void Renderer::SetRenderInstanceShadowMap(void)
+{
+	g_RenderMode = RenderMode::INSTANCE_SHADOW;
 }
 
 void Renderer::SetModelInputLayout(void)
@@ -364,9 +369,8 @@ void Renderer::SetSkinnedMeshInputLayout(void)
 
 void Renderer::SetRenderObject(void)
 {
-	g_RenderMode = RENDER_MODE_SCENE;
-	renderObjModel = true;
-	renderSkinnedMeshModel = false;
+	g_RenderMode = RenderMode::OBJ;
+
 	ResetRenderTarget();
 	//GetDeviceContext()->ClearDepthStencilView(g_SceneDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
@@ -972,7 +976,12 @@ void Renderer::SetLightModeBuffer(int mode)
 	g_ImmediateContext->UpdateSubresource(g_LightModeBuffer, 0, NULL, &md, 0, 0);
 }
 
-int Renderer::GetRenderMode(void)
+RenderMode Renderer::GetRenderMode(void)
 {
 	return g_RenderMode;
+}
+
+void Renderer::SetRenderMode(RenderMode mode)
+{
+	g_RenderMode = mode;
 }

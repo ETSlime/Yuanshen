@@ -4,6 +4,41 @@
 // 定数バッファ
 //*****************************************************************************
 
+// マテリアルバッファ
+struct MATERIAL
+{
+    float4 Ambient;
+    float4 Diffuse;
+    float4 Specular;
+    float4 Emission;
+    float Shininess;
+    int noTexSampling;
+    int lightmapSampling;
+    float Dummy[2]; //16byte境界用
+};
+
+// ライト用バッファ
+struct LIGHT
+{
+    float4 Direction[5];
+    float4 Position[5];
+    float4 Diffuse[5];
+    float4 Ambient[5];
+    float4 Attenuation[5];
+    int4 Flags[5];
+    int Enable;
+    int Dummy[3]; //16byte境界用
+    float4x4 LightViewProj;
+};
+
+struct FOG
+{
+    float4 Distance;
+    float4 FogColor;
+    int Enable;
+    float Dummy[3]; //16byte境界用
+};
+
 struct LightViewProjBuffer
 {
     matrix ProjView[5];
@@ -57,6 +92,29 @@ cbuffer ProjectionBuffer : register( b2 )
 	matrix Projection;
 }
 
+cbuffer MaterialBuffer : register(b3)
+{
+    MATERIAL Material;
+}
+
+cbuffer LightBuffer : register(b4)
+{
+    LIGHT Light;
+}
+
+// フォグ用バッファ
+cbuffer FogBuffer : register(b5)
+{
+    FOG Fog;
+};
+
+// 縁取り用バッファ
+cbuffer Fuchi : register(b6)
+{
+    int fuchi;
+    int fill[3];
+};
+
 cbuffer CameraPosBuffer : register(b7)
 {
     float4 CameraPos;
@@ -72,76 +130,11 @@ cbuffer ModeBuffer : register(b10)
     MODE md;
 }
 
-// マテリアルバッファ
-struct MATERIAL
-{
-	float4		Ambient;
-	float4		Diffuse;
-	float4		Specular;
-	float4		Emission;
-	float		Shininess;
-	int			noTexSampling;
-    int lightmapSampling;
-	float		Dummy[2];//16byte境界用
-};
-
-cbuffer MaterialBuffer : register( b3 )
-{
-	MATERIAL	Material;
-}
 
 cbuffer BoneTransformBuffer : register(b11)
 {
     matrix BoneTransforms[256];
 }
-
-// ライト用バッファ
-struct LIGHT
-{
-	float4		Direction[5];
-	float4		Position[5];
-	float4		Diffuse[5];
-	float4		Ambient[5];
-	float4		Attenuation[5];
-	int4		Flags[5];
-	int			Enable;
-	int			Dummy[3];//16byte境界用
-    float4x4    LightViewProj;
-};
-
-cbuffer LightBuffer : register( b4 )
-{
-	LIGHT		Light;
-}
-
-struct FOG
-{
-	float4		Distance;
-	float4		FogColor;
-	int			Enable;
-	float		Dummy[3];//16byte境界用
-};
-
-// フォグ用バッファ
-cbuffer FogBuffer : register( b5 )
-{
-	FOG			Fog;
-};
-
-// 縁取り用バッファ
-cbuffer Fuchi : register(b6)
-{
-	int			fuchi;
-	int			fill[3];
-};
-
-
-cbuffer CameraBuffer : register(b7)
-{
-	float4 Camera;
-}
-
-
 
 //=============================================================================
 // 頂点シェーダ
@@ -582,7 +575,7 @@ void SkinnedMeshPixelShader(PixelInputType input,
                     }
 
  
-                    shadowFactor = shadow / totalWeight;
+                    shadowFactor = shadow / totalWeight + 0.2f;
                 }
 
                 if (md.mode != 2)

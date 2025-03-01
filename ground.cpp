@@ -18,16 +18,16 @@
 #define MAX_TREE			(0)
 
 #define TREE_SIZE			(350.0f)
-#define TOWN_SIZE			(125850.0f)
-#define FIELD_SIZE			(76850.0f)
-#define WORLD_MAX			(XMFLOAT3(200000.0f, 200000.0f, 200000.0f))
-#define WORLD_MIN			(XMFLOAT3(-200000.0f, -200000.0f, -200000.0f))
+//#define TOWN_SIZE			(125850.0f)
+#define TOWN_SIZE			(550.0f)
+#define FIELD_SIZE			(126850.0f)
 
 //=============================================================================
 // èâä˙âªèàóù
 //=============================================================================
 Ground::Ground()
 {
+
 	for (int i = 0; i < MAX_TREE; i++)
 	{
 		GameObject<SkinnedMeshModelInstance>* treeGO = new GameObject<SkinnedMeshModelInstance>();
@@ -50,20 +50,7 @@ Ground::Ground()
 	worldBB.minPoint = WORLD_MIN;
 	CollisionManager::get_instance().InitOctree(worldBB);
 
-	GameObject<SkinnedMeshModelInstance>* townGO = new GameObject<SkinnedMeshModelInstance>();
-	townGO->Instantiate(MODEL_TOWN_PATH, MODEL_TOWN_NAME, ModelType::Town);
-	townGO->SetScale(XMFLOAT3(TOWN_SIZE, TOWN_SIZE, TOWN_SIZE));
-	townGO->SetRotation(XMFLOAT3(0, XM_PI * 0.5f, 0.0f));
-	townGO->SetPosition(XMFLOAT3(TOWN_SIZE * 0.2f, -TOWN_SIZE * 0.05f, -TOWN_SIZE * 0.5f));
-	townGO->GetSkinnedMeshModel()->LoadTownTexture();
-	townGO->Update();
-	XMMATRIX worldMatrix = townGO->GetWorldMatrix();
-	townGO->GetSkinnedMeshModel()->BuildTrianglesByWorldMatrix(worldMatrix);
-
-	townGO->GetSkinnedMeshModel()->BuildOctree();
-	townGO->SetRenderShadow(false);
-	townGO->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
-	skinnedMeshGroundGO.push_back(townGO);
+	//town = new Town();
 
 	GameObject<SkinnedMeshModelInstance>* fieldGO = new GameObject<SkinnedMeshModelInstance>();
 	fieldGO->Instantiate(MODEL_ENVIRONMENT_PATH, MODEL_FIELD_NAME, ModelType::Field);
@@ -71,13 +58,16 @@ Ground::Ground()
 	fieldGO->SetRotation(XMFLOAT3(XM_PI / 2, XM_PI, 0.0f));
 	fieldGO->SetPosition(XMFLOAT3(0.0f, -650.0f, 0.0f));
 	fieldGO->Update();
-	worldMatrix = fieldGO->GetWorldMatrix();
+	XMMATRIX worldMatrix = fieldGO->GetWorldMatrix();
 	fieldGO->GetSkinnedMeshModel()->BuildTrianglesByWorldMatrix(worldMatrix);
 	fieldGO->GetSkinnedMeshModel()->BuildOctree();
 	fieldGO->SetRenderShadow(false);
 	fieldGO->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
 	skinnedMeshGroundGO.push_back(fieldGO);
+	
 
+	//grass = new Grass();
+	//grass->GenerateGrassInstances(fieldGO->GetSkinnedMeshModel()->GetTriangles(), fieldGO->GetSkinnedMeshModel()->GetBoundingBox(), 75);
 }
 
 //=============================================================================
@@ -111,6 +101,9 @@ void Ground::Update(void)
 		if (skinnedMeshGroundGO[i]->GetUse() == false) continue;
 		skinnedMeshGroundGO[i]->Update();
 	}
+
+	if (town)
+		town->Update();
 }
 
 //=============================================================================
@@ -119,7 +112,16 @@ void Ground::Update(void)
 void Ground::Draw(void)
 {
 	renderer.SetLightModeBuffer(1);
-	if (renderer.IsRenderObjModel())
+
+	if (town)
+		town->Draw();
+
+	if (renderer.GetRenderMode() == RenderMode::INSTANCE)
+	{
+		if (grass)
+			grass->Draw();
+	}
+	else if (renderer.GetRenderMode() == RenderMode::OBJ)
 	{
 		int size = groundGO.getSize();
 		for (int i = 0; i < size; i++)
@@ -129,7 +131,7 @@ void Ground::Draw(void)
 			groundGO[i]->Draw();
 		}
 	}
-	else if (renderer.IsRenderSkinnedMeshModel())
+	else if (renderer.GetRenderMode() == RenderMode::SKINNED_MESH)
 	{
 		int size = skinnedMeshGroundGO.getSize();
 		for (int i = 0; i < size; i++)
@@ -139,5 +141,6 @@ void Ground::Draw(void)
 			skinnedMeshGroundGO[i]->Draw();
 		}
 	}
+
 	renderer.SetLightModeBuffer(0);
 }

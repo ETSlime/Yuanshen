@@ -28,8 +28,9 @@
 Hilichurl::Hilichurl()
 {
 	Instantiate("data/MODEL/enemy/Hilichurl", "Character_output.fbx", ModelType::Hilichurl);
-
-	instance.pModel->SetBoundingBoxSize(XMFLOAT3(0.8f, 1.0f, 0.8f));
+	instance.collider.type = ColliderType::PLAYER;
+	instance.collider.owner = this;
+	CollisionManager::get_instance().RegisterCollider(&instance.collider);
 
 	//LoadWeapon("data/MODEL/enemy/Hilichurl", "Mitsurugi.fbx");
 

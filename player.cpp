@@ -28,16 +28,17 @@ Player::Player()
 
 	//klee =  new Klee();
 
-	//lumine = new Lumine();
+	lumine = new Lumine();
 
 	//hilichurl = new Hilichurl();
 
 	//mitachurl = new Mitachurl();
 
 	Transform transform;
-	transform.pos = XMFLOAT3(-11400.0f, -3000.0f, -26000.0f);
-	sigewinne->SetTransform(transform);
-	playerGO = sigewinne;
+	transform.pos = XMFLOAT3(25717.0f, -4389.0f, -46940.0f);
+	//transform.pos = XMFLOAT3(889, 468, -11053);
+	lumine->SetTransform(transform);
+	playerGO = lumine;
 }
 
 Player::~Player()
@@ -127,7 +128,7 @@ void Player::Update(void)
 
 	if (playerAttr.isGrounded == false)
 	{
-		transform.pos.y -= FALLING_SPEED;
+		//transform.pos.y -= FALLING_SPEED;
 	}
 
 	playerGO->SetTransform(transform);

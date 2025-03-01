@@ -1,12 +1,12 @@
 //=============================================================================
 //
-// モデルの処理 [model.cpp]
+// モデルの処理 [Model.cpp]
 // Author : 
 //
 //=============================================================================
 #define _CRT_SECURE_NO_WARNINGS
 #include "main.h"
-#include "model.h"
+#include "Model.h"
 #include "camera.h"
 #include "input.h"
 #include "debugproc.h"
@@ -159,7 +159,7 @@ void Model::DrawModel()
 
 void Model::DrawBoundingBox()
 {
-	if (renderer.GetRenderMode() == RENDER_MODE_SHADOW) return;
+	if (renderer.GetRenderMode() == RenderMode::OBJ_SHADOW) return;
 
 	renderer.SetFillMode(D3D11_FILL_WIREFRAME);
 	// 頂点バッファ設定

@@ -32,16 +32,20 @@ struct SkyBoxBuffer
 class Skybox 
 {
 public:
-    Skybox(ID3D11Device* device, ID3D11DeviceContext* context);
+    Skybox();
     Skybox::~Skybox();
 
-    bool Initialize(void);
     void Update(void);
     void Draw(const XMMATRIX& viewMatrix, const XMMATRIX& projectionMatrix);
 
+    static float GetCurrentDaytime(void) { return blendFactor; }
+
 private:
+
+    bool Initialize(void);
     void CreateCube();
     void LoadShaders();
+    float AdjustBlendFactor(float time);
 
     ID3D11Device* m_device;
     ID3D11DeviceContext* m_context;
@@ -52,10 +56,12 @@ private:
     ID3D11PixelShader* m_pixelShader;
 
     ID3D11SamplerState* m_samplerState;
-    ID3D11Buffer* m_matrixBuffer;
+    ID3D11Buffer* m_skyboxBuffer;
     ID3D11DepthStencilState* m_depthStencilState;
 
     ID3D11ShaderResourceView* skyboxDaySRVs[6];
     ID3D11ShaderResourceView* skyboxNightSRVs[6];
     float m_timeOfDay;
+    bool dayToNight;
+    static float blendFactor;
 };

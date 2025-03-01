@@ -8,6 +8,7 @@
 #include "renderer.h"
 #include "light.h"
 #include "input.h"
+#include "Skybox.h"
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
@@ -16,6 +17,8 @@
 #define	VIEW_NEAR_Z		(1.0f)											// ビュー平面のNearZ値
 #define	VIEW_FAR_Z		(3000.0f)										// ビュー平面のFarZ値
 
+constexpr XMFLOAT4 dayLightAmbient = XMFLOAT4(0.45f, 0.45f, 0.45f, 1.0f);
+constexpr XMFLOAT4 nightLightAmbient = XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f);
 
 //*****************************************************************************
 // プロトタイプ宣言
@@ -32,6 +35,7 @@ static FOG		g_Fog;
 static BOOL		g_FogEnable = FALSE;
 
 static Renderer& renderer = Renderer::get_instance();
+
 Player* p = nullptr;
 //=============================================================================
 // 初期化処理
@@ -78,26 +82,65 @@ void UpdateLight(void)
 	Transform transform = p->GetTransform();
 
 	// 並行光源の設定（世界を照らす光）
-	g_Light[1].Direction = XMFLOAT3(-1.0f, -5.0f, -3.0f);		// 光の向き
-	g_Light[1].Diffuse = XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f);	// 光の色
-	g_Light[1].Type = LIGHT_TYPE_POINT;					// 並行光源
-
-	g_Light[1].Ambient = XMFLOAT4(0.05f, 0.05f, 0.05f, 1.0f);
-	g_Light[1].Position = XMFLOAT3(6000.0f, 5000.0f, 2500.0f);
-
-	//g_Light[0].Direction = XMFLOAT3(-1.0f, -15.0f, -13.0f);		// 光の向き
-	g_Light[0].Direction = XMFLOAT3(1.1f, -1.0f, 0.0f);		// 光の向き
-	g_Light[0].Diffuse = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);	// 光の色
 	g_Light[0].Type = LIGHT_TYPE_DIRECTIONAL;					// 並行光源
-	//g_Light[0].Position = XMFLOAT3(-400.0f, 200.0f, 50.0f);
 
 	g_Light[0].Position = transform.pos;
 	g_Light[0].Position.y += 1111.0f;
-	g_Light[0].Ambient = XMFLOAT4(0.25f, 0.25f, 0.25f, 1.0f);
-	renderer.SetLight(0, &g_Light[0]);
+
 	XMFLOAT3 targetPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	XMFLOAT3 lightUp = { 0.0f, 1.0f, 0.0f };
 	XMVECTOR pos = XMLoadFloat3(&g_Light[0].Position);
+
+	//renderer.SetLight(0, &g_Light[0]);
+
+	//g_Light[1].Direction = XMFLOAT3(-1.0f, -5.0f, -3.0f);		// 光の向き
+	//g_Light[1].Diffuse = XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f);	// 光の色
+	//g_Light[1].Type = LIGHT_TYPE_POINT;					// 並行光源
+
+	//g_Light[1].Ambient = XMFLOAT4(0.05f, 0.05f, 0.05f, 1.0f);
+	//g_Light[1].Position = XMFLOAT3(6000.0f, 5000.0f, 2500.0f);
+
+	////targetPosition = XMFLOAT3(player->trans[ALL].pos.x, player->trans[ALL].pos.y, player->trans[ALL].pos.z);
+	//XMVECTOR dir = XMVector3Normalize(
+	//	XMVectorSubtract(XMLoadFloat3(&targetPosition), XMLoadFloat3(&g_Light[1].Position))
+	//);
+	//XMFLOAT3 lightDirection;
+	//XMStoreFloat3(&lightDirection, dir);
+	//g_Light[1].Direction = lightDirection;
+	//lightUp = { 0.0f, 1.0f, 0.0f };
+	////lightView = XMMatrixLookAtLH(
+	////	XMLoadFloat3(&g_Light[1].Position),
+	////	XMLoadFloat3(&targetPosition),
+	////	XMLoadFloat3(&lightUp)
+	////);
+	//lightView = XMMatrixLookAtLH(
+	//	XMLoadFloat3(&g_Light[1].Position),
+	//	XMLoadFloat3(&targetPosition),
+	//	XMLoadFloat3(&lightUp)
+	//);
+	//lightProj = XMMatrixOrthographicLH(SCREEN_WIDTH * 1.2f, SCREEN_HEIGHT * 1.2f, VIEW_NEAR_Z, VIEW_FAR_Z);
+	//g_LightViewProj.ProjView[1] = XMMatrixTranspose(lightView * lightProj);
+
+	//renderer.SetLight(1, &g_Light[1]);									// これで設定している
+
+
+	g_Light[0].Enable = TRUE;
+
+	float currentTime = Skybox::GetCurrentDaytime();
+	g_Light[0].Ambient.x = dayLightAmbient.x * (1.0f - currentTime) + nightLightAmbient.x * currentTime;
+	g_Light[0].Ambient.y = dayLightAmbient.y * (1.0f - currentTime) + nightLightAmbient.y * currentTime;
+	g_Light[0].Ambient.z = dayLightAmbient.z * (1.0f - currentTime) + nightLightAmbient.z * currentTime;
+	g_Light[0].Ambient.w = 1.0f;
+
+	DirectX::XMVECTOR dayDir = DirectX::XMVectorSet(0.1f, -0.9f, 0.3f, 0.0f);
+	DirectX::XMVECTOR nightDir = DirectX::XMVectorSet(0.4f, -0.21f, 0.4f, 0.0f);
+	DirectX::XMVECTOR interpolatedDir = DirectX::XMQuaternionSlerp(dayDir, nightDir, currentTime);
+	interpolatedDir = DirectX::XMVector3Normalize(interpolatedDir);
+
+	DirectX::XMFLOAT3 finalDir;
+	DirectX::XMStoreFloat3(&finalDir, interpolatedDir);
+	g_Light[0].Direction = finalDir;
+
 	XMVECTOR lightDir = XMLoadFloat3(&g_Light[0].Direction);
 	XMMATRIX lightView = XMMatrixLookAtLH(
 		XMLoadFloat3(&g_Light[0].Position),
@@ -107,47 +150,8 @@ void UpdateLight(void)
 	XMMATRIX lightProj = XMMatrixOrthographicLH(SCREEN_WIDTH * 1.2f, SCREEN_WIDTH * 1.2f, VIEW_NEAR_Z, VIEW_FAR_Z);
 	g_LightViewProj.ProjView[0] = XMMatrixTranspose(lightView * lightProj);
 
+	renderer.SetLight(0, &g_Light[0]);
 
-	//targetPosition = XMFLOAT3(player->trans[ALL].pos.x, player->trans[ALL].pos.y, player->trans[ALL].pos.z);
-	XMVECTOR dir = XMVector3Normalize(
-		XMVectorSubtract(XMLoadFloat3(&targetPosition), XMLoadFloat3(&g_Light[1].Position))
-	);
-	XMFLOAT3 lightDirection;
-	XMStoreFloat3(&lightDirection, dir);
-	g_Light[1].Direction = lightDirection;
-	lightUp = { 0.0f, 1.0f, 0.0f };
-	//lightView = XMMatrixLookAtLH(
-	//	XMLoadFloat3(&g_Light[1].Position),
-	//	XMLoadFloat3(&targetPosition),
-	//	XMLoadFloat3(&lightUp)
-	//);
-	lightView = XMMatrixLookAtLH(
-		XMLoadFloat3(&g_Light[1].Position),
-		XMLoadFloat3(&targetPosition),
-		XMLoadFloat3(&lightUp)
-	);
-	lightProj = XMMatrixOrthographicLH(SCREEN_WIDTH * 1.2f, SCREEN_HEIGHT * 1.2f, VIEW_NEAR_Z, VIEW_FAR_Z);
-	g_LightViewProj.ProjView[1] = XMMatrixTranspose(lightView * lightProj);
-
-	renderer.SetLight(1, &g_Light[1]);									// これで設定している
-
-
-	g_Light[0].Enable = TRUE;
-	g_Light[1].Enable = TRUE;
-
-	if (GetKeyboardTrigger(DIK_L))
-	{
-		if (g_Light[0].Enable == TRUE)
-			g_Light[0].Enable = FALSE;
-		else
-			g_Light[0].Enable = TRUE;
-
-		if (g_Light[1].Enable == TRUE)
-			g_Light[1].Enable = FALSE;
-		else
-			g_Light[1].Enable = TRUE;
-
-	}
 }
 
 void SetLightViewProjBuffer(int lightIdx)
