@@ -242,6 +242,12 @@ struct BoneMatrices
 	XMMATRIX bones[BONE_MAX];
 };
 
+struct RenderProgressBuffer
+{
+	float progress;
+	int isRandomFade;
+	XMFLOAT2 padding;
+};
 //*****************************************************************************
 // プロトタイプ宣言
 //*****************************************************************************
@@ -276,6 +282,8 @@ public:
 
 	void SetFogEnable(BOOL flag);
 	void SetFog(FOG* fog);
+
+	void SetRenderProgress(RenderProgressBuffer renderProgress);
 
 	void DebugTextOut(char* text, int x, int y);
 
@@ -336,6 +344,7 @@ private:
 	ID3D11Buffer* g_LightProjViewBuffer = NULL;
 	ID3D11Buffer* g_BoneMatrixBuffer = NULL;
 	ID3D11Buffer* g_LightModeBuffer = NULL;
+	ID3D11Buffer* g_RenderProgressBuffer = NULL;
 
 	ID3D11ShaderResourceView* g_ShadowMapSRV[LIGHT_MAX];
 

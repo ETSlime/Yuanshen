@@ -10,10 +10,31 @@
 #include "Lumine.h"
 #include "Hilichurl.h"
 #include "Mitachurl.h"
+
+//*****************************************************************************
+// マクロ定義
+//*****************************************************************************
+#define ACTION_QUEUE_SIZE		(4)
+#define ACTION_QUEUE_CLEAR_WAIT	(120)
+#define Action(action)			static_cast<UINT>(action)
+
 //*****************************************************************************
 // 構造体定義
 //*****************************************************************************
 
+struct PlayerAction
+{
+	ActionEnum	actionType;
+	UINT		liveTime;
+};
+
+struct PlayerAttributes
+{
+	UINT			actionQueueClearTime;
+	PlayerAction	actionQueue[ACTION_QUEUE_SIZE];
+	UINT			actionQueueStart;
+	UINT			actionQueueEnd;
+};
 
 
 class Player
@@ -28,7 +49,10 @@ public:
 
 private:
 
-	Attributes playerAttr;
+	void UpdateActionQueue(void);
+
+	Attributes attributes;
+	PlayerAttributes playerAttr;
 	Sigewinne* sigewinne;
 	Klee* klee;
 	Lumine* lumine;

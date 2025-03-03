@@ -558,6 +558,19 @@ XMMATRIX SkinnedMeshModel::GetWeaponTransformMtx(void)
     return XMMatrixIdentity();
 }
 
+XMMATRIX SkinnedMeshModel::GetBodyTransformMtx(void)
+{
+    for (auto& it : meshDataMap)
+    {
+        ModelData* modelData = it.value;
+        XMFLOAT4X4 transform = modelData->boneTransformData->mBoneFinalTransforms[1];
+
+        return XMLoadFloat4x4(&transform);
+    }
+
+    return XMMatrixIdentity();
+}
+
 XMMATRIX SkinnedMeshModel::GetBoneFinalTransform(int boneIdx)
 {
     for (auto& it : meshDataMap)

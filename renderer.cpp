@@ -284,6 +284,11 @@ void Renderer::SetFog(FOG* pFog)
 	SetFogBuffer();
 }
 
+void Renderer::SetRenderProgress(RenderProgressBuffer renderProgress)
+{
+	GetDeviceContext()->UpdateSubresource(g_RenderProgressBuffer, 0, NULL, &renderProgress, 0, 0);
+}
+
 void Renderer::SetFuchi(int flag)
 {
 	g_Fuchi.fuchi = flag;
@@ -829,6 +834,11 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_LightModeBuffer);
 	g_ImmediateContext->VSSetConstantBuffers(10, 1, &g_LightModeBuffer);
 	g_ImmediateContext->PSSetConstantBuffers(10, 1, &g_LightModeBuffer);
+
+	hBufferDesc.ByteWidth = sizeof(RenderProgressBuffer);
+	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_RenderProgressBuffer);
+	g_ImmediateContext->VSSetConstantBuffers(13, 1, &g_RenderProgressBuffer);
+	g_ImmediateContext->PSSetConstantBuffers(13, 1, &g_RenderProgressBuffer);
 
 	// 入力レイアウト設定
 	g_ImmediateContext->IASetInputLayout( g_VertexLayout );

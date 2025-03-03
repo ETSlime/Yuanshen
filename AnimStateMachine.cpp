@@ -36,7 +36,7 @@ void AnimationState::Update(float deltaTime)
     UpdateBlendedMatrix();
 }
 
-uint64_t AnimationState::GetNextState(ISkinnedMeshModelChar* character)
+NextStateInfo AnimationState::GetNextState(ISkinnedMeshModelChar* character)
 {
     for (const auto& transition : transitions) 
     {
@@ -46,21 +46,21 @@ uint64_t AnimationState::GetNextState(ISkinnedMeshModelChar* character)
             {
                 if (onEndCallback)
                     (character->*onEndCallback)();
-                return transition.key;
+                return NextStateInfo(transition.key, transition.value.animBlend);
             }
             else if (!transition.value.waitForAnimationEnd) 
             {
-                return transition.key;
+                return NextStateInfo(transition.key, transition.value.animBlend);
             }
         }
     }
-    return currentStateName; // 変更なし
+    return NextStateInfo(currentStateName, false); // 変更なし
 }
 
-void AnimationState::AddTransition(uint64_t nextState, 
-    bool (ISkinnedMeshModelChar::* condition)() const, bool waitForAnimationEnd)
+void AnimationState::AddTransition(uint64_t currentState, uint64_t nextState,
+    bool (ISkinnedMeshModelChar::* condition)() const, bool waitForAnimationEnd, bool animBlend)
 {
-    transitions[nextState] = { nextState, condition, waitForAnimationEnd };
+    transitions[nextState] = { currentState, nextState, condition, waitForAnimationEnd, animBlend };
 }
 
 void AnimationState::SetEndCallback(void (ISkinnedMeshModelChar::* callback)())
@@ -81,7 +81,7 @@ void AnimationState::UpdateBlendedMatrix(void)
 
     blendedMatrices.clear();
 
-    if (!prevClip || blendFactor >= 1.0f)
+    if (!prevClip || blendFactor >= 1.0f)// || ) blendOn == false)
     {
         // 前のアニメーションがない場合、またはブレンド完了時
         for (int i = 0; i < boneCount; i++)
@@ -155,7 +155,8 @@ void AnimationStateMachine::SetCurrentState(uint64_t newStateName)
             if (currentState->currentStateName == newStateName)
                 return;
             (*newState)->currentClip->currentTime = 0;
-            (*newState)->StartBlend(currentState->currentClip);
+            if (blendOn)
+                (*newState)->StartBlend(currentState->currentClip);
         }
         currentState = *newState;
     }
@@ -174,22 +175,24 @@ void AnimationStateMachine::Update(float deltaTime, ISkinnedMeshModelChar* chara
     if (currentState)
     {
         // 条件をチェックして次の状態に移行
-        uint64_t nextState = currentState->GetNextState(character);
-        if (nextState != currentState->currentStateName)
+        NextStateInfo nextStateInfo = currentState->GetNextState(character);
+        if (nextStateInfo.nextState != currentState->currentStateName)
         {
-            SetCurrentState(nextState);
+            blendOn = nextStateInfo.animBlend;
+            SetCurrentState(nextStateInfo.nextState);
+
         }
 
         currentState->Update(deltaTime);
     }
 }
 
-void AnimationStateMachine::AddTransition(uint64_t from, uint64_t to, bool (ISkinnedMeshModelChar::* condition)() const, bool waitForAnimationEnd)
+void AnimationStateMachine::AddTransition(uint64_t from, uint64_t to, bool (ISkinnedMeshModelChar::* condition)() const, bool waitForAnimationEnd, bool animBlend)
 {
     AnimationState** animState = animStates.search(from);
     if (animState)
     {
-        (*animState)->AddTransition(to, condition, waitForAnimationEnd);
+        (*animState)->AddTransition(from, to, condition, waitForAnimationEnd, animBlend);
     }
 }
 

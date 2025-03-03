@@ -17,7 +17,6 @@
 #include "sprite.h"
 #include "score.h"
 #include "offScreenRender.h"
-#include "MapEditor.h"
 #include "FBXLoader.h"
 #include "TextureMgr.h"
 #include "SkinnedMeshModel.h"
@@ -48,7 +47,7 @@ long g_MouseY = 0;
 
 bool g_IsWindowActive = true; // デフォルトでアクティブ
 
-MapEditor& mapEditor = MapEditor::get_instance();
+//MapEditor& mapEditor = MapEditor::get_instance();
 EnemyManager& enemyManager = EnemyManager::get_instance();
 CollisionManager& collisionManager = CollisionManager::get_instance();
 Renderer& renderer = Renderer::get_instance();
@@ -266,7 +265,7 @@ HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 
 	InitScore();
 
-	mapEditor.Init();
+	//mapEditor.Init();
 
 	// skyboxの初期化
 	skybox = new Skybox();
@@ -305,7 +304,7 @@ void Uninit(void)
 
 	UninitOffScreenRender();
 
-	mapEditor.Uninit();
+	//mapEditor.Uninit();
 }
 
 //=============================================================================
@@ -331,7 +330,7 @@ void Update(void)
 
 	ground->Update();
 
-	mapEditor.Update();
+	//mapEditor.Update();
 
 	collisionManager.Update();
 }
@@ -362,7 +361,7 @@ void Draw(void)
 
 		renderer.SetRenderShadowMap(i);
 
-		DrawScene();
+		ground->Draw();
 	}
 
 	renderer.SetSkinnedMeshInputLayout();
@@ -374,12 +373,13 @@ void Draw(void)
 
 		renderer.SetRenderSkinnedMeshShadowMap(i);
 		player->Draw();
+		enemyManager.Draw();
 		ground->Draw();
 	}
 
 	renderer.SetModelInputLayout();
 	renderer.SetRenderObject();
-	DrawScene();
+	ground->Draw();
 
 	//renderer.SetLightEnable(FALSE);
 	//mapEditor.Draw();
@@ -390,6 +390,7 @@ void Draw(void)
 	renderer.SetRenderSkinnedMeshModel();
 
 	player->Draw();
+	enemyManager.Draw();
 	ground->Draw();
 
 	renderer.SetRenderInstance();
@@ -410,13 +411,6 @@ void Draw(void)
 
 	// バックバッファ、フロントバッファ入れ替え
 	renderer.Present();
-}
-
-void DrawScene()
-{
-	enemyManager.Draw();
-
-	ground->Draw();
 }
 
 bool GetWindowActive(void)

@@ -14,17 +14,19 @@
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
-#define	VALUE_MOVE			(12.0f)							// 移動量
+#define	VALUE_MOVE			(6.5f)							// 移動量
 #define VALUE_RUN			(120.0f)
 #define	VALUE_ROTATE		(XM_PI * 0.02f)					// 回転量
 #define ROTATION_SPEED				(0.18f)
 #define FALLING_SPEED		(25.0f)
+
+#define PLAYER_INIT_POS		XMFLOAT3(12582.0f, -2424.0f, -19485.0f)
 //=============================================================================
 // 初期化処理
 //=============================================================================
 Player::Player()
 {
-	sigewinne = new Sigewinne();
+	//sigewinne = new Sigewinne();
 
 	//klee =  new Klee();
 
@@ -35,8 +37,7 @@ Player::Player()
 	//mitachurl = new Mitachurl();
 
 	Transform transform;
-	transform.pos = XMFLOAT3(25717.0f, -4389.0f, -46940.0f);
-	//transform.pos = XMFLOAT3(889, 468, -11053);
+	transform.pos = PLAYER_INIT_POS;
 	lumine->SetTransform(transform);
 	playerGO = lumine;
 }
@@ -50,15 +51,27 @@ Player::~Player()
 
 void Player::Update(void)
 {
-	if (lumine && GetKeyboardTrigger(DIK_1))
-		playerGO = lumine;
-	if (klee && GetKeyboardTrigger(DIK_2))
-		playerGO = klee;
-	if (sigewinne && GetKeyboardTrigger(DIK_3))
-		playerGO = sigewinne;
+	UpdateActionQueue();
 
-	playerAttr = playerGO->GetAttributes();
+	attributes = playerGO->GetAttributes();
 	Transform transform = playerGO->GetTransform();
+
+	if (lumine && GetKeyboardTrigger(DIK_1))
+	{
+		lumine->SetTransform(transform);
+		playerGO = lumine;
+	}
+	if (klee && GetKeyboardTrigger(DIK_2))
+	{
+		klee->SetTransform(transform);
+		playerGO = klee;
+	}
+	if (sigewinne && GetKeyboardTrigger(DIK_3))
+	{
+		sigewinne->SetTransform(transform);
+		playerGO = sigewinne;
+	}
+
 	CAMERA* camera = GetCamera();
 
 #ifdef _DEBUG
@@ -72,70 +85,90 @@ void Player::Update(void)
 	}
 #endif
 
+	if (IsMouseLeftTriggered())
+	{
+		PlayerAction action;
+		action.actionType = ActionEnum::ATTACK;
+		action.liveTime = 0;
+		playerAttr.actionQueue[playerAttr.actionQueueEnd] = action;
+		playerAttr.actionQueueEnd = (playerAttr.actionQueueEnd + 1) % ACTION_QUEUE_SIZE;
+
+		// キューのオーバーフローを防止
+		if (playerAttr.actionQueueEnd == playerAttr.actionQueueStart)
+		{
+			playerAttr.actionQueueStart = (playerAttr.actionQueueStart + 1) % ACTION_QUEUE_SIZE; // 最も古いアクションを破棄
+		}
+	}
+
+	if (GetKeyboardTrigger(DIK_SPACE))
+	{
+		attributes.isJumping = true;
+	}
+
 	// 移動させちゃう
 	if (GetKeyboardPress(DIK_A))
 	{	// 左へ移動
-		playerAttr.spd = VALUE_MOVE;
+		attributes.spd = VALUE_MOVE;
 
-		playerAttr.isMoving = true;
+		attributes.isMoving = true;
 
 		if (GetKeyboardPress(DIK_W))
-			playerAttr.targetDir = -XM_PI * 3 / 4 + camera->rot.y;
+			attributes.targetDir = -XM_PI * 3 / 4 + camera->rot.y;
 		else if (GetKeyboardPress(DIK_S))
-			playerAttr.targetDir = -XM_PI / 4 + camera->rot.y;
+			attributes.targetDir = -XM_PI / 4 + camera->rot.y;
 		else
-			playerAttr.targetDir = -XM_PI / 2 + camera->rot.y;
+			attributes.targetDir = -XM_PI / 2 + camera->rot.y;
 	}
 	if (GetKeyboardPress(DIK_D))
 	{	// 右へ移動
-		playerAttr.spd = VALUE_MOVE;
+		attributes.spd = VALUE_MOVE;
 
-		playerAttr.isMoving = true;
+		attributes.isMoving = true;
 		if (GetKeyboardPress(DIK_W))
-			playerAttr.targetDir = XM_PI * 3 / 4 + camera->rot.y;
+			attributes.targetDir = XM_PI * 3 / 4 + camera->rot.y;
 		else if (GetKeyboardPress(DIK_S))
-			playerAttr.targetDir = XM_PI / 4 + camera->rot.y;
+			attributes.targetDir = XM_PI / 4 + camera->rot.y;
 		else
-			playerAttr.targetDir = XM_PI / 2 + camera->rot.y;
+			attributes.targetDir = XM_PI / 2 + camera->rot.y;
 	}
 	if (GetKeyboardPress(DIK_S))
 	{	// 下へ移動
-		playerAttr.spd = VALUE_MOVE;
+		attributes.spd = VALUE_MOVE;
 
-		playerAttr.isMoving = true;
+		attributes.isMoving = true;
 		if (GetKeyboardPress(DIK_A))
-			playerAttr.targetDir = -XM_PI * 3 / 4 + camera->rot.y;
+			attributes.targetDir = -XM_PI * 3 / 4 + camera->rot.y;
 		else if (GetKeyboardPress(DIK_D))
-			playerAttr.targetDir = -XM_PI * 5 / 4 + camera->rot.y;
+			attributes.targetDir = -XM_PI * 5 / 4 + camera->rot.y;
 		else
-			playerAttr.targetDir = -XM_PI + camera->rot.y;
+			attributes.targetDir = -XM_PI + camera->rot.y;
 	}
 	if (GetKeyboardPress(DIK_W))
 	{	// 上へ移動
-		playerAttr.spd = VALUE_MOVE;
+		attributes.spd = VALUE_MOVE;
 
-		playerAttr.isMoving = true;
+		attributes.isMoving = true;
 		if (GetKeyboardPress(DIK_A))
-			playerAttr.targetDir = -XM_PI / 4 + camera->rot.y;
+			attributes.targetDir = -XM_PI / 4 + camera->rot.y;
 		else if (GetKeyboardPress(DIK_D))
-			playerAttr.targetDir = XM_PI / 4 + camera->rot.y;
+			attributes.targetDir = XM_PI / 4 + camera->rot.y;
 		else
-			playerAttr.targetDir = 0.0f + camera->rot.y;
+			attributes.targetDir = 0.0f + camera->rot.y;
 	}
 
-	if (!playerAttr.isAttacking)
+	if (!attributes.isAttacking && !attributes.isAttacking2 && !attributes.isAttacking3)
 		HandlePlayerMove(transform);
 
-	if (playerAttr.isGrounded == false)
+	if (attributes.isGrounded == false)
 	{
-		//transform.pos.y -= FALLING_SPEED;
+		transform.pos.y -= FALLING_SPEED;
 	}
 
 	playerGO->SetTransform(transform);
 
-	playerAttr.spd *= 0.93f;
+	attributes.spd *= 0.93f;
 
-	playerGO->UpdateAttributes(playerAttr);
+	playerGO->UpdateAttributes(attributes);
 
 	playerGO->Update();
 
@@ -161,22 +194,22 @@ void Player::HandlePlayerMove(Transform& transform)
 
 	CAMERA* cam = GetCamera();
 
-	float deltaDir = playerAttr.targetDir - playerAttr.dir;
+	float deltaDir = attributes.targetDir - attributes.dir;
 	if (deltaDir > XM_PI) deltaDir -= 2 * XM_PI;
 	if (deltaDir < -XM_PI) deltaDir += 2 * XM_PI;
-	playerAttr.dir += deltaDir * ROTATION_SPEED;
+	attributes.dir += deltaDir * ROTATION_SPEED;
 
-	transform.rot.y = playerAttr.dir;
+	transform.rot.y = attributes.dir;
 
 	// 入力のあった方向へプレイヤーを向かせて移動させる
-	transform.pos.x += sinf(transform.rot.y) * playerAttr.spd;
-	transform.pos.z += cosf(transform.rot.y) * playerAttr.spd;
+	transform.pos.x += sinf(transform.rot.y) * attributes.spd;
+	transform.pos.z += cosf(transform.rot.y) * attributes.spd;
 
 #ifdef _DEBUG
 	if (GetKeyboardPress(DIK_LCONTROL))
 	{
-		transform.pos.x += sinf(transform.rot.y) * playerAttr.spd * 5;
-		transform.pos.z += cosf(transform.rot.y) * playerAttr.spd * 5;
+		transform.pos.x += sinf(transform.rot.y) * attributes.spd * 5;
+		transform.pos.z += cosf(transform.rot.y) * attributes.spd * 5;
 	}
 #endif // DEBUG
 
@@ -185,4 +218,31 @@ void Player::HandlePlayerMove(Transform& transform)
 Transform Player::GetTransform(void)
 {
 	return playerGO->GetTransform();
+}
+
+void Player::UpdateActionQueue(void)
+{
+	playerAttr.actionQueueClearTime++;
+	for (UINT i = playerAttr.actionQueueStart; i < playerAttr.actionQueueEnd; i++)
+	{
+		playerAttr.actionQueue[i].liveTime++;
+		if (playerAttr.actionQueue[i].liveTime >= ACTION_QUEUE_CLEAR_WAIT)
+		{
+			playerAttr.actionQueueStart++;
+			continue;
+		}
+
+		if (dynamic_cast<ISkinnedMeshModelChar*>(playerGO)->ExecuteAction(playerAttr.actionQueue[i].actionType))
+		{
+			playerAttr.actionQueueStart++;
+		}
+		else
+		{
+			break;
+		}
+	}
+	if (playerAttr.actionQueueStart >= playerAttr.actionQueueEnd)
+	{
+		playerAttr.actionQueueStart = playerAttr.actionQueueEnd = 0;
+	}
 }

@@ -17,10 +17,18 @@
 #define JUMP_CNT_MAX	(120)
 #define	ENEMY_SIZE		(65.0f)				// 当たり判定の大きさ
 #define ROTATION_SPEED				(0.18f)
+#define ENEMY_HIT_WINDOW			(60)
+
+#define HILICHURL_SIZE	XMFLOAT3(0.9f, 0.9f, 0.9f)
 enum
 {
 	ENEMY_IDLE,
 	ENEMY_WALK,
+};
+
+enum class EnemyType
+{
+	Hilichurl,
 };
 
 //*****************************************************************************
@@ -51,17 +59,8 @@ struct EnemyAttribute
 	float				maxHP;
 	float				spd;				// 移動スピード
 	float				size;				// 当たり判定の大きさ
-};
 
-struct EnemyInstance : public ModelInstance
-{
-	EnemyAttribute		attribute;
-
-	INTERPOLATION_DATA*	moveTbl;
-	BOOL				jumpUp;
-	int					jumpCnt;
-	float				jumpYMax;
-	int					state;
+	INTERPOLATION_DATA* moveTbl;
 
 	XMFLOAT3	move;			// 移動速度
 	float		dir;
@@ -69,7 +68,27 @@ struct EnemyInstance : public ModelInstance
 
 	float		time;			// 線形補間用
 	int			tblMax;			// そのテーブルのデータ数
+
+	EnemyType	enemyType;
 };
+
+//struct EnemyInstance : public ModelInstance
+//{
+//	EnemyAttribute		attribute;
+//
+//	INTERPOLATION_DATA*	moveTbl;
+//	BOOL				jumpUp;
+//	int					jumpCnt;
+//	float				jumpYMax;
+//	int					state;
+//
+//	XMFLOAT3	move;			// 移動速度
+//	float		dir;
+//	float		targetDir;
+//
+//	float		time;			// 線形補間用
+//	int			tblMax;			// そのテーブルのデータ数
+//};
 
 struct UISprite
 {
@@ -93,19 +112,21 @@ struct MoveTable
 //*****************************************************************************
 HRESULT MakeVertexHPGauge(int w, int h);
 
-class Enemy : public GameObject<EnemyInstance>
+class Enemy : public GameObject<SkinnedMeshModelInstance>
 {
 public:
-	Enemy(char* enemyPath, Transform trans);
-	inline EnemyAttribute* GetEnemyAttribute(void) { return &instance.attribute; }
+	Enemy(EnemyType enemyType, Transform trans);
+	inline EnemyAttribute* GetEnemyAttribute(void) { return &attribute; }
 	void Update(void) override;
 	void Draw(void) override;
-	inline INTERPOLATION_DATA* GetMoveTbl() { return instance.moveTbl; }
-	void SetMoveTbl(MoveTable moveTbl);
+	inline INTERPOLATION_DATA* GetMoveTbl() { return attribute.moveTbl; }
+	void SetMoveTbl(const MoveTable* moveTbl);
 
 private:
-	void UpdateEditorSelect(int sx, int sy);
-	void PlayEnemyWalkAnim(void);
+
+	EnemyAttribute attribute;
+
+	//void UpdateEditorSelect(int sx, int sy);
 };
 
 class EnemyManager : public SingletonBase<EnemyManager>
@@ -113,7 +134,7 @@ class EnemyManager : public SingletonBase<EnemyManager>
 public:
 	EnemyManager();
 	void Init();
-	void SpawnEnemy(char* enemyPath, Transform trans, MoveTable moveTbl);
+	void SpawnEnemy(EnemyType enemType, Transform trans, EnemyState initState, MoveTable* moveTbl = nullptr);
 	void Draw(void);
 	void Update(void);
 	const DoubleLinkedList<Enemy*>* GetEnemy() { return &enemyList; }

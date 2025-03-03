@@ -103,6 +103,9 @@ void Mitachurl::Update(void)
 
 	switch (stateMachine->GetCurrentState())
 	{
+	case STATE(PlayerState::STANDING):
+		PlayStandingAnim();
+		break;
 	case STATE(PlayerState::IDLE):
 		PlayIdleAnim();
 		break;
@@ -117,7 +120,7 @@ void Mitachurl::Update(void)
 		break;
 	case STATE(PlayerState::JUMP):
 		break;
-	case STATE(PlayerState::ATTACK):
+	case STATE(PlayerState::ATTACK_1):
 		PlayAttackAnim();
 		break;
 	default:
@@ -167,6 +170,13 @@ void Mitachurl::SetupAnimationStateMachine()
 	//stateMachine->SetEndCallback(PlayerState::ATTACK, &ISkinnedMeshModelChar::OnAttackAnimationEnd);
 
 	stateMachine->SetCurrentState(STATE(EnemyState::IDLE));
+}
+
+void Mitachurl::PlayStandingAnim(void)
+{
+	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_STANDING)
+		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_STANDING);
+	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Mitachurl::PlayWalkAnim(void)

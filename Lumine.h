@@ -28,18 +28,34 @@ public:
 	void PlayJumpAnim(void) override;
 	void PlayIdleAnim(void) override;
 	void PlayDashAnim(void) override;
+	void PlayStandingAnim(void) override;
 
-	void PlayAttackAnim(void);
+	virtual bool ExecuteAction(ActionEnum action) override;
+
+	void PlayAttackAnim(void) override;
+	void PlayAttack2Anim(void);
+	void PlayAttack3Anim(void);
+
+	void PlayHitAnim(void) override;
 
 	virtual bool CanWalk(void) const override;
 	virtual bool CanStopWalking() const override;
 	virtual bool CanAttack() const override;
+	virtual bool CanAttack2() const override;
+	virtual bool CanAttack3() const override;
 	virtual bool CanRun(void) const override;
+	virtual bool CanHit(void) const override;
+	virtual bool CanJump(void) const override;
 
 	virtual void OnAttackAnimationEnd(void) override;
-	virtual void OnDashAnimationEnd(void) override;
+	virtual void OnHitAnimationEnd(void) override;
+	virtual void OnJumpAnimationEnd(void) override;
 
 private:
+
+	void FaceToNearestEnemy(void);
+	void UpdateWeapon(void);
+
 	GameObject<SkinnedMeshModelInstance> weapon;
 	AnimationStateMachine* stateMachine;
 	float playAnimSpeed;

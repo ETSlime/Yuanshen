@@ -32,6 +32,11 @@
 Klee::Klee()
 {
 	Instantiate("data/MODEL/character/Klee", "Idle.fbx", ModelType::Klee);
+	instance.collider.type = ColliderType::PLAYER;
+	instance.collider.owner = this;
+	instance.collider.enable = true;
+	CollisionManager::get_instance().RegisterCollider(&instance.collider);
+
 	jumpyDumpy.Instantiate("data/MODEL/character/Klee", "JumpyDumpty.fbx");
 	jumpyDumpy.SetScale(XMFLOAT3(JUMPYDUMPTY_SIZE, JUMPYDUMPTY_SIZE, JUMPYDUMPTY_SIZE));
 
@@ -51,12 +56,12 @@ Klee::Klee()
 
 
 	AddAnimation("data/MODEL/character/Klee/", "Idle.fbx", AnimationClipName::ANIM_IDLE);
-	//AddAnimation("data/MODEL/character/Klee/", "Standing Draw Arrow.fbx", AnimationClipName::ANIM_STANDING_DRAW_ARROW);
-	//AddAnimation("data/MODEL/character/Klee/", "Standing Aim Walk Forward.fbx", AnimationClipName::ANIM_STANDING_AIM_WALK_FORWARD);
-	//AddAnimation("data/MODEL/character/Klee/", "Standing Aim Walk Left.fbx", AnimationClipName::ANIM_STANDING_AIM_WALK_LEFT);
-	//AddAnimation("data/MODEL/character/Klee/", "Walking.fbx", AnimationClipName::ANIM_WALK);
-	//AddAnimation("data/MODEL/character/Klee/", "Running.fbx", AnimationClipName::ANIM_RUN);
-	//AddAnimation("data/MODEL/character/Klee/", "Breakdance Uprock Var 2.fbx", AnimationClipName::ANIM_BREAKDANCE_UPROCK);
+	AddAnimation("data/MODEL/character/Klee/", "Standing Draw Arrow.fbx", AnimationClipName::ANIM_STANDING_DRAW_ARROW);
+	AddAnimation("data/MODEL/character/Klee/", "Standing Aim Walk Forward.fbx", AnimationClipName::ANIM_STANDING_AIM_WALK_FORWARD);
+	AddAnimation("data/MODEL/character/Klee/", "Standing Aim Walk Left.fbx", AnimationClipName::ANIM_STANDING_AIM_WALK_LEFT);
+	AddAnimation("data/MODEL/character/Klee/", "Walking.fbx", AnimationClipName::ANIM_WALK);
+	AddAnimation("data/MODEL/character/Klee/", "Running.fbx", AnimationClipName::ANIM_RUN);
+	AddAnimation("data/MODEL/character/Klee/", "Breakdance Uprock Var 2.fbx", AnimationClipName::ANIM_BREAKDANCE_UPROCK);
 
 	instance.pModel->SetBodyDiffuseTexture("data/MODEL/character/Klee/texture_0.png");
 	instance.pModel->SetHairDiffuseTexture("data/MODEL/character/Klee/Avatar_Loli_Catalyst_Klee_Tex_Hair_Diffuse.png");
@@ -113,6 +118,9 @@ void Klee::Update(void)
 
 	switch (stateMachine->GetCurrentState())
 	{
+	case STATE(PlayerState::STANDING):
+		PlayStandingAnim();
+		break;
 	case STATE(PlayerState::IDLE):
 		PlayIdleAnim();
 		break;
@@ -127,7 +135,7 @@ void Klee::Update(void)
 		break;
 	case STATE(PlayerState::JUMP):
 		break;
-	case STATE(PlayerState::ATTACK):
+	case STATE(PlayerState::ATTACK_1):
 		PlayAttackAnim();
 		break;
 	default:
@@ -185,6 +193,13 @@ void Klee::SetupAnimationStateMachine()
 	stateMachine->SetCurrentState(STATE(PlayerState::IDLE));
 }
 
+void Klee::PlayStandingAnim(void)
+{
+	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_STANDING)
+		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_STANDING);
+	instance.pModel->PlayCurrentAnim(playAnimSpeed);
+}
+
 void Klee::PlayWalkAnim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_WALK)
@@ -218,6 +233,10 @@ void Klee::PlayAttackAnim(void)
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
+void Klee::PlayHitAnim(void)
+{
+}
+
 bool Klee::CanWalk(void) const
 {
 	return instance.attributes.isMoving && !instance.attributes.isAttacking;
@@ -238,7 +257,17 @@ bool Klee::CanRun(void) const
 	return instance.attributes.isMoving && GetKeyboardPress(DIK_LSHIFT);
 }
 
+bool Klee::CanHit(void) const
+{
+	return instance.attributes.isHit1;
+}
+
 void Klee::OnAttackAnimationEnd(void)
 {
 	instance.attributes.isAttacking = false;
+}
+
+void Klee::OnHitAnimationEnd(void)
+{
+	instance.attributes.isHit1 = false;
 }

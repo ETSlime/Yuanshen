@@ -14,10 +14,10 @@
 #include "camera.h"
 #include "MapEditor.h"
 #include "score.h"
+#include "Hilichurl.h"
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
-#define	MODEL_ENEMY			"data/MODEL/neko.obj"		// 読み込むモデル名
 
 #define	VALUE_MOVE			(5.0f)						// 移動量
 #define	VALUE_ROTATE		(XM_PI * 0.02f)				// 回転量
@@ -46,210 +46,93 @@ static char* g_TextureName[] = {
 static ID3D11ShaderResourceView* g_Texture[TEXTURE_MAX] = { NULL };	// テクスチャ情報
 
 
-//void UpdateEnemy(void)
+//void Enemy::UpdateEditorSelect(int sx, int sy)
 //{
-//	// エネミーを動かす場合は、影も合わせて動かす事を忘れないようにね！
-//	for (int i = 0; i < MAX_ENEMY; i++)
+//	if (MapEditor::get_instance().GetOnEditorCursor() == TRUE)
 //	{
+//		return;
+//	}
 //		
+//	this->SetIsCursorIn(FALSE);
 //
-//		if (g_Enemy[i].use == true)		// このエネミーが使われている？
-//		{								// Yes
-//			UpdateEditorSelect(&g_Enemy[i], GetMousePosX(), GetMousePosY());
-//				// 移動処理
-//			if (g_Enemy[i].tblMax > 0 && g_Enemy[i].pModel->GetIsModelSelected() == FALSE)	// 線形補間を実行する？
-//			{	// 線形補間の処理
-//				int nowNo = (int)g_Enemy[i].time;			// 整数分であるテーブル番号を取り出している
-//				int maxNo = g_Enemy[i].tblMax;				// 登録テーブル数を数えている
-//				int nextNo = (nowNo + 1) % maxNo;			// 移動先テーブルの番号を求めている
-//				INTERPOLATION_DATA* tbl = g_MoveTblAdr[g_Enemy[i].tblNo];	// 行動テーブルのアドレスを取得
+//	CAMERA* camera = GetCamera();
+//	XMMATRIX P = XMLoadFloat4x4(&camera->mtxProjection);
 //
-//				XMVECTOR nowPos = XMLoadFloat3(&tbl[nowNo].pos);	// XMVECTORへ変換
-//				XMVECTOR nowRot = XMLoadFloat3(&tbl[nowNo].rot);	// XMVECTORへ変換
-//				XMVECTOR nowScl = XMLoadFloat3(&tbl[nowNo].scl);	// XMVECTORへ変換
+//	// Compute picking ray in view space.
+//	float vx = (+2.0f * sx / SCREEN_WIDTH - 1.0f) / P.r[0].m128_f32[0];
+//	float vy = (-2.0f * sy / SCREEN_HEIGHT + 1.0f) / P.r[1].m128_f32[1];
 //
-//				XMVECTOR Pos = XMLoadFloat3(&tbl[nextNo].pos) - nowPos;	// XYZ移動量を計算している
-//				XMVECTOR Rot = XMLoadFloat3(&tbl[nextNo].rot) - nowRot;	// XYZ回転量を計算している
-//				XMVECTOR Scl = XMLoadFloat3(&tbl[nextNo].scl) - nowScl;	// XYZ拡大率を計算している
+//	// Ray definition in view space.
+//	XMVECTOR rayOrigin = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
+//	XMVECTOR rayDir = XMVectorSet(vx, vy, 1.0f, 0.0f);
 //
-//				float nowTime = g_Enemy[i].time - nowNo;	// 時間部分である少数を取り出している
+//	// Tranform ray to local space of Mesh.
+//	XMMATRIX V = XMLoadFloat4x4(&camera->mtxView);
+//	XMMATRIX invView = XMLoadFloat4x4(&camera->mtxInvView);
 //
-//				Pos *= nowTime;								// 現在の移動量を計算している
-//				Rot *= nowTime;								// 現在の回転量を計算している
-//				Scl *= nowTime;								// 現在の拡大率を計算している
+//	XMMATRIX W = instance.transform.mtxWorld;
+//	XMMATRIX invWorld = XMMatrixInverse(&XMMatrixDeterminant(W), W);
 //
-//				// 計算して求めた移動量を現在の移動テーブルXYZに足している＝表示座標を求めている
-//				float oldY = g_Enemy[i].pos.y;
-//				XMStoreFloat3(&g_Enemy[i].pos, nowPos + Pos);
-//				g_Enemy[i].pos.y += oldY;
+//	XMMATRIX toLocal = XMMatrixMultiply(invView, invWorld);
 //
-//				// 計算して求めた回転量を現在の移動テーブルに足している
-//				XMStoreFloat3(&g_Enemy[i].rot, nowRot + Rot);
+//	rayOrigin = XMVector3TransformCoord(rayOrigin, toLocal);
+//	rayDir = XMVector3TransformNormal(rayDir, toLocal);
 //
-//				// 計算して求めた拡大率を現在の移動テーブルに足している
-//				XMStoreFloat3(&g_Enemy[i].scl, nowScl + Scl);
+//	// Make the ray direction unit length for the intersection tests.
+//	rayDir = XMVector3Normalize(rayDir);
+//	
+//	XMVECTOR minPoint = XMLoadFloat3(&instance.pModel->GetBoundingBox().minPoint);
+//	XMVECTOR maxPoint = XMLoadFloat3(&instance.pModel->GetBoundingBox().maxPoint);
 //
-//				XMVECTOR direction = XMVectorSubtract(nowPos, Pos);
-//				direction = XMVector3Normalize(direction);
-//				g_Enemy[i].targetDir = atan2(XMVectorGetZ(direction), XMVectorGetX(direction));
-//				g_Enemy[i].targetDir += XM_PI / 2;
-//				// frameを使て時間経過処理をする
-//				g_Enemy[i].time += 1.0f / tbl[nowNo].frame;	// 時間を進めている
-//				if ((int)g_Enemy[i].time >= maxNo)			// 登録テーブル最後まで移動したか？
-//				{
-//					g_Enemy[i].time -= maxNo;				// ０番目にリセットしつつも小数部分を引き継いでいる
-//				}
-//			}
 //
-//			float deltaDir = g_Enemy[i].targetDir - g_Enemy[i].dir;
-//			if (deltaDir > XM_PI) deltaDir -= 2 * XM_PI;
-//			if (deltaDir < -XM_PI) deltaDir += 2 * XM_PI;
-//			g_Enemy[i].dir += deltaDir * ROTATION_SPEED;
-//			if (i != 4)
-//				g_Enemy[i].rot.y = g_Enemy[i].dir;
+//	float tMin = 0.0f;
+//	float tMax = FLT_MAX;
+//	BOOL intersect = FALSE;
+//	for (int i = 0; i < 3; ++i) 
+//	{
+//		float rayOriginComponent = XMVectorGetByIndex(rayOrigin, i);
+//		float rayDirComponent = XMVectorGetByIndex(rayDir, i);
+//		float minComponent = XMVectorGetByIndex(minPoint, i);
+//		float maxComponent = XMVectorGetByIndex(maxPoint, i);
 //
-//			PlayEnemyWalkAnim(&g_Enemy[i]);
-//			if (g_Enemy[i].state == ENEMY_WALK)
+//		if (fabs(rayDirComponent) < 1e-8f) {
+//			if (rayOriginComponent < minComponent || rayOriginComponent > maxComponent) 
 //			{
-//				PlayEnemyWalkAnim(&g_Enemy[i]);
+//				intersect =  FALSE;
+//				return;
 //			}
+//		}
+//		else 
+//		{
+//			float t1 = (minComponent - rayOriginComponent) / rayDirComponent;
+//			float t2 = (maxComponent - rayOriginComponent) / rayDirComponent;
 //
-//			XMFLOAT3 pos = g_Enemy[i].pos;
-//			pos.y = (-40.0f - ENEMY_OFFSET_Y - 0.1f);
-//			SetPositionShadow(g_Enemy[i].shadowIdx, pos);
-//
-//			UpdateHPGauge(i);
-//
-//			if (g_Enemy[i].HP <= 0.0f)
+//			if (t1 > t2) 
 //			{
-//				g_Enemy[i].use = FALSE;
-//				AddScore(100);
+//				float temp = t1;
+//				t1 = t2;
+//				t2 = temp;
 //			}
-//				
 //
+//			tMin = max(tMin, t1);
+//			tMax = min(tMax, t2);
+//
+//			if (tMin > tMax) 
+//			{
+//				intersect = FALSE;
+//				return;
+//			}
 //		}
 //	}
 //
+//	this->SetIsCursorIn(TRUE);
 //
 //
+//	this->UpdateModelEditor();
 //
-//#ifdef _DEBUG
-//
-//	//if (GetKeyboardTrigger(DIK_P))
-//	//{
-//	//	// モデルの色を変更できるよ！半透明にもできるよ。
-//	//	for (int j = 0; j < g_Enemy[0].model.SubsetNum; j++)
-//	//	{
-//	//		SetModelDiffuse(&g_Enemy[0].model, j, XMFLOAT4(1.0f, 0.0f, 0.0f, 0.5f));
-//	//	}
-//	//}
-//
-//	//if (GetKeyboardTrigger(DIK_L))
-//	//{
-//	//	// モデルの色を元に戻している
-//	//	for (int j = 0; j < g_Enemy[0].model.SubsetNum; j++)
-//	//	{
-//	//		SetModelDiffuse(&g_Enemy[0].model, j, g_Enemy[0].diffuse[j]);
-//	//	}
-//	//}
-//
-//	if (GetKeyboardTrigger(DIK_P))
-//	{
-//		g_Enemy[1].state = ENEMY_WALK;
-//	}
-//#endif
-//
-//	
+//	PrintDebugProc("Enemy:X:%f Y:%f Z:%f\n", instance.transform.pos.x, instance.transform.pos.y, instance.transform.pos.z);
 //
 //}
-
-void Enemy::UpdateEditorSelect(int sx, int sy)
-{
-	if (MapEditor::get_instance().GetOnEditorCursor() == TRUE)
-	{
-		return;
-	}
-		
-	this->SetIsCursorIn(FALSE);
-
-	CAMERA* camera = GetCamera();
-	XMMATRIX P = XMLoadFloat4x4(&camera->mtxProjection);
-
-	// Compute picking ray in view space.
-	float vx = (+2.0f * sx / SCREEN_WIDTH - 1.0f) / P.r[0].m128_f32[0];
-	float vy = (-2.0f * sy / SCREEN_HEIGHT + 1.0f) / P.r[1].m128_f32[1];
-
-	// Ray definition in view space.
-	XMVECTOR rayOrigin = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
-	XMVECTOR rayDir = XMVectorSet(vx, vy, 1.0f, 0.0f);
-
-	// Tranform ray to local space of Mesh.
-	XMMATRIX V = XMLoadFloat4x4(&camera->mtxView);
-	XMMATRIX invView = XMLoadFloat4x4(&camera->mtxInvView);
-
-	XMMATRIX W = instance.transform.mtxWorld;
-	XMMATRIX invWorld = XMMatrixInverse(&XMMatrixDeterminant(W), W);
-
-	XMMATRIX toLocal = XMMatrixMultiply(invView, invWorld);
-
-	rayOrigin = XMVector3TransformCoord(rayOrigin, toLocal);
-	rayDir = XMVector3TransformNormal(rayDir, toLocal);
-
-	// Make the ray direction unit length for the intersection tests.
-	rayDir = XMVector3Normalize(rayDir);
-	
-	XMVECTOR minPoint = XMLoadFloat3(&instance.pModel->GetBoundingBox().minPoint);
-	XMVECTOR maxPoint = XMLoadFloat3(&instance.pModel->GetBoundingBox().maxPoint);
-
-
-	float tMin = 0.0f;
-	float tMax = FLT_MAX;
-	BOOL intersect = FALSE;
-	for (int i = 0; i < 3; ++i) 
-	{
-		float rayOriginComponent = XMVectorGetByIndex(rayOrigin, i);
-		float rayDirComponent = XMVectorGetByIndex(rayDir, i);
-		float minComponent = XMVectorGetByIndex(minPoint, i);
-		float maxComponent = XMVectorGetByIndex(maxPoint, i);
-
-		if (fabs(rayDirComponent) < 1e-8f) {
-			if (rayOriginComponent < minComponent || rayOriginComponent > maxComponent) 
-			{
-				intersect =  FALSE;
-				return;
-			}
-		}
-		else 
-		{
-			float t1 = (minComponent - rayOriginComponent) / rayDirComponent;
-			float t2 = (maxComponent - rayOriginComponent) / rayDirComponent;
-
-			if (t1 > t2) 
-			{
-				float temp = t1;
-				t1 = t2;
-				t2 = temp;
-			}
-
-			tMin = max(tMin, t1);
-			tMax = min(tMax, t2);
-
-			if (tMin > tMax) 
-			{
-				intersect = FALSE;
-				return;
-			}
-		}
-	}
-
-	this->SetIsCursorIn(TRUE);
-
-
-	this->UpdateModelEditor();
-
-	PrintDebugProc("Enemy:X:%f Y:%f Z:%f\n", instance.transform.pos.x, instance.transform.pos.y, instance.transform.pos.z);
-
-}
 
 //void UpdateHPGauge(int idx)
 //{
@@ -257,31 +140,6 @@ void Enemy::UpdateEditorSelect(int sx, int sy)
 //	g_HPGauge[idx].pos.y += ENEMY_SIZE;
 //	g_HPGauge[idx].pos.x -= 15.0f;
 //}
-
-void Enemy::PlayEnemyWalkAnim(void)
-{
-	if (this->GetIsModelSelected() == TRUE) return;
-
-	float angle = (XM_PI / JUMP_CNT_MAX) * instance.jumpCnt;
-	instance.jumpCnt++;
-
-	if (instance.jumpUp == FALSE)
-	{
-		instance.transform.scl.y += 0.008f;
-		instance.transform.pos.y += instance.jumpYMax * cosf(angle);
-	}
-	else
-	{
-		instance.transform.scl.y -= 0.008f;
-		instance.transform.pos.y -= instance.jumpYMax * cosf(angle);
-	}
-
-	if (instance.jumpCnt > JUMP_CNT_MAX * 0.5f)
-	{
-		instance.jumpUp = !instance.jumpUp;
-		instance.jumpCnt = 0;
-	}
-}
 
 //void DrawHPGauge(int idx)
 //{
@@ -411,38 +269,31 @@ void Enemy::PlayEnemyWalkAnim(void)
 //=============================================================================
 // 初期化処理
 //=============================================================================
-Enemy::Enemy(char* enemyPath, Transform trans)
+Enemy::Enemy(EnemyType enemyType, Transform trans)
 {
-	Instantiate(enemyPath);
-	MapEditor::get_instance().AddToList(this);
+
+	//MapEditor::get_instance().AddToList(this);
+	attribute.enemyType = enemyType;
 
 	instance.load = true;
 
-	instance.attribute.maxHP = 20.0f;
-	instance.attribute.HP = 20.0f;
+	attribute.maxHP = 20.0f;
+	attribute.HP = 20.0f;
 
-	instance.attribute.spd = 0.0f;			// 移動スピードクリア
-	instance.attribute.size = ENEMY_SIZE;	// 当たり判定の大きさ
+	attribute.spd = 0.0f;			// 移動スピードクリア
+	attribute.size = ENEMY_SIZE;	// 当たり判定の大きさ
 
 	instance.transform.pos = trans.pos;
 	instance.transform.rot = trans.rot;
 	instance.transform.scl = trans.scl;
 
-	instance.moveTbl = nullptr;
+	attribute.moveTbl = nullptr;
 
 
-	// モデルのディフューズを保存しておく。色変え対応の為。
-	instance.pModel->GetModelDiffuse(&instance.diffuse[0]);
+	attribute.move = XMFLOAT3(4.0f, 0.0f, 0.0f);		// 移動量
 
-
-	instance.jumpUp = FALSE;
-	instance.jumpCnt = 0;
-	instance.jumpYMax = 0.9f;
-
-	instance.move = XMFLOAT3(4.0f, 0.0f, 0.0f);		// 移動量
-
-	instance.time = 0.0f;			// 線形補間用のタイマーをクリア
-	instance.tblMax = 0;			// 再生する行動データテーブルのレコード数をセット
+	attribute.time = 0.0f;			// 線形補間用のタイマーをクリア
+	attribute.tblMax = 0;			// 再生する行動データテーブルのレコード数をセット
 
 
 	instance.use = true;		// true:生きてる
@@ -457,15 +308,22 @@ void Enemy::Update(void)
 	{								// Yes
 		GameObject::Update();
 
-		UpdateEditorSelect(GetMousePosX(), GetMousePosY());
+		if (instance.attributes.isHit1 ||
+			instance.attributes.isHit2)
+		{
+			instance.attributes.hitTimer--;
+		}
+
+		//UpdateEditorSelect(GetMousePosX(), GetMousePosY());
+		
 		// 移動処理
 		BOOL isSelected = this->GetIsModelSelected();
-		if (instance.tblMax > 0 && isSelected == FALSE)	// 線形補間を実行する？
+		if (attribute.tblMax > 0 && isSelected == FALSE)	// 線形補間を実行する？
 		{	// 線形補間の処理
-			int nowNo = (int)instance.time;			// 整数分であるテーブル番号を取り出している
-			int maxNo = instance.tblMax;				// 登録テーブル数を数えている
+			int nowNo = (int)attribute.time;			// 整数分であるテーブル番号を取り出している
+			int maxNo = attribute.tblMax;				// 登録テーブル数を数えている
 			int nextNo = (nowNo + 1) % maxNo;			// 移動先テーブルの番号を求めている
-			INTERPOLATION_DATA* tbl = instance.moveTbl;//g_MoveTblAdr[instance.tblNo];	// 行動テーブルのアドレスを取得
+			INTERPOLATION_DATA* tbl = attribute.moveTbl;//g_MoveTblAdr[instance.tblNo];	// 行動テーブルのアドレスを取得
 
 			XMVECTOR nowPos = XMLoadFloat3(&tbl[nowNo].pos);	// XMVECTORへ変換
 			XMVECTOR nowRot = XMLoadFloat3(&tbl[nowNo].rot);	// XMVECTORへ変換
@@ -475,7 +333,7 @@ void Enemy::Update(void)
 			XMVECTOR Rot = XMLoadFloat3(&tbl[nextNo].rot) - nowRot;	// XYZ回転量を計算している
 			XMVECTOR Scl = XMLoadFloat3(&tbl[nextNo].scl) - nowScl;	// XYZ拡大率を計算している
 
-			float nowTime = instance.time - nowNo;	// 時間部分である少数を取り出している
+			float nowTime = attribute.time - nowNo;	// 時間部分である少数を取り出している
 
 			Pos *= nowTime;								// 現在の移動量を計算している
 			Rot *= nowTime;								// 現在の回転量を計算している
@@ -494,28 +352,23 @@ void Enemy::Update(void)
 
 			XMVECTOR direction = XMVectorSubtract(nowPos, Pos);
 			direction = XMVector3Normalize(direction);
-			instance.targetDir = atan2(XMVectorGetZ(direction), XMVectorGetX(direction));
-			instance.targetDir += XM_PI / 2;
+			attribute.targetDir = atan2(XMVectorGetZ(direction), XMVectorGetX(direction));
+			attribute.targetDir += XM_PI / 2;
 			// frameを使て時間経過処理をする
-			instance.time += 1.0f / tbl[nowNo].frame;	// 時間を進めている
-			if ((int)instance.time >= maxNo)			// 登録テーブル最後まで移動したか？
+			attribute.time += 1.0f / tbl[nowNo].frame;	// 時間を進めている
+			if ((int)attribute.time >= maxNo)			// 登録テーブル最後まで移動したか？
 			{
-				instance.time -= maxNo;				// ０番目にリセットしつつも小数部分を引き継いでいる
+				attribute.time -= maxNo;				// ０番目にリセットしつつも小数部分を引き継いでいる
 			}
 		}
 
-		float deltaDir = instance.targetDir - instance.dir;
+		float deltaDir = attribute.targetDir - attribute.dir;
 		if (deltaDir > XM_PI) deltaDir -= 2 * XM_PI;
 		if (deltaDir < -XM_PI) deltaDir += 2 * XM_PI;
-		instance.dir += deltaDir * ROTATION_SPEED;
+		attribute.dir += deltaDir * ROTATION_SPEED;
 		//if (i != 4)
 		//	instance.rot.y = g_Enemy[i].dir;
 
-		PlayEnemyWalkAnim();
-		if (instance.state == ENEMY_WALK)
-		{
-			PlayEnemyWalkAnim();
-		}
 
 		XMFLOAT3 pos = instance.transform.pos;
 		pos.y = (-40.0f - ENEMY_OFFSET_Y - 0.1f);
@@ -523,7 +376,7 @@ void Enemy::Update(void)
 
 		//UpdateHPGauge(i);
 
-		if (instance.attribute.HP <= 0.0f)
+		if (attribute.HP <= 0.0f)
 		{
 			instance.use = FALSE;
 			AddScore(100);
@@ -537,18 +390,16 @@ void Enemy::Update(void)
 //=============================================================================
 void Enemy::Draw(void)
 {
-	// ワールドマトリックスの設定
-	renderer.SetCurrentWorldMatrix(&instance.transform.mtxWorld);
 
-	// モデル描画
-	this->DrawModelEditor();
-	instance.pModel->DrawBoundingBox();
 }
 
-void Enemy::SetMoveTbl(MoveTable moveTbl)
+void Enemy::SetMoveTbl(const MoveTable* moveTbl)
 {
-	instance.moveTbl = moveTbl.moveTblAddr;
-	instance.tblMax = moveTbl.size;
+	if (moveTbl)
+	{
+		attribute.moveTbl = moveTbl->moveTblAddr;
+		attribute.tblMax = moveTbl->size;
+	}
 }
 
 EnemyManager::EnemyManager()
@@ -559,20 +410,34 @@ EnemyManager::EnemyManager()
 void EnemyManager::Init()
 {
 	InitializeMoveTbl();
-	for (int i = 0; i < 4; i++)
-	{
-		Transform trans;
-		trans.pos = XMFLOAT3(-50.0f + i * 30.0f, -70.0f, 20.0f);
-		trans.scl = XMFLOAT3(ENEMY_SCALE, ENEMY_SCALE, ENEMY_SCALE);
-		SpawnEnemy(MODEL_ENEMY, trans, moveTbls[i]);
-	}
+	//for (int i = 0; i < 4; i++)
+	//{
+	//	Transform trans;
+	//	trans.pos = XMFLOAT3(-50.0f + i * 30.0f, -70.0f, 20.0f);
+	//	trans.scl = XMFLOAT3(ENEMY_SCALE, ENEMY_SCALE, ENEMY_SCALE);
+	//	SpawnEnemy(EnemyType::Hilichurl, trans, moveTbls[i]);
+	//}
+
+	Transform trans;
+	trans.pos = XMFLOAT3(12582.0f, -2424.0f, -19485.0f);
+	trans.scl = HILICHURL_SIZE;
+	SpawnEnemy(EnemyType::Hilichurl, trans, EnemyState::IDLE);
 }
 
 
 
-void EnemyManager::SpawnEnemy(char* enemyPath, Transform trans, MoveTable moveTbl)
+void EnemyManager::SpawnEnemy(EnemyType enemyType, Transform trans, EnemyState initState, MoveTable* moveTbl)
 {
-	Enemy* enemy = new Enemy(enemyPath, trans);
+	Enemy* enemy;
+	switch (enemyType)
+	{
+	case EnemyType::Hilichurl:
+		enemy = new Hilichurl(trans, initState);
+		break;
+	default:
+		return;
+	}
+	 
 	enemy->SetMoveTbl(moveTbl);
 	enemyList.push_back(enemy);
 }

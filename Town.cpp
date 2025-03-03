@@ -11,10 +11,11 @@
 #define	MODEL_LOD2_NAME				"LOD2.fbx"
 #define	MODEL_CHURCH_NAME			"church.fbx"
 
+#define SIZE_SCALE				(0.6f)
 #define SKYBOX_SIZE				(225850.0f)
-#define PLOT_LOD0_SIZE			(5250.0f)
-#define PLOT_LOD1_SIZE			(5250.0f)
-#define PLOT_LOD2_SIZE			(18850.0f)
+#define PLOT_LOD0_SIZE			(5250.0f * SIZE_SCALE)
+#define PLOT_LOD1_SIZE			(5250.0f * SIZE_SCALE)
+#define PLOT_LOD2_SIZE			(18850.0f * SIZE_SCALE)
 #define CHURCH_SIZE			(5250.0f)
 
 Town::Town()

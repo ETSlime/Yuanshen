@@ -136,6 +136,13 @@ cbuffer BoneTransformBuffer : register(b11)
     matrix BoneTransforms[256];
 }
 
+cbuffer ProgressBuffer : register(b13)
+{
+    float progress;
+    int isRandomFade;
+    float2 padding;
+}
+
 //=============================================================================
 // 頂点シェーダ
 //=============================================================================
@@ -258,6 +265,27 @@ float3 ApplyRimLight(float3 normal, float3 viewDir, float3 lightColor)
 {
     float3 rim = RimLight(normal, viewDir, 1.0, 0.5);
     return rim * lightColor;
+}
+
+float Hash(float2 p)
+{
+    return frac(sin(dot(p, float2(12.9898, 78.233))) * 43758.5453);
+}
+
+// Perlin Noise
+float PerlinNoise(float2 uv)
+{
+    float2 i = floor(uv);
+    float2 f = frac(uv);
+    
+    float a = Hash(i);
+    float b = Hash(i + float2(1.0, 0.0));
+    float c = Hash(i + float2(0.0, 1.0));
+    float d = Hash(i + float2(1.0, 1.0));
+
+    float2 u = f * f * (3.0 - 2.0 * f);
+    
+    return lerp(lerp(a, b, u.x), lerp(c, d, u.x), u.y);
 }
 
 //=============================================================================
@@ -588,6 +616,18 @@ void SkinnedMeshPixelShader(PixelInputType input,
 
         color = outColor;
         color.a = input.color.a * Material.Diffuse.a;
+        
+        
+        if (isRandomFade == 1)
+        {
+            float noise = PerlinNoise(input.texcoord * 10.0);
+
+            if (noise > progress)
+                discard;
+
+            if (noise > progress - 0.1)
+                color.rgb *= 2.0;
+        }
 
     }
 

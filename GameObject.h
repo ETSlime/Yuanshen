@@ -10,6 +10,15 @@
 #include "model.h"
 #include "SkinnedMeshModel.h"
 #include "CollisionManager.h"
+
+//*****************************************************************************
+// マクロ定義
+//*****************************************************************************
+enum class ActionEnum
+{
+	NONE,
+	ATTACK,
+};
 //*****************************************************************************
 // 構造体定義
 //*****************************************************************************
@@ -46,9 +55,19 @@ struct Attributes
 	bool			stopRun;
 	bool			isMoving;
 	bool			isAttacking;
+	bool			isAttacking2;
+	bool			isAttacking3;
 	bool			isDashing;
+	bool			isJumping;
 	bool			isGrounded;
 	bool			isMoveBlocked;
+	bool			isHit1;
+	bool			isHit2;
+	int				hitTimer;
+
+	bool			attackWindow2;
+	bool			attackWindow3;
+	int				attackWinwdowCnt;
 
 	Attributes()
 	{
@@ -61,9 +80,19 @@ struct Attributes
 		stopRun = TRUE;
 		isMoving = FALSE;
 		isAttacking = FALSE;
+		isAttacking2 = FALSE;
+		isAttacking3 = FALSE;
 		isDashing = FALSE;
+		isJumping = FALSE;
 		isGrounded = FALSE;
 		isMoveBlocked = FALSE;
+		isHit1 = FALSE;
+		isHit2 = FALSE;
+		hitTimer = 0;
+
+		attackWindow2 = FALSE;
+		attackWindow3 = FALSE;
+		attackWinwdowCnt = 0;
 	}
 };
 
@@ -83,6 +112,8 @@ struct SkinnedMeshModelInstance
 	int				editorIdx;
 	Attributes		attributes;
 	Collider		collider;
+
+	RenderProgressBuffer renderProgress;
 };
 
 struct ModelInstance
@@ -102,6 +133,8 @@ struct ModelInstance
 	BOOL			isSelected;
 	BOOL			isCursorIn;
 	int				editorIdx;
+
+	RenderProgressBuffer renderProgress;
 };
 
 
@@ -143,9 +176,18 @@ public:
 	inline void UpdateAttributes(Attributes attributes) { instance.attributes = attributes; }
 	inline void SetDrawBoundingBox(bool draw) { instance.pModel.SetDrawBoundingBox(draw); }
 	inline void SetColliderType(ColliderType type) { instance.collider.type = type; }
+	inline void SetColliderOwner(void* owner) { instance.collider.owner = owner; }
+	inline void SetColliderEnable(bool enable) { instance.collider.enable = enable; }
+	inline void SetColliderBoundingBox(BOUNDING_BOX boundingBox) { instance.collider.aabb = boundingBox; }
 	inline const Collider& GetCollider(void) { return instance.collider; }
 	inline void SetGrounded(bool grounded) { instance.attributes.isGrounded = grounded; }
 	inline void SetMoveBlock(bool blocked) { instance.attributes.isMoveBlocked = blocked; }
+	inline void SetIsHit(bool isHit) { instance.attributes.isHit1 = isHit; }
+	inline bool GetIsHit(void) { return instance.attributes.isHit1; }
+	inline void SetIsHit2(bool isHit) { instance.attributes.isHit2 = isHit; }
+	inline bool GetIsHit2(void) { return instance.attributes.isHit2; }
+	inline int	GetHitTimer(void) { return instance.attributes.hitTimer; }
+	inline void SetHitTimer(int hitTimer) { instance.attributes.hitTimer = hitTimer; }
 	virtual AnimationStateMachine* GetStateMachine() { return nullptr; }
 
 	void SetBoundingboxSize(XMFLOAT3 size)
@@ -166,19 +208,29 @@ protected:
 class ISkinnedMeshModelChar
 {
 public:
-	virtual void PlayWalkAnim() = 0;
-	virtual void PlayRunAnim() = 0;
-	virtual void PlayJumpAnim() = 0;
-	virtual void PlayIdleAnim() = 0;
-
+	virtual void PlayWalkAnim() {};
+	virtual void PlayRunAnim() {};
+	virtual void PlayIdleAnim() {};
+	virtual void PlayStandingAnim() {};
+	virtual void PlayAttackAnim() {};
+	virtual void PlayHitAnim() {};
 	virtual void PlayDashAnim() {}
+	virtual void PlayJumpAnim() {}
 
 	virtual bool CanWalk() const = 0;
 	virtual bool CanStopWalking() const = 0;
 	virtual bool CanAttack() const = 0;
+	virtual bool CanAttack2() const  { return false; }
+	virtual bool CanAttack3() const  { return false; }
 	virtual bool CanRun()	const = 0;
+	virtual bool CanHit()	const = 0;
+	virtual bool CanHit2()	const { return false; }
+	virtual bool CanJump()	const { return false; }
 	virtual void OnAttackAnimationEnd() {};
+	virtual void OnHitAnimationEnd() {};
 	virtual void OnDashAnimationEnd() {}
+	virtual void OnJumpAnimationEnd() {}
+	virtual bool ExecuteAction(ActionEnum action) { return true; }
 	bool AlwaysTrue() const { return true; }
 };
 
@@ -191,7 +243,8 @@ GameObject<T>::GameObject()
 	instance.isCursorIn = FALSE;
 	instance.editorIdx = -1;
 	instance.renderShadow = true;
-
+	instance.renderProgress.progress = 0.0f;
+	instance.renderProgress.isRandomFade = TRUE;
 }
 
 template <typename T>

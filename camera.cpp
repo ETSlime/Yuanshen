@@ -14,7 +14,7 @@
 //*****************************************************************************
 #define	POS_X_CAM			(0.0f)			// カメラの初期位置(X座標)
 #define	POS_Y_CAM			(50.0f)			// カメラの初期位置(Y座標)
-#define	POS_Z_CAM			(-380.0f)		// カメラの初期位置(Z座標)
+#define	POS_Z_CAM			(-480.0f)		// カメラの初期位置(Z座標)
 
 
 #define	VIEW_ANGLE		(XMConvertToRadians(45.0f))						// ビュー平面の視野角
@@ -81,9 +81,9 @@ void UpdateCamera(void)
 
 	// パラメータ設定
 	const float MOUSE_SENSITIVITY = 0.003f;
-	const float ZOOM_SENSITIVITY = 0.05f;
-	const float MIN_CAMERA_DISTANCE = 120.0f;
-	const float MAX_CAMERA_DISTANCE = 560.0f;
+	const float ZOOM_SENSITIVITY = 0.15f;
+	const float MIN_CAMERA_DISTANCE = 320.0f;
+	const float MAX_CAMERA_DISTANCE = 860.0f;
 	const float CAMERA_APPROACH_SPEED = 3.0f;
 	const float CAMERA_RETREAT_SPEED = 5.0f;
 	const float GROUND_LIMIT_ANGLE = 0.3f;

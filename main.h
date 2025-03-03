@@ -88,7 +88,6 @@ enum
 long GetMousePosX(void);
 long GetMousePosY(void);
 char* GetDebugStr(void);
-void DrawScene(void);
 bool GetWindowActive(void);
 int GetRand(int min, int max);
 float GetRandFloat(float min, float max);

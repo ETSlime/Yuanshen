@@ -28,6 +28,7 @@ public:
 	void PlayJumpAnim(void) override;
 	void PlayIdleAnim(void) override;
 	void PlayDashAnim(void) override;
+	void PlayStandingAnim(void) override;
 
 	void PlayAttackAnim(void);
 

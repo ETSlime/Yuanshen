@@ -6,6 +6,7 @@
 //=============================================================================
 #include "CollisionManager.h"
 #include "GameObject.h"
+#include "Enemy.h"
 
 constexpr float HEIGHT_EPSILON = 1.0f;
 constexpr float SMOOTHING_FACTOR = 0.2f;
@@ -197,10 +198,42 @@ void CollisionManager::Update()
         // 動的オブジェクト同士（例：プレイヤーと敵、その他）の衝突検出
         for (int i = 0; i < numColliders; i++)
         {
+            const Collider* dynamicCol1 = dynamicColliders[i];
+
+            if (dynamicCol1->enable == false) continue;
+
             for (int j = i + 1; j < numColliders; j++)
             {
+                const Collider* dynamicCol2 = dynamicColliders[j];
+
+                if (dynamicCol2->enable == false) continue;
+
                 if (dynamicColliders[i]->aabb.intersects(dynamicColliders[j]->aabb))
                 {
+                    if ((dynamicCol1->type == ColliderType::ENEMY && dynamicCol2->type == ColliderType::PLAYER_ATTACK)
+                        || (dynamicCol2->type == ColliderType::ENEMY && dynamicCol1->type == ColliderType::PLAYER_ATTACK))
+                    {
+                        const Collider* enemyCol = dynamicCol1->type == ColliderType::ENEMY ? dynamicCol1 : dynamicCol2;
+                        auto colliderOwner = static_cast<GameObject<SkinnedMeshModelInstance>*>(enemyCol->owner);
+
+                        if (colliderOwner->GetAttributes().hitTimer <= 0)
+                        {
+                            colliderOwner->SetHitTimer(ENEMY_HIT_WINDOW);
+                            if (!colliderOwner->GetIsHit())
+                            {
+                                colliderOwner->SetIsHit(true);
+                                colliderOwner->SetIsHit2(false);
+                            }
+                            else if (!colliderOwner->GetIsHit2())
+                            {
+                                colliderOwner->SetIsHit2(true);
+                                colliderOwner->SetIsHit(false);
+                            }
+                        }
+
+
+                    }
+
                     CollisionEvent collisionEvent;
                     collisionEvent.colliderA = dynamicColliders[i];
                     collisionEvent.colliderB = dynamicColliders[j];

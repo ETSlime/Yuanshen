@@ -192,6 +192,7 @@ public:
 	void PlayCurrentAnim(float playSpeed = 1.0f);
 
 	XMMATRIX GetWeaponTransformMtx(void);
+	XMMATRIX GetBodyTransformMtx(void);
 	XMMATRIX GetBoneFinalTransform(int boneIdx = 0);
 
 	UINT weaponTransformIdx;

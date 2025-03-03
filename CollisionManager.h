@@ -16,12 +16,14 @@
 // 衝突器の種類を表す列挙型
 enum class ColliderType 
 {
+    DEFAULT,
     PLAYER,
     ENEMY,
     WALL,
     ITEM,
     TELEPORTER,
-    ATTACK
+    PLAYER_ATTACK,
+    ENEMY_ATTACK,
 };
 
 //*****************************************************************************
@@ -33,6 +35,15 @@ public:
     BOUNDING_BOX aabb; // ワールド座標での衝突判定用
     ColliderType type; // 衝突器の種類
     void* owner;
+    bool enable;
+
+    Collider()
+    {
+        aabb = BOUNDING_BOX();
+        type = ColliderType::DEFAULT;
+        enable = false;
+        owner = nullptr;
+    }
 };
 
 // 衝突イベント構造体：衝突時に発行されるイベントメッセージ

@@ -20,7 +20,7 @@
 #define TREE_SIZE			(350.0f)
 //#define TOWN_SIZE			(125850.0f)
 #define TOWN_SIZE			(550.0f)
-#define FIELD_SIZE			(126850.0f)
+#define FIELD_SIZE			(56850.0f)
 
 //=============================================================================
 // èâä˙âªèàóù
@@ -50,7 +50,7 @@ Ground::Ground()
 	worldBB.minPoint = WORLD_MIN;
 	CollisionManager::get_instance().InitOctree(worldBB);
 
-	//town = new Town();
+	town = new Town();
 
 	GameObject<SkinnedMeshModelInstance>* fieldGO = new GameObject<SkinnedMeshModelInstance>();
 	fieldGO->Instantiate(MODEL_ENVIRONMENT_PATH, MODEL_FIELD_NAME, ModelType::Field);
