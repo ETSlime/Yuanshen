@@ -58,9 +58,29 @@ void Mitachurl::LoadWeapon(char* modelPath, char* modelName)
 	//weapon.SetRotation(XMFLOAT3(WEAPON_ON_BACK_POS_OFFSET_X, WEAPON_ON_BACK_POS_OFFSET_Y, WEAPON_ON_BACK_POS_OFFSET_Z));
 }
 
-void Mitachurl::SetCurrentAnim(AnimationClipName clipName, float startTime)
+void Mitachurl::PlayWalkAnim(void)
 {
-	instance.pModel->SetCurrentAnim(clipName, startTime);
+	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_WALK)
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
+	instance.pModel->PlayCurrentAnim(playAnimSpeed);
+}
+
+void Mitachurl::PlayRunAnim(void)
+{
+	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_RUN)
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
+	instance.pModel->PlayCurrentAnim(playAnimSpeed);
+}
+
+void Mitachurl::PlayIdleAnim(void)
+{
+	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_IDLE)
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
+	instance.pModel->PlayCurrentAnim(playAnimSpeed);
+}
+
+void Mitachurl::PlayAttackAnim(void)
+{
 }
 
 void Mitachurl::Update(void)
@@ -160,9 +180,9 @@ void Mitachurl::SetupAnimationStateMachine()
 	//ó‘Ô‘JˆÚ
 	//stateMachine->AddTransition(PlayerState::IDLE, PlayerState::WALK, &ISkinnedMeshModelChar::CanWalk);
 	//stateMachine->AddTransition(PlayerState::WALK, PlayerState::DASH, &ISkinnedMeshModelChar::CanRun);
-	//stateMachine->AddTransition(PlayerState::WALK, PlayerState::IDLE, &ISkinnedMeshModelChar::CanStopWalking);
+	//stateMachine->AddTransition(PlayerState::WALK, PlayerState::IDLE, &ISkinnedMeshModelChar::CanStopMoving);
 	//
-	//stateMachine->AddTransition(PlayerState::RUN, PlayerState::IDLE, &ISkinnedMeshModelChar::CanStopWalking);
+	//stateMachine->AddTransition(PlayerState::RUN, PlayerState::IDLE, &ISkinnedMeshModelChar::CanStopMoving);
 	////stateMachine->AddTransition(PlayerState::IDLE, PlayerState::ATTACK, &ISkinnedMeshModelChar::CanAttack);
 	////stateMachine->AddTransition(PlayerState::WALK, PlayerState::ATTACK, &ISkinnedMeshModelChar::CanAttack);
 	//stateMachine->AddTransition(PlayerState::DASH, PlayerState::RUN, &ISkinnedMeshModelChar::AlwaysTrue, true);
@@ -172,59 +192,14 @@ void Mitachurl::SetupAnimationStateMachine()
 	stateMachine->SetCurrentState(STATE(EnemyState::IDLE));
 }
 
-void Mitachurl::PlayStandingAnim(void)
-{
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_STANDING)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_STANDING);
-	instance.pModel->PlayCurrentAnim(playAnimSpeed);
-}
 
-void Mitachurl::PlayWalkAnim(void)
-{
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_WALK)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_WALK);
-	instance.pModel->PlayCurrentAnim(playAnimSpeed);
-}
-
-void Mitachurl::PlayRunAnim(void)
-{
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_RUN)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_RUN);
-	instance.pModel->PlayCurrentAnim(playAnimSpeed);
-}
-
-void Mitachurl::PlayJumpAnim(void)
-{
-
-}
-
-void Mitachurl::PlayIdleAnim(void)
-{
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_IDLE)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_IDLE);
-	instance.pModel->PlayCurrentAnim(playAnimSpeed);
-}
-
-void Mitachurl::PlayDashAnim(void)
-{
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_DASH)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_DASH);
-	instance.pModel->PlayCurrentAnim(playAnimSpeed);
-}
-
-void Mitachurl::PlayAttackAnim(void)
-{
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_STANDING_DRAW_ARROW)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_STANDING_DRAW_ARROW);
-	instance.pModel->PlayCurrentAnim(playAnimSpeed);
-}
 
 bool Mitachurl::CanWalk(void) const
 {
 	return instance.attributes.isMoving && !instance.attributes.isAttacking;
 }
 
-bool Mitachurl::CanStopWalking() const
+bool Mitachurl::CanStopMoving() const
 {
 	return !instance.attributes.isMoving;
 }

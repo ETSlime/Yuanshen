@@ -50,6 +50,8 @@ enum class EnemyState : uint64_t
     HILI_ATTACK,
     HILI_HIT1,
     HILI_HIT2,
+    HILI_SURPRISED,
+    HILI_DIE,
 };
 
 class SkinnedMeshModel;
@@ -62,7 +64,7 @@ struct AnimationClip
     uint64_t                stopTime;
     uint64_t                currentTime;
     SkinnedMeshModel*       model;
-    SimpleArray<XMFLOAT4X4>* currBoneTransform;
+    SimpleArray<XMFLOAT4X4> currBoneTransform;
     BOOL                    isLoop;
 
     AnimationClip()
@@ -73,12 +75,11 @@ struct AnimationClip
         currentTime = 0;
         model = nullptr;
         isLoop = TRUE;
-        currBoneTransform = new SimpleArray<XMFLOAT4X4>();
+        currBoneTransform = SimpleArray<XMFLOAT4X4>();
     }
 
     ~AnimationClip()
     {
-        SAFE_DELETE(currBoneTransform);
     }
 
     inline void SetModel(SkinnedMeshModel* skinnedMeshModel)
@@ -89,6 +90,11 @@ struct AnimationClip
     inline bool IsFinished() 
     {
         return currentTime >= stopTime;
+    }
+
+    inline void SetAnimLoop(bool loop)
+    {
+        isLoop = loop;
     }
 
     SimpleArray<XMFLOAT4X4>* GetBoneMatrices(SimpleArray<XMFLOAT4X4>* currBoneTransform);
@@ -182,4 +188,6 @@ public:
     void AddTransition(uint64_t from, uint64_t to, bool (ISkinnedMeshModelChar::* condition)() const, bool waitForAnimationEnd = false, bool animBlend = true);
 
     SimpleArray<XMFLOAT4X4>* GetBoneMatrices();
+
+    AnimationClip* GetCurrentAnimClip();
 };

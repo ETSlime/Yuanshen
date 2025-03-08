@@ -105,7 +105,7 @@ void Grass::Update(void)
 
 void Grass::Draw(void)
 {
-    time++;; // 時間更新
+    time++; // 時間更新
 
     Renderer::get_instance().SetCurrentWorldMatrix(&transform.mtxWorld);
 
@@ -114,7 +114,7 @@ void Grass::Draw(void)
     m_context->Map(perFrameBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
     PerFrameBuffer* bufferData = reinterpret_cast<PerFrameBuffer*>(mappedResource.pData);
 
-    bufferData->Time = time; // 時間設定
+    bufferData->Time = time * 0.0005f; // 時間設定
     bufferData->WindDirection = CalculateDynamicWindDirection(time); // 動的風向き計算
     bufferData->WindStrength = 0.2f + 0.05f * sinf(time * 0.5f); // 風強さ変動
 
@@ -221,8 +221,8 @@ bool Grass::GenerateNoiseTexture(ID3D11ShaderResourceView** noiseTextureSRV)
 float Grass::CalculateWeight(float vertexY, float minY, float maxY)
 {
     if (maxY - minY == 0.0f) return 0.0f;
-    float linearWeight = (vertexY - minY) / (maxY - minY);
-    return sqrtf(linearWeight);
+    float normalizedHeight = (vertexY - minY) / (maxY - minY);
+    return powf(normalizedHeight, 0.01f); // 高さの影響をより強調
 }
 
 float Grass::RayIntersectTriangle(const XMFLOAT3& rayOrigin, const XMFLOAT3& rayDir, const Triangle* tri)

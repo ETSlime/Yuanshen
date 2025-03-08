@@ -21,25 +21,38 @@
 //#define TOWN_SIZE			(125850.0f)
 #define TOWN_SIZE			(550.0f)
 #define FIELD_SIZE			(56850.0f)
+#define BONFIRE_SIZE		(80.0f)
+
+#define PLAYER_INIT_POS		XMFLOAT3(12582.0f, -2424.0f, -19485.0f)
 
 //=============================================================================
 // èâä˙âªèàóù
 //=============================================================================
 Ground::Ground()
 {
+	Transform trans;
+	trans.pos = XMFLOAT3(12937.0f, -2384.0f, -19485.0f);
 
 	for (int i = 0; i < MAX_TREE; i++)
 	{
+		float radius = 20000.f;
+		float r = GetRandFloat(2000.0f, radius);
+		float angle = GetRandFloat(0.0f, 2.0f * 3.14159265359f);
+		float x = trans.pos.x + r * cos(angle);
+		float z = trans.pos.z + r * sin(angle);
+		float size = GetRandFloat(TREE_SIZE * .8f, TREE_SIZE * 2.5f);
 		GameObject<SkinnedMeshModelInstance>* treeGO = new GameObject<SkinnedMeshModelInstance>();
 		treeGO->Instantiate(MODEL_ENVIRONMENT_PATH, MODEL_TREE_NAME, ModelType::Tree);
 		treeGO->GetInstance()->pModel->SetBodyDiffuseTexture("data/MODEL/Environment/Bark.jpg");
-		treeGO->SetPosition(XMFLOAT3(110.0f + i * 430.0f, 180.0f, 0.0f));
+		treeGO->SetPosition(XMFLOAT3(x, trans.pos.y, z));
 		treeGO->SetRotation(XMFLOAT3(0.0f, 0.0f, 0.0f));
-		treeGO->SetScale(XMFLOAT3(TREE_SIZE, TREE_SIZE, TREE_SIZE));
+		treeGO->SetScale(XMFLOAT3(size, size, size));
 		
 		treeGO->GetSkinnedMeshModel()->SetBoundingBoxSize(XMFLOAT3(0.1f, 1.0f, 0.1f));
 		treeGO->GetSkinnedMeshModel()->SetBoundingBoxLocationOffset(XMFLOAT3(-0.55f, 0.0f, 0.2f));
-		treeGO->SetColliderType(ColliderType::WALL);
+		treeGO->SetColliderOwner(treeGO);
+		treeGO->SetColliderEnable(true);
+		treeGO->SetColliderType(ColliderType::TREE);
 		CollisionManager::get_instance().RegisterCollider(&treeGO->GetCollider());
 
 		skinnedMeshGroundGO.push_back(treeGO);
@@ -64,10 +77,22 @@ Ground::Ground()
 	fieldGO->SetRenderShadow(false);
 	fieldGO->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
 	skinnedMeshGroundGO.push_back(fieldGO);
+
+	GameObject<SkinnedMeshModelInstance>* bonfireGO = new GameObject<SkinnedMeshModelInstance>();
+	bonfireGO->Instantiate(MODEL_ENVIRONMENT_PATH, MODEL_BONFIRE_NAME);
+	bonfireGO->SetScale(XMFLOAT3(BONFIRE_SIZE, BONFIRE_SIZE, BONFIRE_SIZE));
+	bonfireGO->SetPosition(XMFLOAT3(12582.0f, -2384.0f, -19485.0f));
+	bonfireGO->Update();
+	worldMatrix = bonfireGO->GetWorldMatrix();
+	bonfireGO->GetSkinnedMeshModel()->BuildTrianglesByWorldMatrix(worldMatrix);
+	bonfireGO->GetSkinnedMeshModel()->BuildOctree();
+	bonfireGO->SetRenderShadow(false);
+	bonfireGO->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
+	skinnedMeshGroundGO.push_back(bonfireGO);
 	
 
 	//grass = new Grass();
-	//grass->GenerateGrassInstances(fieldGO->GetSkinnedMeshModel()->GetTriangles(), fieldGO->GetSkinnedMeshModel()->GetBoundingBox(), 75);
+	//grass->GenerateGrassInstances(fieldGO->GetSkinnedMeshModel()->GetTriangles(), fieldGO->GetSkinnedMeshModel()->GetBoundingBox(), 15);
 }
 
 //=============================================================================
@@ -100,6 +125,16 @@ void Ground::Update(void)
 	{
 		if (skinnedMeshGroundGO[i]->GetUse() == false) continue;
 		skinnedMeshGroundGO[i]->Update();
+
+		//if (skinnedMeshGroundGO[i]->GetCollider().type == ColliderType::TREE)
+		//{
+		//	if (skinnedMeshGroundGO[i]->GetAttributes().isGrounded == false)
+		//	{
+		//		Transform transform = skinnedMeshGroundGO[i]->GetTransform();
+		//		transform.pos.y -= 25;
+		//		skinnedMeshGroundGO[i]->SetTransform(transform);
+		//	}
+		//}
 	}
 
 	if (town)

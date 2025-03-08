@@ -72,6 +72,16 @@ struct BoneTransformData
 		mModelLocalTrans.resize(numBones);
 		mBoneFinalTransforms.resize(numBones);
 	}
+
+	BoneTransformData()
+	{
+		mModelGlobalRot.resize(0);
+		mModelGlobalScl.resize(0);
+		mModelTranslate.resize(0);
+		mModelGlobalTrans.resize(0);
+		mModelLocalTrans.resize(0);
+		mBoneFinalTransforms.resize(0);
+	}
 };
 
 struct ModelData
@@ -79,7 +89,6 @@ struct ModelData
 	ModelData()
 	{
 		mesh = new MeshData();
-		boneTransformData = nullptr;
 		shapeCnt = 0;
 		limbCnt = 0;
 		VertexArray = nullptr;
@@ -107,7 +116,6 @@ struct ModelData
 		SAFE_DELETE(mesh);
 		SAFE_DELETE(VertexArray);
 		SAFE_DELETE(IndexArray);
-		SAFE_DELETE(boneTransformData);
 
 		SafeRelease(&VertexBuffer);
 		SafeRelease(&IndexBuffer);
@@ -135,7 +143,6 @@ struct ModelData
 	unsigned int	IndexNum;
 
 	FbxNode* armatureNode;
-	BoneTransformData* boneTransformData;
 
 	SimpleArray<int> mBoneHierarchy;
 	SimpleArray<XMFLOAT4X4> mBoneOffsets;
@@ -175,7 +182,8 @@ public:
 
 	void LoadTownTexture(void);
 
-	void GetBoneTransformByAnim(FbxNode* currentClipArmatureNode, uint64_t currentClipTime, SimpleArray<XMFLOAT4X4>* boneFinalTransform);
+	void GetBoneTransformByAnim(FbxNode* currentClipArmatureNode, uint64_t currentClipTime, 
+		SimpleArray<XMFLOAT4X4>* boneFinalTransform, bool loop = true);
 
 	void SetBoundingBoxLocationOffset(XMFLOAT3 offset, int boneIdx = 0);
 	void SetBoundingBoxSize(XMFLOAT3 size, int boneIdx = 0);
@@ -186,7 +194,7 @@ public:
 	BOUNDING_BOX GetBoundingBox(void) { return boundingBox; }
 	const SimpleArray<Triangle*>& GetTriangles(void) const;
 
-	void SetCurrentAnim(AnimationClipName clipName, float startTime = 0);
+	void SetCurrentAnim(AnimationClip* currAnimClp, float startTime = 0);// (AnimationClipName clipName, float startTime = 0);
 	AnimationClipName GetCurrentAnim(void) { return currentAnimClip->name; }
 	AnimationClip* GetAnimationClip(AnimationClipName clipName);
 	void PlayCurrentAnim(float playSpeed = 1.0f);
@@ -232,6 +240,7 @@ private:
 	UINT numBones;
 	ModelType modelType;
 	bool drawBoundingBox;
+	BoneTransformData boneTransformData;
 
 	AnimationClip* currentAnimClip;
 	FbxNode* armatureNode;
@@ -305,8 +314,8 @@ private:
 		EqualUInt64()
 	);
 
-	HashMap<int, AnimationClip*, HashUInt64, EqualUInt64> animationClips = 
-		HashMap<int, AnimationClip*, HashUInt64, EqualUInt64>(
+	HashMap<int, AnimationClip, HashUInt64, EqualUInt64> animationClips = 
+		HashMap<int, AnimationClip, HashUInt64, EqualUInt64>(
 		MAX_ANIM_NUM,
 		HashUInt64(),
 		EqualUInt64()

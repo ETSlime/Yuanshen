@@ -47,13 +47,13 @@ struct Attributes
 
 	float			spd;		// 移動スピード
 	float			dir;		// 向き
+	float			targetDir;
 	float			size;		// 当たり判定の大きさ
 	bool			use;
 
-	float			targetDir;
-
 	bool			stopRun;
 	bool			isMoving;
+	bool			isRunning;
 	bool			isAttacking;
 	bool			isAttacking2;
 	bool			isAttacking3;
@@ -64,6 +64,8 @@ struct Attributes
 	bool			isHit1;
 	bool			isHit2;
 	int				hitTimer;
+
+	bool			charSwitchEffect;
 
 	bool			attackWindow2;
 	bool			attackWindow3;
@@ -79,6 +81,7 @@ struct Attributes
 		targetDir = 0.0f;
 		stopRun = TRUE;
 		isMoving = FALSE;
+		isRunning = FALSE;
 		isAttacking = FALSE;
 		isAttacking2 = FALSE;
 		isAttacking3 = FALSE;
@@ -93,6 +96,8 @@ struct Attributes
 		attackWindow2 = FALSE;
 		attackWindow3 = FALSE;
 		attackWinwdowCnt = 0;
+
+		charSwitchEffect = FALSE;
 	}
 };
 
@@ -188,6 +193,8 @@ public:
 	inline bool GetIsHit2(void) { return instance.attributes.isHit2; }
 	inline int	GetHitTimer(void) { return instance.attributes.hitTimer; }
 	inline void SetHitTimer(int hitTimer) { instance.attributes.hitTimer = hitTimer; }
+	//inline void SetRenderProgress(float progress) { instance.attributes.renderProgress.progress = progress; }
+	//inline void SetSwitchCharEffect(bool effectON) { instance.attributes.charSwitchEffect = effectOn; }
 	virtual AnimationStateMachine* GetStateMachine() { return nullptr; }
 
 	void SetBoundingboxSize(XMFLOAT3 size)
@@ -216,9 +223,11 @@ public:
 	virtual void PlayHitAnim() {};
 	virtual void PlayDashAnim() {}
 	virtual void PlayJumpAnim() {}
+	virtual void PlaySurprisedAnim() {}
 
 	virtual bool CanWalk() const = 0;
-	virtual bool CanStopWalking() const = 0;
+	virtual bool CanStopMoving() const = 0;
+	virtual bool CanStopRunning() const { return false; }
 	virtual bool CanAttack() const = 0;
 	virtual bool CanAttack2() const  { return false; }
 	virtual bool CanAttack3() const  { return false; }
@@ -226,10 +235,14 @@ public:
 	virtual bool CanHit()	const = 0;
 	virtual bool CanHit2()	const { return false; }
 	virtual bool CanJump()	const { return false; }
+	virtual bool CanSurprised() const { return false; }
+	virtual bool CanDie()	const { return false; }
 	virtual void OnAttackAnimationEnd() {};
 	virtual void OnHitAnimationEnd() {};
 	virtual void OnDashAnimationEnd() {}
 	virtual void OnJumpAnimationEnd() {}
+	virtual void OnDieAnimationEnd() {}
+	virtual void OnSurprisedEnd() {}
 	virtual bool ExecuteAction(ActionEnum action) { return true; }
 	bool AlwaysTrue() const { return true; }
 };

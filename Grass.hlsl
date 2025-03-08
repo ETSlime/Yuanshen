@@ -101,9 +101,9 @@ VS_OUTPUT VS(VS_INPUT input)
     //float noiseValue = NoiseTexture.Sample(SampleType, input.TexCoord).r; // ノイズ取得
     int2 texCoordInt = int2(input.TexCoord * float2(256.0f, 256.0f));
     float noiseValue = NoiseTexture.Load(int3(texCoordInt, 0)).r;
-    float windEffect = sin(Time * 3.0 + input.Position.x * 1.5 + input.Position.z * 1.5 + noiseValue * 2.0); // 風アニメーション計算
-    float3 offset = input.Weight * WindStrength * windEffect * WindDirection; // 風偏移
-
+    float windEffect = sin(Time * 0.002 + input.Position.x * 0.000002 + input.Position.z * 0.000002 + noiseValue * 0.001); // 風アニメーション計算
+    float3 offset = input.Weight * WindStrength * windEffect * WindDirection * input.Scale * 25; // 風偏移
+    
     // 頂点位置に風の偏移 + インスタンス位置オフセット + スケール適用
     //float3 finalPosition = (input.Position + offset) * input.Scale + input.OffsetPosition;
     float3 finalPosition = rotatedPosition + offset + input.OffsetPosition;

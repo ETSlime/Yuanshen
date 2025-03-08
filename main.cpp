@@ -257,7 +257,7 @@ HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	InitLight(player);
 
 	// エネミーの初期化
-	enemyManager.Init();
+	enemyManager.Init(player);
 
 	ground = new Ground();
 

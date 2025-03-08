@@ -14,7 +14,6 @@ public:
 	~Mitachurl();
 	void AddAnimation(char* animPath, char* animName, AnimationClipName clipName);
 	void LoadWeapon(char* modelPath, char* modelName);
-	void SetCurrentAnim(AnimationClipName clipName, float startTime = 0);
 
 	void Update(void) override;
 	void Draw(void) override;
@@ -25,15 +24,12 @@ public:
 
 	void PlayWalkAnim(void) override;
 	void PlayRunAnim(void) override;
-	void PlayJumpAnim(void) override;
 	void PlayIdleAnim(void) override;
-	void PlayDashAnim(void) override;
-	void PlayStandingAnim(void) override;
 
 	void PlayAttackAnim(void);
 
 	virtual bool CanWalk(void) const override;
-	virtual bool CanStopWalking() const override;
+	virtual bool CanStopMoving() const override;
 	virtual bool CanAttack() const override;
 	virtual bool CanRun(void) const override;
 

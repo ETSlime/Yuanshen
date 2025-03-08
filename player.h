@@ -15,7 +15,8 @@
 // É}ÉNÉçíËã`
 //*****************************************************************************
 #define ACTION_QUEUE_SIZE		(4)
-#define ACTION_QUEUE_CLEAR_WAIT	(120)
+#define ACTION_QUEUE_CLEAR_WAIT	(40)
+#define PLAYER_HIT_WINDOW		(90)
 #define Action(action)			static_cast<UINT>(action)
 
 //*****************************************************************************
@@ -44,13 +45,12 @@ public:
 	~Player();
 	void Update(void);
 	void Draw(void);
-	void HandlePlayerMove(Transform& transform);
-	Transform GetTransform(void);
+	Transform GetTransform(void) const;
 
 private:
 
 	void UpdateActionQueue(void);
-
+	void HandlePlayerMove(Transform& transform);
 	Attributes attributes;
 	PlayerAttributes playerAttr;
 	Sigewinne* sigewinne;

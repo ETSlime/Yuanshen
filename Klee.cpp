@@ -54,6 +54,8 @@ Klee::Klee()
 
 	LoadWeapon("data/MODEL/character/Klee", "Pulpfi.fbx");
 
+	instance.pModel->SetDrawBoundingBox(false);
+	weapon.GetSkinnedMeshModel()->SetDrawBoundingBox(false);
 
 	AddAnimation("data/MODEL/character/Klee/", "Idle.fbx", AnimationClipName::ANIM_IDLE);
 	AddAnimation("data/MODEL/character/Klee/", "Standing Draw Arrow.fbx", AnimationClipName::ANIM_STANDING_DRAW_ARROW);
@@ -89,11 +91,6 @@ void Klee::LoadWeapon(char* modelPath, char* modelName)
 	weapon.SetScale(XMFLOAT3(WEAPON_SIZE, WEAPON_SIZE, WEAPON_SIZE));
 	//weapon.SetPosition(XMFLOAT3(WEAPON_ON_HANDS_POS_OFFSET_X, WEAPON_ON_HANDS_POS_OFFSET_Y, WEAPON_ON_HANDS_POS_OFFSET_Z));
 	//weapon.SetRotation(XMFLOAT3(WEAPON_ON_BACK_POS_OFFSET_X, WEAPON_ON_BACK_POS_OFFSET_Y, WEAPON_ON_BACK_POS_OFFSET_Z));
-}
-
-void Klee::SetCurrentAnim(AnimationClipName clipName, float startTime)
-{
-	instance.pModel->SetCurrentAnim(clipName, startTime);
 }
 
 void Klee::Update(void)
@@ -182,8 +179,8 @@ void Klee::SetupAnimationStateMachine()
 	//ó‘Ô‘JˆÚ
 	//stateMachine->AddTransition(PlayerState::IDLE, PlayerState::WALK, &ISkinnedMeshModelChar::CanWalk);
 	//stateMachine->AddTransition(PlayerState::WALK, PlayerState::RUN, &ISkinnedMeshModelChar::CanRun);
-	//stateMachine->AddTransition(PlayerState::WALK, PlayerState::IDLE, &ISkinnedMeshModelChar::CanStopWalking);
-	//stateMachine->AddTransition(PlayerState::RUN, PlayerState::IDLE, &ISkinnedMeshModelChar::CanStopWalking);
+	//stateMachine->AddTransition(PlayerState::WALK, PlayerState::IDLE, &ISkinnedMeshModelChar::CanStopMoving);
+	//stateMachine->AddTransition(PlayerState::RUN, PlayerState::IDLE, &ISkinnedMeshModelChar::CanStopMoving);
 	//stateMachine->AddTransition(PlayerState::IDLE, PlayerState::ATTACK, &ISkinnedMeshModelChar::CanAttack);
 	//stateMachine->AddTransition(PlayerState::WALK, PlayerState::ATTACK, &ISkinnedMeshModelChar::CanAttack);
 	//stateMachine->AddTransition(PlayerState::ATTACK, PlayerState::IDLE, &ISkinnedMeshModelChar::AlwaysTrue, true);
@@ -193,44 +190,44 @@ void Klee::SetupAnimationStateMachine()
 	stateMachine->SetCurrentState(STATE(PlayerState::IDLE));
 }
 
-void Klee::PlayStandingAnim(void)
-{
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_STANDING)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_STANDING);
-	instance.pModel->PlayCurrentAnim(playAnimSpeed);
-}
-
 void Klee::PlayWalkAnim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_WALK)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_WALK);
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Klee::PlayRunAnim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_RUN)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_RUN);
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Klee::PlayJumpAnim(void)
 {
-
+	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_JUMP)
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
+	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Klee::PlayIdleAnim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_IDLE)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_IDLE);
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
+void Klee::PlayStandingAnim(void)
+{
+	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_STANDING)
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
+	instance.pModel->PlayCurrentAnim(playAnimSpeed);
+}
+
+
 void Klee::PlayAttackAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_STANDING_DRAW_ARROW)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_STANDING_DRAW_ARROW);
-	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Klee::PlayHitAnim(void)
@@ -242,7 +239,7 @@ bool Klee::CanWalk(void) const
 	return instance.attributes.isMoving && !instance.attributes.isAttacking;
 }
 
-bool Klee::CanStopWalking() const
+bool Klee::CanStopMoving() const
 {
 	return !instance.attributes.isMoving;
 }

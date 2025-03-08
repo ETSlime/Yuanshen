@@ -1,6 +1,6 @@
 //=============================================================================
 //
-// エネミーモデル処理 [enemy.h]
+// エネミーモデル処理 [Enemy.h]
 // Author : 
 //
 //=============================================================================
@@ -9,7 +9,6 @@
 #include "SimpleArray.h"
 #include "DoubleLinkedList.h"
 #include "SingletonBase.h"
-
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
@@ -18,8 +17,8 @@
 #define	ENEMY_SIZE		(65.0f)				// 当たり判定の大きさ
 #define ROTATION_SPEED				(0.18f)
 #define ENEMY_HIT_WINDOW			(60)
+#define ENEMY_RESPAWON_TIME			(2000.0f)
 
-#define HILICHURL_SIZE	XMFLOAT3(0.9f, 0.9f, 0.9f)
 enum
 {
 	ENEMY_IDLE,
@@ -57,38 +56,68 @@ struct EnemyAttribute
 {
 	float				HP;
 	float				maxHP;
-	float				spd;				// 移動スピード
-	float				size;				// 当たり判定の大きさ
+
+	float				timer;
+	float				nextChangeDirTime;
+	float				moveDistance;
+	float				distPlayer;
+
+	bool				isWaiting;
+	bool				isSurprised;
+	bool				isChasingPlayer;
+	bool				isSitting;
+	bool				isInCooldown;
+
+	float				viewAngle;     // 視野角 (例: 60° = 60 * (PI / 180))
+	float				viewDistance;  // 視認範囲
+	float				chaseRange;    // 追跡範囲
+	float				attackRange;   // 攻撃範囲
+	float				attackCooldownTimer;
+
+	EnemyState			initState;
+	Transform			initTrans;
+
+	float				cooldownMoveDirection;
+	float				cooldownWaitTime;
+	float				cooldownMoveDistance;
+	
+	float				waitTime;
+	EnemyType			enemyType;
+
+	bool				die;
+	bool				isDead;
+	bool				startFadeOut;
+	bool				randomMove;
+	float				respawnTimer;
+
 
 	INTERPOLATION_DATA* moveTbl;
-
 	XMFLOAT3	move;			// 移動速度
-	float		dir;
-	float		targetDir;
-
 	float		time;			// 線形補間用
 	int			tblMax;			// そのテーブルのデータ数
 
-	EnemyType	enemyType;
-};
+	void Initialize()
+	{
+		isWaiting = false;
+		isSurprised = false;
+		isChasingPlayer = false;
+		isSitting = false;
+		isInCooldown = false;
+		die = false;
+		isDead = false;
+		startFadeOut = false;
+		randomMove = true;
 
-//struct EnemyInstance : public ModelInstance
-//{
-//	EnemyAttribute		attribute;
-//
-//	INTERPOLATION_DATA*	moveTbl;
-//	BOOL				jumpUp;
-//	int					jumpCnt;
-//	float				jumpYMax;
-//	int					state;
-//
-//	XMFLOAT3	move;			// 移動速度
-//	float		dir;
-//	float		targetDir;
-//
-//	float		time;			// 線形補間用
-//	int			tblMax;			// そのテーブルのデータ数
-//};
+		timer = 0.0f;
+		nextChangeDirTime = 0.0f;
+		moveDistance = 0.0f;
+		distPlayer = 0.0f;
+		waitTime = 0.0f;
+		cooldownMoveDirection = 0.0f;
+		cooldownWaitTime = 0.0f;
+		cooldownMoveDistance = 0.0f;
+	}
+};
 
 struct UISprite
 {
@@ -112,20 +141,35 @@ struct MoveTable
 //*****************************************************************************
 HRESULT MakeVertexHPGauge(int w, int h);
 
+class Player;
+
 class Enemy : public GameObject<SkinnedMeshModelInstance>
 {
 public:
 	Enemy(EnemyType enemyType, Transform trans);
-	inline EnemyAttribute* GetEnemyAttribute(void) { return &attribute; }
+	inline EnemyAttribute* GetEnemyAttribute(void) { return &enemyAttr; }
 	void Update(void) override;
 	void Draw(void) override;
-	inline INTERPOLATION_DATA* GetMoveTbl() { return attribute.moveTbl; }
+	inline INTERPOLATION_DATA* GetMoveTbl() { return enemyAttr.moveTbl; }
 	void SetMoveTbl(const MoveTable* moveTbl);
 
+	void SetPlayer(const Player* player) { this->player = player; }
+
+	void ReduceHP(float amount) { enemyAttr.HP -= amount; }
+
+	void SetRandomMove(bool random) { enemyAttr.randomMove = random; }
+
+protected:
+	EnemyAttribute enemyAttr;
+	const Player* player;
+	virtual void Initialize(void);
 private:
-
-	EnemyAttribute attribute;
-
+	void SetNewPosTarget(void);
+	void StartWaiting(void);
+	bool DetectPlayer(void);
+	void ChasePlayer(void);
+	void AttackPlayer(float dist);
+	void CooldownMovement(void);
 	//void UpdateEditorSelect(int sx, int sy);
 };
 
@@ -133,7 +177,7 @@ class EnemyManager : public SingletonBase<EnemyManager>
 {
 public:
 	EnemyManager();
-	void Init();
+	void Init(const Player* player = nullptr);
 	void SpawnEnemy(EnemyType enemType, Transform trans, EnemyState initState, MoveTable* moveTbl = nullptr);
 	void Draw(void);
 	void Update(void);
@@ -144,4 +188,5 @@ private:
 
 	DoubleLinkedList<Enemy*> enemyList;
 	SimpleArray<MoveTable> moveTbls;
+	const Player* player;
 };

@@ -93,6 +93,8 @@ enum AnimationClipName
 	ANIM_HIT_REACTION_2,
 	ANIM_SIT,
 	ANIM_SURPRISED,
+	ANIM_DIE,
+	ANIM_DANCE,
 
 };
 

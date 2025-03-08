@@ -18,6 +18,7 @@
 #define	MODEL_FIELD					"data/MODEL/Environment/Land.obj"
 #define	MODEL_TREE_NAME				"Tree.fbx"
 #define	MODEL_FIELD_NAME			"Land.fbx"
+#define	MODEL_BONFIRE_NAME			"bonfire.fbx"
 #define	MODEL_TOWN_NAME				"kt.fbx"
 
 #define WORLD_MAX			(XMFLOAT3(200000.0f, 200000.0f, 200000.0f))

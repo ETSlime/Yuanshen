@@ -14,7 +14,6 @@ public:
 	~Lumine();
 	void AddAnimation(char* animPath, char* animName, AnimationClipName clipName);
 	void LoadWeapon(char* modelPath, char* modelName);
-	void SetCurrentAnim(AnimationClipName clipName, float startTime = 0);
 
 	void Update(void) override;
 	void Draw(void) override;
@@ -39,7 +38,7 @@ public:
 	void PlayHitAnim(void) override;
 
 	virtual bool CanWalk(void) const override;
-	virtual bool CanStopWalking() const override;
+	virtual bool CanStopMoving() const override;
 	virtual bool CanAttack() const override;
 	virtual bool CanAttack2() const override;
 	virtual bool CanAttack3() const override;
@@ -59,5 +58,10 @@ private:
 	GameObject<SkinnedMeshModelInstance> weapon;
 	AnimationStateMachine* stateMachine;
 	float playAnimSpeed;
+	float weaponOnBackTimer;
+	float weaponOnHandTimer;
+	bool weaponOnBack;
+	bool storeWeaponOnBack;
+	bool storeWeapon;
 	FBXLoader& fbxLoader = FBXLoader::get_instance();
 };

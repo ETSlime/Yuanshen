@@ -57,6 +57,8 @@ bool FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
         model.weaponTransformIdx = LEFT_HAND_BONE_IDX;
         break;
     case ModelType::Lumine:
+    case ModelType::Hilichurl:
+    case ModelType::Mitachurl:
         model.weaponTransformIdx = RIGHT_HAND_BONE_IDX;
         break;
     default:
@@ -84,8 +86,6 @@ bool FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
 
         if (!loadSuccess)
         {
-            if (model.currentAnimClip)
-                delete model.currentAnimClip;
             return false;
         }
 
@@ -283,7 +283,7 @@ bool FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
         }
 
         model.numBones = modelData->mBoneHierarchy.getSize();
-        modelData->boneTransformData = new BoneTransformData(model.numBones);
+        model.boneTransformData = BoneTransformData(model.numBones);
         if (model.numBones == 0)
             model.numBones = 1;
 
@@ -385,6 +385,9 @@ bool FBXLoader::LoadAnimation(ID3D11Device* device, SkinnedMeshModel& model, con
     strcpy(model.modelPath, modelPath);
     strcpy(model.modelName, modelName);
 
+    if (model.animationClips.search(animName) != nullptr)
+        return false;
+
     FbxNode* rootNode = new FbxNode(model.currentRootNodeID);
     model.fbxNodes.insert(model.currentRootNodeID, rootNode);
     model.currentRootNodeID++;
@@ -408,8 +411,6 @@ bool FBXLoader::LoadAnimation(ID3D11Device* device, SkinnedMeshModel& model, con
 
         if (!loadSuccess)
         {
-            if (model.currentAnimClip)
-                delete model.currentAnimClip;
             return false;
         }
 
@@ -435,7 +436,7 @@ bool FBXLoader::LoadAnimation(ID3D11Device* device, SkinnedMeshModel& model, con
                 || childNode->nodeType == FbxNodeType::LimbNode)
             {
                 model.currentAnimClip->armatureNode = childNode;
-                model.animationClips.insert(model.currentAnimClip->name, model.currentAnimClip);
+                model.animationClips.insert(model.currentAnimClip->name, *model.currentAnimClip);
             }
         }
     }
@@ -3017,9 +3018,8 @@ void FBXLoader::HandleMeshNode(FbxNode* node, SkinnedMeshModel& model)
                     {
                         model.currentAnimClip->armatureNode = modelArmature;
                         if (!model.animationClips.search(model.currentAnimClip->name))
-                            model.animationClips.insert(model.currentAnimClip->name, model.currentAnimClip);
+                            model.animationClips.insert(model.currentAnimClip->name, *model.currentAnimClip);
                     }
-
                 }
                     
                 HandleDeformer(deformerArmature, *ppModelData, model, 0, -1);

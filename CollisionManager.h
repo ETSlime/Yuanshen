@@ -20,6 +20,7 @@ enum class ColliderType
     PLAYER,
     ENEMY,
     WALL,
+    TREE,
     ITEM,
     TELEPORTER,
     PLAYER_ATTACK,

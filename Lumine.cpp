@@ -33,6 +33,8 @@
 #define ATTACK_COMBO_WINDOW		(70)
 #define ATTACK_RANGE			(120.0f)
 #define	MAX_ATTACK_STEP			(800.0f)
+#define WEAPON_ON_BACK_TIME		(600.0f)
+#define WEAPON_ON_HAND_TIME		(200.0f)
 
 Lumine::Lumine()
 {
@@ -47,7 +49,8 @@ Lumine::Lumine()
 	weapon.SetColliderOwner(&weapon);
 	CollisionManager::get_instance().RegisterCollider(&weapon.GetCollider());
 	
-
+	instance.pModel->SetDrawBoundingBox(false);
+	weapon.GetSkinnedMeshModel()->SetDrawBoundingBox(false);
 
 	AddAnimation("data/MODEL/character/Lumine/", "Idle.fbx", AnimationClipName::ANIM_STANDING);
 	AddAnimation("data/MODEL/character/Lumine/", "Looking Around.fbx", AnimationClipName::ANIM_IDLE);
@@ -55,6 +58,7 @@ Lumine::Lumine()
 	AddAnimation("data/MODEL/character/Lumine/", "Running.fbx", AnimationClipName::ANIM_RUN);
 	AddAnimation("data/MODEL/character/Lumine/", "Walking.fbx", AnimationClipName::ANIM_WALK);
 	AddAnimation("data/MODEL/character/Lumine/", "Jump.fbx", AnimationClipName::ANIM_JUMP);
+	AddAnimation("data/MODEL/character/Lumine/", "Standing React Small From Left.fbx", AnimationClipName::ANIM_HIT_REACTION_1);
 	AddAnimation("data/MODEL/character/Lumine/", "Sword And Shield Slash.fbx", AnimationClipName::ANIM_SWORD_SHIELD_SLASH);
 	AddAnimation("data/MODEL/character/Lumine/", "Sword And Shield Slash 2.fbx", AnimationClipName::ANIM_SWORD_SHIELD_SLASH2);
 	AddAnimation("data/MODEL/character/Lumine/", "Sword And Shield Slash 3.fbx", AnimationClipName::ANIM_SWORD_SHIELD_SLASH3);
@@ -64,7 +68,12 @@ Lumine::Lumine()
 	instance.pModel->SetFaceDiffuseTexture("data/MODEL/character/Lumine/face.png");
 
 	playAnimSpeed = PLAY_ANIM_SPD;
-
+	weaponOnBackTimer = 0;
+	weaponOnHandTimer = 0;
+	weaponOnBack = false;
+	storeWeaponOnBack = false;
+	storeWeapon = false;
+	instance.renderProgress.progress = 0.0f;
 	SetupAnimationStateMachine();
 }
 
@@ -85,13 +94,6 @@ void Lumine::LoadWeapon(char* modelPath, char* modelName)
 	weapon.SetScale(XMFLOAT3(WEAPON_SIZE, WEAPON_SIZE, WEAPON_SIZE));
 	weapon.SetPosition(XMFLOAT3(WEAPON_ON_HANDS_POS_OFFSET_X, WEAPON_ON_HANDS_POS_OFFSET_Y, WEAPON_ON_HANDS_POS_OFFSET_Z));
 	weapon.SetRotation(XMFLOAT3(WEAPON_ON_HANDS_ROT_OFFSET_X, WEAPON_ON_HANDS_ROT_OFFSET_Y, WEAPON_ON_HANDS_ROT_OFFSET_Z));
-	//weapon.SetPosition(XMFLOAT3(WEAPON_ON_BACK_POS_OFFSET_X, WEAPON_ON_BACK_POS_OFFSET_Y, WEAPON_ON_BACK_POS_OFFSET_Z));
-	//weapon.SetRotation(XMFLOAT3(WEAPON_ON_BACK_ROT_OFFSET_X, WEAPON_ON_BACK_ROT_OFFSET_Y, WEAPON_ON_BACK_ROT_OFFSET_Z));
-}
-
-void Lumine::SetCurrentAnim(AnimationClipName clipName, float startTime)
-{
-	instance.pModel->SetCurrentAnim(clipName, startTime);
 }
 
 void Lumine::Update(void)
@@ -148,6 +150,9 @@ void Lumine::Update(void)
 	case STATE(PlayerState::ATTACK_3):
 		PlayAttack3Anim();
 		break;
+	case STATE(PlayerState::HIT):
+		PlayHitAnim();
+		break;
 	default:
 		break;
 	}
@@ -161,19 +166,65 @@ void Lumine::Update(void)
 
 void Lumine::Draw(void)
 {
-	instance.renderProgress.isRandomFade = true;
-	instance.renderProgress.progress += 0.01f;
-	if (instance.renderProgress.progress > 1.0f)
-		instance.renderProgress.progress = 1.0f;
+	if (storeWeaponOnBack)
+	{
+		instance.renderProgress.isRandomFade = true;
+		instance.renderProgress.progress -= 0.01f;
+		if (instance.renderProgress.progress < 0.0f)
+		{
+			instance.renderProgress.progress = 0.0f;
+			weaponOnBack = true;
+			weaponOnBackTimer = WEAPON_ON_BACK_TIME;
+			storeWeaponOnBack = false;
+			weapon.SetPosition(XMFLOAT3(WEAPON_ON_BACK_POS_OFFSET_X, WEAPON_ON_BACK_POS_OFFSET_Y, WEAPON_ON_BACK_POS_OFFSET_Z));
+			weapon.SetRotation(XMFLOAT3(WEAPON_ON_BACK_ROT_OFFSET_X, WEAPON_ON_BACK_ROT_OFFSET_Y, WEAPON_ON_BACK_ROT_OFFSET_Z));
+		}
+	}
+	else if (weaponOnBackTimer >= 0 && weaponOnBack == true)
+	{
+		instance.renderProgress.progress += 0.01f;
+		if (instance.renderProgress.progress >= 1.0f)
+		{
+			//weaponOnBack = false;
+			instance.renderProgress.progress = 1.0f;
+		}
+	}
+	else if (storeWeapon)
+	{
+		instance.renderProgress.progress -= 0.01f;
+		if (instance.renderProgress.progress < 0.0f)
+		{
+			instance.renderProgress.progress = 0.0f;
+			storeWeapon = false;
+		}
+	}
+
 	renderer.SetRenderProgress(instance.renderProgress);
+	if (instance.renderProgress.progress > 0)
+		weapon.Draw();
+
+	if (instance.attributes.charSwitchEffect == TRUE)
+	{
+		instance.renderProgress.progress += 0.01f;
+		if (instance.renderProgress.progress >= 1.0f)
+		{
+			instance.renderProgress.progress = 1.0f;
+			instance.attributes.charSwitchEffect = FALSE;
+		}
+	}
+	else
+	{
+		RenderProgressBuffer defaultRenderProgress;
+		defaultRenderProgress.isRandomFade = false;
+		defaultRenderProgress.progress = 1.0f;
+
+		renderer.SetRenderProgress(defaultRenderProgress);
+
+	}
 	GameObject::Draw();
-	weapon.Draw();
 
-	RenderProgressBuffer defaultRenderProgress;
-	defaultRenderProgress.isRandomFade = false;
-	defaultRenderProgress.progress = 0.0f;
 
-	renderer.SetRenderProgress(defaultRenderProgress);
+
 }
 
 AnimationStateMachine* Lumine::GetStateMachine(void)
@@ -194,6 +245,7 @@ void Lumine::SetupAnimationStateMachine()
 	stateMachine->AddState(STATE(PlayerState::ATTACK_1), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_SWORD_SHIELD_SLASH));
 	stateMachine->AddState(STATE(PlayerState::ATTACK_2), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_SWORD_SHIELD_SLASH2));
 	stateMachine->AddState(STATE(PlayerState::ATTACK_3), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_SWORD_SHIELD_SLASH3));
+	stateMachine->AddState(STATE(PlayerState::HIT), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_HIT_REACTION_1));
 
 	//ó‘Ô‘JˆÚ
 	stateMachine->AddTransition(STATE(PlayerState::STANDING), STATE(PlayerState::WALK), &ISkinnedMeshModelChar::CanWalk);
@@ -201,24 +253,31 @@ void Lumine::SetupAnimationStateMachine()
 	stateMachine->AddTransition(STATE(PlayerState::STANDING), STATE(PlayerState::ATTACK_2), &ISkinnedMeshModelChar::CanAttack2);
 	stateMachine->AddTransition(STATE(PlayerState::STANDING), STATE(PlayerState::ATTACK_3), &ISkinnedMeshModelChar::CanAttack3);
 	stateMachine->AddTransition(STATE(PlayerState::STANDING), STATE(PlayerState::JUMP), &ISkinnedMeshModelChar::CanJump);
+	stateMachine->AddTransition(STATE(PlayerState::STANDING), STATE(PlayerState::HIT), &ISkinnedMeshModelChar::CanHit);
 	stateMachine->AddTransition(STATE(PlayerState::JUMP), STATE(PlayerState::STANDING), &ISkinnedMeshModelChar::AlwaysTrue, true);
 	stateMachine->AddTransition(STATE(PlayerState::WALK), STATE(PlayerState::ATTACK_1), &ISkinnedMeshModelChar::CanAttack);
-	stateMachine->AddTransition(STATE(PlayerState::WALK), STATE(PlayerState::STANDING), &ISkinnedMeshModelChar::CanStopWalking);
+	stateMachine->AddTransition(STATE(PlayerState::WALK), STATE(PlayerState::STANDING), &ISkinnedMeshModelChar::CanStopMoving);
 	stateMachine->AddTransition(STATE(PlayerState::WALK), STATE(PlayerState::RUN), &ISkinnedMeshModelChar::CanRun);
 	stateMachine->AddTransition(STATE(PlayerState::WALK), STATE(PlayerState::JUMP), &ISkinnedMeshModelChar::CanJump);
-	stateMachine->AddTransition(STATE(PlayerState::RUN), STATE(PlayerState::STANDING), &ISkinnedMeshModelChar::CanStopWalking);
+	stateMachine->AddTransition(STATE(PlayerState::WALK), STATE(PlayerState::HIT), &ISkinnedMeshModelChar::CanHit);
+	stateMachine->AddTransition(STATE(PlayerState::RUN), STATE(PlayerState::STANDING), &ISkinnedMeshModelChar::CanStopMoving);
 	stateMachine->AddTransition(STATE(PlayerState::RUN), STATE(PlayerState::JUMP), &ISkinnedMeshModelChar::CanJump);
 	stateMachine->AddTransition(STATE(PlayerState::ATTACK_1), STATE(PlayerState::STANDING), &ISkinnedMeshModelChar::AlwaysTrue, true);
+	stateMachine->AddTransition(STATE(PlayerState::ATTACK_1), STATE(PlayerState::HIT), &ISkinnedMeshModelChar::CanHit);
 	stateMachine->AddTransition(STATE(PlayerState::ATTACK_2), STATE(PlayerState::STANDING), &ISkinnedMeshModelChar::AlwaysTrue, true);
+	stateMachine->AddTransition(STATE(PlayerState::ATTACK_2), STATE(PlayerState::HIT), &ISkinnedMeshModelChar::CanHit);
 	stateMachine->AddTransition(STATE(PlayerState::ATTACK_3), STATE(PlayerState::STANDING), &ISkinnedMeshModelChar::AlwaysTrue, true);
+	stateMachine->AddTransition(STATE(PlayerState::ATTACK_3), STATE(PlayerState::HIT), &ISkinnedMeshModelChar::CanHit);
 	stateMachine->AddTransition(STATE(PlayerState::ATTACK_1), STATE(PlayerState::JUMP), &ISkinnedMeshModelChar::CanJump, false);
 	stateMachine->AddTransition(STATE(PlayerState::ATTACK_2), STATE(PlayerState::JUMP), &ISkinnedMeshModelChar::CanJump, false);
 	stateMachine->AddTransition(STATE(PlayerState::ATTACK_3), STATE(PlayerState::JUMP), &ISkinnedMeshModelChar::CanJump, false);
+	stateMachine->AddTransition(STATE(PlayerState::HIT), STATE(PlayerState::STANDING), &ISkinnedMeshModelChar::AlwaysTrue, true);
 
 
 	stateMachine->SetEndCallback(STATE(PlayerState::ATTACK_1), &ISkinnedMeshModelChar::OnAttackAnimationEnd);
 	stateMachine->SetEndCallback(STATE(PlayerState::ATTACK_2), &ISkinnedMeshModelChar::OnAttackAnimationEnd);
 	stateMachine->SetEndCallback(STATE(PlayerState::ATTACK_3), &ISkinnedMeshModelChar::OnAttackAnimationEnd);
+	stateMachine->SetEndCallback(STATE(PlayerState::HIT), &ISkinnedMeshModelChar::OnHitAnimationEnd);
 	stateMachine->SetEndCallback(STATE(PlayerState::JUMP), &ISkinnedMeshModelChar::OnJumpAnimationEnd);
 
 	stateMachine->SetCurrentState(STATE(PlayerState::STANDING));
@@ -227,35 +286,35 @@ void Lumine::SetupAnimationStateMachine()
 void Lumine::PlayWalkAnim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_WALK)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_WALK);
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Lumine::PlayRunAnim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_RUN)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_RUN);
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Lumine::PlayJumpAnim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_JUMP)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_JUMP);
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Lumine::PlayIdleAnim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_IDLE)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_IDLE);
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Lumine::PlayStandingAnim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_STANDING)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_STANDING);
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
@@ -267,7 +326,8 @@ bool Lumine::ExecuteAction(ActionEnum action)
 		if (stateMachine->GetCurrentState() == STATE(PlayerState::ATTACK_1) ||
 			stateMachine->GetCurrentState() == STATE(PlayerState::ATTACK_2) ||
 			stateMachine->GetCurrentState() == STATE(PlayerState::ATTACK_3) ||
-			stateMachine->GetCurrentState() == STATE(PlayerState::JUMP))
+			stateMachine->GetCurrentState() == STATE(PlayerState::JUMP) || 
+			stateMachine->GetCurrentState() == STATE(PlayerState::RUN))
 			return false;
 		else
 		{
@@ -290,7 +350,10 @@ bool Lumine::ExecuteAction(ActionEnum action)
 				instance.attributes.isAttacking2 = false;
 				instance.attributes.isAttacking3 = false;
 			}
-
+			weapon.SetPosition(XMFLOAT3(WEAPON_ON_HANDS_POS_OFFSET_X, WEAPON_ON_HANDS_POS_OFFSET_Y, WEAPON_ON_HANDS_POS_OFFSET_Z));
+			weapon.SetRotation(XMFLOAT3(WEAPON_ON_HANDS_ROT_OFFSET_X, WEAPON_ON_HANDS_ROT_OFFSET_Y, WEAPON_ON_HANDS_ROT_OFFSET_Z));
+			weaponOnBack = false;
+			instance.renderProgress.progress = 1.0f;
 			instance.attributes.attackWinwdowCnt = 0;
 			return true;
 		}
@@ -302,7 +365,7 @@ bool Lumine::ExecuteAction(ActionEnum action)
 void Lumine::PlayDashAnim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_DASH)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_DASH);
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
@@ -312,7 +375,7 @@ void Lumine::PlayAttackAnim(void)
 
 	weapon.SetColliderEnable(true);
 	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_SWORD_SHIELD_SLASH)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_SWORD_SHIELD_SLASH);
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed * 1.5f);
 }
 
@@ -322,7 +385,7 @@ void Lumine::PlayAttack2Anim(void)
 
 	weapon.SetColliderEnable(true);
 	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_SWORD_SHIELD_SLASH2)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_SWORD_SHIELD_SLASH2);
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed * 1.5f);
 }
 
@@ -332,13 +395,15 @@ void Lumine::PlayAttack3Anim(void)
 
 	weapon.SetColliderEnable(true);
 	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_SWORD_SHIELD_SLASH3)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_SWORD_SHIELD_SLASH3);
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed * 1.5f);
 }
 
 void Lumine::PlayHitAnim(void)
 {
-
+	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_HIT_REACTION_1)
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
+	instance.pModel->PlayCurrentAnim(playAnimSpeed * 1.2f);
 }
 
 void Lumine::FaceToNearestEnemy(void)
@@ -384,8 +449,35 @@ void Lumine::FaceToNearestEnemy(void)
 
 void Lumine::UpdateWeapon(void)
 {
+	if (weaponOnHandTimer > 0)
+	{
+		weaponOnHandTimer--;
+		if (weaponOnHandTimer <= 0)
+		{
+			storeWeaponOnBack = true;
+			instance.renderProgress.progress = 1.0f;
+		}
+	}
+
+	if (weaponOnBackTimer > 0)
+	{
+		weaponOnBackTimer--;
+		if (weaponOnBackTimer <= 0)
+		{
+			storeWeapon = true;
+		}
+	}
+
+
+
+
 	weapon.Update();
-	XMMATRIX weaponMtx = instance.pModel->GetWeaponTransformMtx();
+	XMMATRIX weaponMtx;
+	if (!weaponOnBack)
+		weaponMtx = instance.pModel->GetWeaponTransformMtx();
+	else
+		weaponMtx = instance.pModel->GetBodyTransformMtx();
+
 	weaponMtx = XMMatrixMultiply(weapon.GetWorldMatrix(), weaponMtx);
 	weaponMtx = XMMatrixMultiply(weaponMtx, instance.transform.mtxWorld);
 
@@ -424,7 +516,7 @@ bool Lumine::CanWalk(void) const
 		!instance.attributes.isAttacking3;
 }
 
-bool Lumine::CanStopWalking() const
+bool Lumine::CanStopMoving() const
 {
 	return !instance.attributes.isMoving;
 }
@@ -462,7 +554,8 @@ bool Lumine::CanJump(void) const
 void Lumine::OnAttackAnimationEnd(void)
 {
 	weapon.SetColliderEnable(false);
-
+	storeWeaponOnBack = false;
+	weaponOnHandTimer = WEAPON_ON_HAND_TIME;
 	instance.attributes.isAttacking = false;
 	instance.attributes.isAttacking2 = false;
 	instance.attributes.isAttacking3 = false;

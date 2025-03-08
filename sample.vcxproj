@@ -164,7 +164,6 @@
     <ClInclude Include="SimpleArray.h" />
     <ClInclude Include="SimpleQueue.h" />
     <ClInclude Include="SingletonBase.h" />
-    <ClInclude Include="SkinnedData.h" />
     <ClInclude Include="SkinnedMeshModel.h" />
     <ClInclude Include="Skybox.h" />
     <ClInclude Include="sprite.h" />
@@ -194,10 +193,9 @@
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="offScreenRender.cpp" />
     <ClCompile Include="Player.cpp" />
-    <ClCompile Include="Sigewinne.cpp" />
     <ClCompile Include="renderer.cpp" />
     <ClCompile Include="score.cpp" />
-    <ClCompile Include="SkinnedData.cpp" />
+    <ClCompile Include="Sigewinne.cpp" />
     <ClCompile Include="SkinnedMeshModel.cpp" />
     <ClCompile Include="Skybox.cpp" />
     <ClCompile Include="sprite.cpp" />

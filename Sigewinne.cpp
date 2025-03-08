@@ -35,6 +35,9 @@ Sigewinne::Sigewinne()
 
 	LoadWeapon("data/MODEL/character/Sigewinne", "bow.fbx");
 
+	instance.pModel->SetDrawBoundingBox(false);
+	weapon.GetSkinnedMeshModel()->SetDrawBoundingBox(false);
+
 
 	AddAnimation("data/MODEL/character/Sigewinne/", "Breathing Idle.fbx", AnimationClipName::ANIM_STANDING);
 	AddAnimation("data/MODEL/character/Sigewinne/", "Standing Draw Arrow.fbx", AnimationClipName::ANIM_STANDING_DRAW_ARROW);
@@ -74,11 +77,6 @@ void Sigewinne::LoadWeapon(char* modelPath, char* modelName)
 	weapon.SetScale(XMFLOAT3(WEAPON_SIZE, WEAPON_SIZE, WEAPON_SIZE));
 	weapon.SetPosition(XMFLOAT3(WEAPON_ON_HANDS_POS_OFFSET_X, WEAPON_ON_HANDS_POS_OFFSET_Y, WEAPON_ON_HANDS_POS_OFFSET_Z));
 	weapon.SetRotation(XMFLOAT3(WEAPON_ON_HANDS_ROT_OFFSET_X, WEAPON_ON_HANDS_ROT_OFFSET_Y, WEAPON_ON_HANDS_ROT_OFFSET_Z));
-}
-
-void Sigewinne::SetCurrentAnim(AnimationClipName clipName, float startTime)
-{
-	instance.pModel->SetCurrentAnim(clipName, startTime);
 }
 
 void Sigewinne::Update(void)
@@ -166,9 +164,9 @@ void Sigewinne::SetupAnimationStateMachine()
 	stateMachine->AddTransition(STATE(PlayerState::STANDING), STATE(PlayerState::ATTACK_1), &ISkinnedMeshModelChar::CanAttack);
 	stateMachine->AddTransition(STATE(PlayerState::IDLE), STATE(PlayerState::WALK), &ISkinnedMeshModelChar::CanWalk);
 	stateMachine->AddTransition(STATE(PlayerState::IDLE), STATE(PlayerState::ATTACK_1), &ISkinnedMeshModelChar::CanAttack);
-	stateMachine->AddTransition(STATE(PlayerState::RUN), STATE(PlayerState::STANDING), &ISkinnedMeshModelChar::CanStopWalking);
+	stateMachine->AddTransition(STATE(PlayerState::RUN), STATE(PlayerState::STANDING), &ISkinnedMeshModelChar::CanStopMoving);
 	stateMachine->AddTransition(STATE(PlayerState::WALK), STATE(PlayerState::RUN), &ISkinnedMeshModelChar::CanRun);
-	stateMachine->AddTransition(STATE(PlayerState::WALK), STATE(PlayerState::STANDING), &ISkinnedMeshModelChar::CanStopWalking);
+	stateMachine->AddTransition(STATE(PlayerState::WALK), STATE(PlayerState::STANDING), &ISkinnedMeshModelChar::CanStopMoving);
 	stateMachine->AddTransition(STATE(PlayerState::WALK), STATE(PlayerState::ATTACK_1), &ISkinnedMeshModelChar::CanAttack);
 	stateMachine->AddTransition(STATE(PlayerState::ATTACK_1), STATE(PlayerState::STANDING), &ISkinnedMeshModelChar::AlwaysTrue, true);
 
@@ -176,43 +174,46 @@ void Sigewinne::SetupAnimationStateMachine()
 
 	stateMachine->SetCurrentState(STATE(PlayerState::STANDING));
 }
-void Sigewinne::PlayStandingAnim(void)
-{
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_STANDING)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_STANDING);
-	instance.pModel->PlayCurrentAnim(playAnimSpeed);
-}
-
 void Sigewinne::PlayWalkAnim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_WALK)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_WALK);
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Sigewinne::PlayRunAnim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_RUN)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_RUN);
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Sigewinne::PlayJumpAnim(void)
 {
-
+	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_JUMP)
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
+	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Sigewinne::PlayIdleAnim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_IDLE)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_IDLE);
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
+
+void Sigewinne::PlayStandingAnim(void)
+{
+	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_STANDING)
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
+	instance.pModel->PlayCurrentAnim(playAnimSpeed);
+}
+
 
 void Sigewinne::PlayAttackAnim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_STANDING_DRAW_ARROW)
-		instance.pModel->SetCurrentAnim(AnimationClipName::ANIM_STANDING_DRAW_ARROW);
+		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
@@ -225,7 +226,7 @@ bool Sigewinne::CanWalk(void) const
 	return instance.attributes.isMoving && !instance.attributes.isAttacking;
 }
 
-bool Sigewinne::CanStopWalking() const
+bool Sigewinne::CanStopMoving() const
 {
 	return !instance.attributes.isMoving;
 }

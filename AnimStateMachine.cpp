@@ -12,7 +12,7 @@ SimpleArray<XMFLOAT4X4>* AnimationClip::GetBoneMatrices(SimpleArray<XMFLOAT4X4>*
 {
     if (model)
     {
-        model->GetBoneTransformByAnim(armatureNode, currentTime, currBoneTransform);
+        model->GetBoneTransformByAnim(armatureNode, currentTime, currBoneTransform, isLoop);
         return currBoneTransform;
     }
     else
@@ -75,7 +75,7 @@ void AnimationState::UpdateBlendedMatrix(void)
     SimpleArray<XMFLOAT4X4>* prevMatrices = nullptr;
     SimpleArray<XMFLOAT4X4>* currMatrices = nullptr;
 
-    currMatrices = currentClip->GetBoneMatrices(currentClip->currBoneTransform);
+    currMatrices = currentClip->GetBoneMatrices(&currentClip->currBoneTransform);
     int boneCount; 
     boneCount = currMatrices->getSize();
 
@@ -92,7 +92,7 @@ void AnimationState::UpdateBlendedMatrix(void)
         return;
     }
 
-    prevMatrices = prevClip->GetBoneMatrices(prevClip->currBoneTransform);
+    prevMatrices = prevClip->GetBoneMatrices(&prevClip->currBoneTransform);
 
     for (int i = 0; i < boneCount; i++)
     {
@@ -202,5 +202,15 @@ SimpleArray<XMFLOAT4X4>* AnimationStateMachine::GetBoneMatrices()
     {
         return currentState->GetBlendedMatrix();
     }
+    return nullptr;
+}
+
+AnimationClip* AnimationStateMachine::GetCurrentAnimClip()
+{
+    if (currentState)
+    {
+        return currentState->currentClip;
+    }
+
     return nullptr;
 }

@@ -20,7 +20,7 @@
 #define ROTATION_SPEED				(0.18f)
 #define FALLING_SPEED		(25.0f)
 
-#define PLAYER_INIT_POS		XMFLOAT3(12582.0f, -2424.0f, -19485.0f)
+#define PLAYER_INIT_POS		XMFLOAT3(14582.0f, -2424.0f, -19485.0f)
 //=============================================================================
 // ‰Šú‰»ˆ—
 //=============================================================================
@@ -59,16 +59,22 @@ void Player::Update(void)
 	if (lumine && GetKeyboardTrigger(DIK_1))
 	{
 		lumine->SetTransform(transform);
+		//lumine->SetRenderProgress(0.0f);
+		//lumine->SetSwitchCharEffect(true);
 		playerGO = lumine;
 	}
 	if (klee && GetKeyboardTrigger(DIK_2))
 	{
 		klee->SetTransform(transform);
+		//klee->SetRenderProgress(0.0f);
+		//klee->SetSwitchCharEffect(true);
 		playerGO = klee;
 	}
 	if (sigewinne && GetKeyboardTrigger(DIK_3))
 	{
 		sigewinne->SetTransform(transform);
+		//sigewinne->SetRenderProgress(0.0f);
+		//sigewinne->SetSwitchCharEffect(true);
 		playerGO = sigewinne;
 	}
 
@@ -156,8 +162,17 @@ void Player::Update(void)
 			attributes.targetDir = 0.0f + camera->rot.y;
 	}
 
-	if (!attributes.isAttacking && !attributes.isAttacking2 && !attributes.isAttacking3)
+	if (!attributes.isAttacking && !attributes.isAttacking2 && !attributes.isAttacking3 && !attributes.isHit1)
 		HandlePlayerMove(transform);
+
+	if (attributes.isHit1 || attributes.hitTimer > 0)
+	{
+		attributes.hitTimer--;
+		if (attributes.hitTimer < 0)
+		{
+			attributes.isHit1 = false;
+		}
+	}
 
 	if (attributes.isGrounded == false)
 	{
@@ -215,7 +230,7 @@ void Player::HandlePlayerMove(Transform& transform)
 
 }
 
-Transform Player::GetTransform(void)
+Transform Player::GetTransform(void) const
 {
 	return playerGO->GetTransform();
 }

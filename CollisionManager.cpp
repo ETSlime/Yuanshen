@@ -7,6 +7,7 @@
 #include "CollisionManager.h"
 #include "GameObject.h"
 #include "Enemy.h"
+#include "Player.h"
 
 constexpr float HEIGHT_EPSILON = 1.0f;
 constexpr float SMOOTHING_FACTOR = 0.2f;
@@ -60,7 +61,9 @@ void CollisionManager::Update()
                 {
                     hasCollision = true;
                     // 動的オブジェクトがプレイヤーと敵の場合のみ、斜面の高さ補正を計算する
-                    if (dynamicCol->type == ColliderType::PLAYER)
+                    if (dynamicCol->type == ColliderType::PLAYER ||
+                        dynamicCol->type == ColliderType::ENEMY ||
+                        dynamicCol->type == ColliderType::TREE)
                     {
                         XMFLOAT3 n = candidates[j]->normal;
 
@@ -116,7 +119,8 @@ void CollisionManager::Update()
             }
 
 
-            if (dynamicColliders[i]->type == ColliderType::PLAYER)
+            if (dynamicCol->type == ColliderType::PLAYER ||
+                dynamicCol->type == ColliderType::ENEMY)
             {
                 if (hasValidSlope)
                 {
@@ -214,24 +218,40 @@ void CollisionManager::Update()
                         || (dynamicCol2->type == ColliderType::ENEMY && dynamicCol1->type == ColliderType::PLAYER_ATTACK))
                     {
                         const Collider* enemyCol = dynamicCol1->type == ColliderType::ENEMY ? dynamicCol1 : dynamicCol2;
-                        auto colliderOwner = static_cast<GameObject<SkinnedMeshModelInstance>*>(enemyCol->owner);
+                        auto colliderOwner = static_cast<Enemy*>(enemyCol->owner);
 
                         if (colliderOwner->GetAttributes().hitTimer <= 0)
                         {
                             colliderOwner->SetHitTimer(ENEMY_HIT_WINDOW);
                             if (!colliderOwner->GetIsHit())
                             {
+                                colliderOwner->ReduceHP(10.0f);
                                 colliderOwner->SetIsHit(true);
                                 colliderOwner->SetIsHit2(false);
                             }
                             else if (!colliderOwner->GetIsHit2())
                             {
+                                colliderOwner->ReduceHP(10.0f);
                                 colliderOwner->SetIsHit2(true);
                                 colliderOwner->SetIsHit(false);
                             }
                         }
+                    }
 
+                    if ((dynamicCol1->type == ColliderType::PLAYER && dynamicCol2->type == ColliderType::ENEMY_ATTACK)
+                        || (dynamicCol2->type == ColliderType::PLAYER && dynamicCol1->type == ColliderType::ENEMY_ATTACK))
+                    {
+                        const Collider* playerCol = dynamicCol1->type == ColliderType::PLAYER ? dynamicCol1 : dynamicCol2;
+                        auto colliderOwner = static_cast<GameObject<SkinnedMeshModelInstance>*>(playerCol->owner);
 
+                        if (colliderOwner->GetAttributes().hitTimer <= 0)
+                        {
+                            colliderOwner->SetHitTimer(PLAYER_HIT_WINDOW);
+                            if (!colliderOwner->GetIsHit())
+                            {
+                                colliderOwner->SetIsHit(true);
+                            }
+                        }
                     }
 
                     CollisionEvent collisionEvent;

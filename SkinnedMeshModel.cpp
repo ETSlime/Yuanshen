@@ -32,42 +32,15 @@ void SkinnedMeshModel::UpdateBoneTransform(SimpleArray<XMFLOAT4X4>* boneTransfor
 
         if (boneTransforms)
         {
-            modelData->boneTransformData->mBoneFinalTransforms.clear();
+            boneTransformData.mBoneFinalTransforms.clear();
 
 
 
             int numBone = boneTransforms->getSize();
             for (int i = 0; i < numBone; i++)
             {
-                modelData->boneTransformData->mBoneFinalTransforms.push_back((*boneTransforms)[i]);
+                boneTransformData.mBoneFinalTransforms.push_back((*boneTransforms)[i]);
             }
-
-            //for (int i = 0; i < numBone - 1; i++)
-            //{
-            //    XMVECTOR maxPoint = XMVectorSet(
-            //        modelData->boundingBoxes[i]->baseMaxPoint.x,
-            //        modelData->boundingBoxes[i]->baseMaxPoint.y,
-            //        modelData->boundingBoxes[i]->baseMaxPoint.z, 
-            //        1.0f
-            //    );
-
-            //    XMVECTOR minPoint = XMVectorSet(
-            //        modelData->boundingBoxes[i]->baseMinPoint.x,
-            //        modelData->boundingBoxes[i]->baseMinPoint.y,
-            //        modelData->boundingBoxes[i]->baseMinPoint.z, 
-            //        1.0f
-            //    );
-
-            //    XMMATRIX worldMatrix = XMLoadFloat4x4(&modelData->boneTransformData->mModelGlobalTrans[i+1]);
-            //    XMVECTOR translation = worldMatrix.r[3];
-            //    XMVECTOR transformedMaxPoint = XMVectorAdd(maxPoint, translation);
-            //    XMVECTOR transformedMinPoint = XMVectorAdd(minPoint, translation);
-
-            //    XMStoreFloat3(&modelData->boundingBoxes[i]->maxPoint, transformedMaxPoint);
-            //    XMStoreFloat3(&modelData->boundingBoxes[i]->minPoint, transformedMinPoint);
-
-            //    CreateBoundingBoxVertex(modelData->boundingBoxes[i]);
-            //}
         }
         else
         {
@@ -77,21 +50,21 @@ void SkinnedMeshModel::UpdateBoneTransform(SimpleArray<XMFLOAT4X4>* boneTransfor
 
             if (armatureNode)
             {
-                modelData->boneTransformData->mModelGlobalScl.clear();
-                modelData->boneTransformData->mModelGlobalRot.clear();
-                modelData->boneTransformData->mModelTranslate.clear();
+                boneTransformData.mModelGlobalScl.clear();
+                boneTransformData.mModelGlobalRot.clear();
+                boneTransformData.mModelTranslate.clear();
 
-                modelData->boneTransformData->mModelGlobalTrans.clear();
-                modelData->boneTransformData->mModelLocalTrans.clear();
-                modelData->boneTransformData->mBoneFinalTransforms.clear();
+                boneTransformData.mModelGlobalTrans.clear();
+                boneTransformData.mModelLocalTrans.clear();
+                boneTransformData.mBoneFinalTransforms.clear();
 
-                modelData->boneTransformData->limbHashMap.clear();
+                boneTransformData.limbHashMap.clear();
 
                 int curIdx = 0;
                 int prevIdx = -1;
 
-                UpdateLimbGlobalTransform(currentAnimClip->armatureNode, armatureNode, curIdx, prevIdx, currentAnimClip->currentTime, modelData->boneTransformData, currentAnimClip->isLoop);
-                GetBoneTransform(modelData->boneTransformData->mBoneFinalTransforms, modelData);
+                UpdateLimbGlobalTransform(currentAnimClip->armatureNode, armatureNode, curIdx, prevIdx, currentAnimClip->currentTime, &boneTransformData, currentAnimClip->isLoop);
+                GetBoneTransform(boneTransformData.mBoneFinalTransforms, modelData);
             }
         }
     }
@@ -108,10 +81,12 @@ void SkinnedMeshModel::DrawModel()
         if (armatureNode)
         {
             XMMATRIX	boneMatrices[BONE_MAX];
-            int size = modelData->boneTransformData->mBoneFinalTransforms.getSize();
+            int size = boneTransformData.mBoneFinalTransforms.getSize();
             for (int i = 0; i < size; i++)
             {
-                boneMatrices[i] = XMMatrixTranspose(XMLoadFloat4x4(&modelData->boneTransformData->mBoneFinalTransforms[i]));
+                boneMatrices[i] = XMMatrixTranspose(XMLoadFloat4x4(&boneTransformData.mBoneFinalTransforms[i]));
+                XMMATRIX dbg = boneMatrices[i];
+                dbg = boneMatrices[i];
             }
             Renderer::get_instance().SetBoneMatrix(boneMatrices);
         }
@@ -274,7 +249,8 @@ void SkinnedMeshModel::LoadTownTexture(void)
     Indoor_MdBuild_WindowEffect04_NoStream = TextureMgr::get_instance().CreateTexture("data/MODEL/Environment/Church/Indoor_MdBuild_WindowEffect04_NoStream.png");
 }
 
-void SkinnedMeshModel::GetBoneTransformByAnim(FbxNode* currentClipArmatureNode, uint64_t currentClipTime, SimpleArray<XMFLOAT4X4>* boneFinalTransform)
+void SkinnedMeshModel::GetBoneTransformByAnim(FbxNode* currentClipArmatureNode, uint64_t currentClipTime, 
+    SimpleArray<XMFLOAT4X4>* boneFinalTransform, bool loop)
 {
     (*boneFinalTransform).clear();
     
@@ -286,20 +262,19 @@ void SkinnedMeshModel::GetBoneTransformByAnim(FbxNode* currentClipArmatureNode, 
 
         if (armatureNode)
         {
-            modelData->boneTransformData->mModelGlobalScl.clear();
-            modelData->boneTransformData->mModelGlobalRot.clear();
-            modelData->boneTransformData->mModelTranslate.clear();
+            boneTransformData.mModelGlobalScl.clear();
+            boneTransformData.mModelGlobalRot.clear();
+            boneTransformData.mModelTranslate.clear();
 
-            modelData->boneTransformData->mModelGlobalTrans.clear();
-            modelData->boneTransformData->mModelLocalTrans.clear();
-            modelData->boneTransformData->mBoneFinalTransforms.clear();
+            boneTransformData.mModelGlobalTrans.clear();
+            boneTransformData.mModelLocalTrans.clear();
 
-            modelData->boneTransformData->limbHashMap.clear();
+            boneTransformData.limbHashMap.clear();
 
             int curIdx = 0;
             int prevIdx = -1;
 
-            UpdateLimbGlobalTransform(currentClipArmatureNode, armatureNode, curIdx, prevIdx, currentClipTime, modelData->boneTransformData);
+            UpdateLimbGlobalTransform(currentClipArmatureNode, armatureNode, curIdx, prevIdx, currentClipTime, &boneTransformData, loop);
             GetBoneTransform(*boneFinalTransform, modelData);
         }
     }
@@ -520,22 +495,28 @@ const SimpleArray<Triangle*>& SkinnedMeshModel::GetTriangles(void) const
     return SimpleArray<Triangle*>();    
 }
 
-void SkinnedMeshModel::SetCurrentAnim(AnimationClipName clipName, float startTime)
+void SkinnedMeshModel::SetCurrentAnim(AnimationClip* currAnimClip, float startTime)//(AnimationClipName clipName, float startTime)
 {
-    AnimationClip** animClip = animationClips.search(clipName);
+    //AnimationClip* animClip = animationClips.search(clipName);
 
-    if (animClip)
+    //if (animClip)
+    //{
+    //    currentAnimClip = *animClip;
+    //    currentAnimClip.currentTime = animClip->stopTime * startTime;
+    //}
+
+    if (currAnimClip)
     {
-        currentAnimClip = *animClip;
-        currentAnimClip->currentTime = (*animClip)->stopTime * startTime;
+        this->currentAnimClip = currAnimClip;
+        this->currentAnimClip->currentTime = currAnimClip->stopTime * startTime;
     }
 }
 
 AnimationClip* SkinnedMeshModel::GetAnimationClip(AnimationClipName clipName)
 {
-    AnimationClip** animClip = animationClips.search(clipName);
+    AnimationClip* animClip = animationClips.search(clipName);
     if (animClip)
-        return *animClip;
+        return animClip;
 
     return nullptr;
 }
@@ -547,10 +528,9 @@ void SkinnedMeshModel::PlayCurrentAnim(float playSpeed)
 
 XMMATRIX SkinnedMeshModel::GetWeaponTransformMtx(void)
 {
-    for (auto& it : meshDataMap)
+    if (boneTransformData.mBoneFinalTransforms.getSize() > weaponTransformIdx)
     {
-        ModelData* modelData = it.value;
-        XMFLOAT4X4 transform =  modelData->boneTransformData->mBoneFinalTransforms[weaponTransformIdx];
+        XMFLOAT4X4 transform =  boneTransformData.mBoneFinalTransforms[weaponTransformIdx];
 
         return XMLoadFloat4x4(&transform);
     }
@@ -560,10 +540,9 @@ XMMATRIX SkinnedMeshModel::GetWeaponTransformMtx(void)
 
 XMMATRIX SkinnedMeshModel::GetBodyTransformMtx(void)
 {
-    for (auto& it : meshDataMap)
+    if (boneTransformData.mBoneFinalTransforms.getSize() > 1)
     {
-        ModelData* modelData = it.value;
-        XMFLOAT4X4 transform = modelData->boneTransformData->mBoneFinalTransforms[1];
+        XMFLOAT4X4 transform = boneTransformData.mBoneFinalTransforms[1];
 
         return XMLoadFloat4x4(&transform);
     }
@@ -573,14 +552,9 @@ XMMATRIX SkinnedMeshModel::GetBodyTransformMtx(void)
 
 XMMATRIX SkinnedMeshModel::GetBoneFinalTransform(int boneIdx)
 {
-    for (auto& it : meshDataMap)
+    if (boneTransformData.mBoneFinalTransforms.getSize() > boneIdx )
     {
-        ModelData* modelData = it.value;
-
-        if (boneIdx >= modelData->boneTransformData->mBoneFinalTransforms.getSize())
-            return XMMatrixIdentity();
-
-        XMFLOAT4X4 transform = modelData->boneTransformData->mBoneFinalTransforms[boneIdx];
+        XMFLOAT4X4 transform = boneTransformData.mBoneFinalTransforms[boneIdx];
 
         return XMLoadFloat4x4(&transform);
     }
@@ -593,7 +567,6 @@ SkinnedMeshModel::SkinnedMeshModel()
     armatureNode = nullptr;
     currentRootNodeID = 0;
     weaponTransformIdx = 0;
-    currentAnimClip = nullptr;
 
     armatureNode = nullptr;
 
@@ -624,11 +597,6 @@ SkinnedMeshModel::~SkinnedMeshModel()
     }
 
     for (auto& it : meshDataMap)
-    {
-        SAFE_DELETE(it.value);
-    }
-
-    for (auto& it : animationClips)
     {
         SAFE_DELETE(it.value);
     }
@@ -676,11 +644,16 @@ SkinnedMeshModel* SkinnedMeshModel::StoreModel(char* modelPath, char* modelName,
             return nullptr;
         modelPool->count = 1;
         modelHashMap.insert(modelFullPath, *modelPool);
+
+        return modelPool->pModel;
     }
     else
+    {
         modelPool->count++;
-
-    return modelPool->pModel;
+        SkinnedMeshModel* model = new SkinnedMeshModel();
+        *model = *modelPool->pModel;
+        return model;
+    }
 }
 
 SkinnedMeshModelPool* SkinnedMeshModel::GetModel(char* modelFullPath)
@@ -849,7 +822,7 @@ void SkinnedMeshModel::GetBoneTransform(SimpleArray<XMFLOAT4X4>& boneFinalTransf
                 limbIdx = i;
             else
             {
-                pLimbIdx = modelData->boneTransformData->limbHashMap.search(*pLimbID);
+                pLimbIdx = boneTransformData.limbHashMap.search(*pLimbID);
                 if (pLimbIdx == nullptr) continue;
                 limbIdx = *pLimbIdx;
             }
@@ -858,8 +831,8 @@ void SkinnedMeshModel::GetBoneTransform(SimpleArray<XMFLOAT4X4>& boneFinalTransf
 
             XMMATRIX mtxInverseRootTransform;
 
-            XMMATRIX mtxGlobalTrans = XMLoadFloat4x4(&modelData->boneTransformData->mModelGlobalTrans[limbIdx]);
-            XMMATRIX mtxLocalTrans = XMLoadFloat4x4(&modelData->boneTransformData->mModelLocalTrans[limbIdx]);
+            XMMATRIX mtxGlobalTrans = XMLoadFloat4x4(&boneTransformData.mModelGlobalTrans[limbIdx]);
+            XMMATRIX mtxLocalTrans = XMLoadFloat4x4(&boneTransformData.mModelLocalTrans[limbIdx]);
 
             XMMATRIX offset = XMLoadFloat4x4(&modelData->mBoneOffsets[deformerIdx]);
             XMMATRIX toRoot = XMLoadFloat4x4(&toRootTransforms[deformerIdx]);
@@ -1023,14 +996,20 @@ float SkinnedMeshModel::GetAnimationCurveValue(FbxNode** ppAnimationCurveNode, u
             uint64_t startTime = animationCurve->KeyTime[0];
             uint64_t endTime = animationCurve->KeyTime[keyCount - 1];
 
-            if (time < startTime) 
+            if (isLoop)
             {
-                time = endTime - fmod(startTime - time, endTime - startTime);
+                if (time < startTime)
+                {
+                    time = endTime - fmod(startTime - time, endTime - startTime);
+                }
+                else if (time > endTime)
+                {
+                    time = fmod(time - startTime, endTime - startTime) + startTime;
+                }
             }
-            else if (time > endTime) 
-            {
-                time = fmod(time - startTime, endTime - startTime) + startTime;
-            }
+            else if (time > endTime)
+                time = endTime;
+
 
 			for (int i = 0; i < animationCurve->KeyAttrRefCount; i++)
 			{
