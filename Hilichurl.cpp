@@ -28,34 +28,37 @@ Hilichurl::Hilichurl(Transform transform, EnemyState initState):Enemy(EnemyType:
 	instance.collider.type = ColliderType::ENEMY;
 	instance.collider.owner = this;
 	instance.collider.enable = true;
-	CollisionManager::get_instance().RegisterCollider(&instance.collider);
+	CollisionManager::get_instance().RegisterDynamicCollider(&instance.collider);
 
 	LoadWeapon("data/MODEL/enemy/Hilichurl", "Stick.fbx");
 	weapon.SetColliderType(ColliderType::ENEMY_ATTACK);
 	weapon.SetColliderOwner(&weapon);
-	CollisionManager::get_instance().RegisterCollider(&weapon.GetCollider());
+	CollisionManager::get_instance().RegisterDynamicCollider(&weapon.GetCollider());
 
-	//instance.pModel->SetDrawBoundingBox(false);
-	//weapon.GetSkinnedMeshModel()->SetDrawBoundingBox(false);
+	instance.pModel->SetDrawBoundingBox(false);
+	weapon.GetSkinnedMeshModel()->SetDrawBoundingBox(false);
 
-	AddAnimation("data/MODEL/enemy/Hilichurl/", "Happy Idle.fbx", AnimationClipName::ANIM_IDLE);
-	AddAnimation("data/MODEL/enemy/Hilichurl/", "Walking.fbx", AnimationClipName::ANIM_WALK);
-	AddAnimation("data/MODEL/enemy/Hilichurl/", "Running.fbx", AnimationClipName::ANIM_RUN);
-	AddAnimation("data/MODEL/enemy/Hilichurl/", "Standing Melee Attack Horizontal.fbx", AnimationClipName::ANIM_STANDING_MELEE_ATTACK);
-	AddAnimation("data/MODEL/enemy/Hilichurl/", "Falling Back Death.fbx", AnimationClipName::ANIM_FALLING_BACK_DEATH);
-	AddAnimation("data/MODEL/enemy/Hilichurl/", "Flying Back Death.fbx", AnimationClipName::ANIM_FLYING_BACK_DEATH);
-	AddAnimation("data/MODEL/enemy/Hilichurl/", "Getting Up.fbx", AnimationClipName::ANIM_GETTING_UP);
-	AddAnimation("data/MODEL/enemy/Hilichurl/", "Hit Reaction 1.fbx", AnimationClipName::ANIM_HIT_REACTION_1);
-	AddAnimation("data/MODEL/enemy/Hilichurl/", "Hit Reaction 2.fbx", AnimationClipName::ANIM_HIT_REACTION_2);
-	AddAnimation("data/MODEL/enemy/Hilichurl/", "Sit.fbx", AnimationClipName::ANIM_SIT);
-	AddAnimation("data/MODEL/enemy/Hilichurl/", "Surprised.fbx", AnimationClipName::ANIM_SURPRISED);
-	AddAnimation("data/MODEL/enemy/Hilichurl/", "Swing Dancing.fbx", AnimationClipName::ANIM_DANCE);
-	AddAnimation("data/MODEL/enemy/Hilichurl/", "Falling Back Death.fbx", AnimationClipName::ANIM_DIE);
+	AddAnimation("data/MODEL/enemy/Hilichurl/", "Happy Idle.fbx", AnimClipName::ANIM_IDLE);
+	AddAnimation("data/MODEL/enemy/Hilichurl/", "Walking.fbx", AnimClipName::ANIM_WALK);
+	AddAnimation("data/MODEL/enemy/Hilichurl/", "Running.fbx", AnimClipName::ANIM_RUN);
+	AddAnimation("data/MODEL/enemy/Hilichurl/", "Standing Melee Attack Horizontal.fbx", AnimClipName::ANIM_STANDING_MELEE_ATTACK);
+	AddAnimation("data/MODEL/enemy/Hilichurl/", "Falling Back Death.fbx", AnimClipName::ANIM_FALLING_BACK_DEATH);
+	AddAnimation("data/MODEL/enemy/Hilichurl/", "Flying Back Death.fbx", AnimClipName::ANIM_FLYING_BACK_DEATH);
+	AddAnimation("data/MODEL/enemy/Hilichurl/", "Getting Up.fbx", AnimClipName::ANIM_GETTING_UP);
+	AddAnimation("data/MODEL/enemy/Hilichurl/", "Hit Reaction 1.fbx", AnimClipName::ANIM_HIT_REACTION_1);
+	AddAnimation("data/MODEL/enemy/Hilichurl/", "Hit Reaction 2.fbx", AnimClipName::ANIM_HIT_REACTION_2);
+	AddAnimation("data/MODEL/enemy/Hilichurl/", "Sit.fbx", AnimClipName::ANIM_SIT);
+	AddAnimation("data/MODEL/enemy/Hilichurl/", "Surprised.fbx", AnimClipName::ANIM_SURPRISED);
+	AddAnimation("data/MODEL/enemy/Hilichurl/", "Swing Dancing.fbx", AnimClipName::ANIM_DANCE);
+	AddAnimation("data/MODEL/enemy/Hilichurl/", "Falling Back Death.fbx", AnimClipName::ANIM_DIE);
 
 
 	playAnimSpeed = PLAY_ANIM_SPD;
 
-	SetupAnimationStateMachine(initState);
+	SetupAnimStateMachine(initState);
+	InitHPGauge();
+
+	InitAnimInfo();
 }
 
 void Hilichurl::Initialize(void)
@@ -69,7 +72,7 @@ Hilichurl::~Hilichurl()
 	SAFE_DELETE(stateMachine);
 }
 
-void Hilichurl::AddAnimation(char* animPath, char* animName, AnimationClipName clipName)
+void Hilichurl::AddAnimation(char* animPath, char* animName, AnimClipName clipName)
 {
 	if (instance.pModel)
 		fbxLoader.LoadAnimation(renderer.GetDevice(), *instance.pModel, animPath, animName, clipName);
@@ -133,8 +136,20 @@ void Hilichurl::Update(void)
 
 void Hilichurl::Draw(void)
 {
-	GameObject::Draw();
+	Enemy::Draw();
 	weapon.Draw();
+}
+
+void Hilichurl::InitAnimInfo(void)
+{
+	AnimationClip* attack1 = instance.pModel->GetAnimationClip(AnimClipName::ANIM_STANDING_MELEE_ATTACK);
+	if (attack1)
+	{
+		attack1->animInfo.animPhase.startMoveFraction = 0.0f;
+		attack1->animInfo.animPhase.endMoveFraction = 0.3f;
+		attack1->animInfo.animPhase.startAttackFraction = 0.3f;
+		attack1->animInfo.animPhase.endAttackFraction = 0.6f;
+	}
 }
 
 void Hilichurl::UpdateWeapon(void)
@@ -171,26 +186,26 @@ void Hilichurl::UpdateWeapon(void)
 	weapon.SetColliderBoundingBox(weaponBB);
 }
 
-AnimationStateMachine* Hilichurl::GetStateMachine(void)
+AnimStateMachine* Hilichurl::GetStateMachine(void)
 {
 	return stateMachine;
 }
 
-void Hilichurl::SetupAnimationStateMachine(EnemyState initState)
+void Hilichurl::SetupAnimStateMachine(EnemyState initState)
 {
-	stateMachine = new AnimationStateMachine(dynamic_cast<ISkinnedMeshModelChar*>(this));
+	stateMachine = new AnimStateMachine(dynamic_cast<ISkinnedMeshModelChar*>(this));
 
-	stateMachine->AddState(STATE(EnemyState::IDLE), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_IDLE));
-	stateMachine->AddState(STATE(EnemyState::HILI_SIT), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_SIT));
-	stateMachine->AddState(STATE(EnemyState::HILI_ATTACK), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_STANDING_MELEE_ATTACK));
-	stateMachine->AddState(STATE(EnemyState::HILI_WALK), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_WALK));
-	stateMachine->AddState(STATE(EnemyState::HILI_RUN), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_RUN));
-	stateMachine->AddState(STATE(EnemyState::HILI_HIT1), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_HIT_REACTION_1));
-	stateMachine->AddState(STATE(EnemyState::HILI_HIT2), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_HIT_REACTION_2));
-	stateMachine->AddState(STATE(EnemyState::HILI_SURPRISED), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_SURPRISED));
-	instance.pModel->GetAnimationClip(AnimationClipName::ANIM_DIE)->SetAnimLoop(false);
-	stateMachine->AddState(STATE(EnemyState::HILI_DIE), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_DIE));
-	stateMachine->AddState(STATE(EnemyState::HILI_DANCE), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_DANCE));
+	stateMachine->AddState(STATE(EnemyState::IDLE), instance.pModel->GetAnimationClip(AnimClipName::ANIM_IDLE));
+	stateMachine->AddState(STATE(EnemyState::HILI_SIT), instance.pModel->GetAnimationClip(AnimClipName::ANIM_SIT));
+	stateMachine->AddState(STATE(EnemyState::HILI_ATTACK), instance.pModel->GetAnimationClip(AnimClipName::ANIM_STANDING_MELEE_ATTACK));
+	stateMachine->AddState(STATE(EnemyState::HILI_WALK), instance.pModel->GetAnimationClip(AnimClipName::ANIM_WALK));
+	stateMachine->AddState(STATE(EnemyState::HILI_RUN), instance.pModel->GetAnimationClip(AnimClipName::ANIM_RUN));
+	stateMachine->AddState(STATE(EnemyState::HILI_HIT1), instance.pModel->GetAnimationClip(AnimClipName::ANIM_HIT_REACTION_1));
+	stateMachine->AddState(STATE(EnemyState::HILI_HIT2), instance.pModel->GetAnimationClip(AnimClipName::ANIM_HIT_REACTION_2));
+	stateMachine->AddState(STATE(EnemyState::HILI_SURPRISED), instance.pModel->GetAnimationClip(AnimClipName::ANIM_SURPRISED));
+	instance.pModel->GetAnimationClip(AnimClipName::ANIM_DIE)->SetAnimPlayMode(AnimPlayMode::ONCE);
+	stateMachine->AddState(STATE(EnemyState::HILI_DIE), instance.pModel->GetAnimationClip(AnimClipName::ANIM_DIE));
+	stateMachine->AddState(STATE(EnemyState::HILI_DANCE), instance.pModel->GetAnimationClip(AnimClipName::ANIM_DANCE));
 
 	//状態遷移
 	stateMachine->AddTransition(STATE(EnemyState::IDLE), STATE(EnemyState::HILI_WALK), &ISkinnedMeshModelChar::CanWalk);
@@ -238,92 +253,139 @@ void Hilichurl::SetupAnimationStateMachine(EnemyState initState)
 
 void Hilichurl::PlayWalkAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_WALK)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_WALK)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Hilichurl::PlayRunAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_RUN)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_RUN)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Hilichurl::PlayIdleAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_IDLE)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_IDLE)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Hilichurl::PlayAttackAnim(void)
 {
-	weapon.SetColliderEnable(true);
+	float curAnimTime = stateMachine->GetCurrentAnimTime();
+	if (curAnimTime >= stateMachine->GetCurrentAnimClip()->animInfo.animPhase.startAttackFraction
+		&& curAnimTime <= stateMachine->GetCurrentAnimClip()->animInfo.animPhase.endAttackFraction)
+	{
+		weapon.SetColliderEnable(true);
+	}
+	else
+	{
+		weapon.SetColliderEnable(false);
+	}
 
-	float dist = enemyAttr.distPlayer;
+	float dist = enemyAttr.distPlayerSq;
 
 	if (dist > enemyAttr.attackRange * enemyAttr.attackRange)
 	{
+		const AnimationClip* currentAnimClip = stateMachine->GetCurrentAnimClip();
+
+		// アニメーションの再生進捗を取得
+		float attackAnimTime = stateMachine->GetCurrentAnimTime();
+		// 最大移動距離
 		float moveStep = min(dist - enemyAttr.attackRange, HILI_MAX_ATTACK_STEP);
+		// どのくらいの割合の時間が移動に使われるか計算
+		float moveTimeFraction = currentAnimClip->animInfo.animPhase.endMoveFraction - currentAnimClip->animInfo.animPhase.startMoveFraction;
 
-		float t = min(moveStep / dist, 1.0f);
+		// `num_steps` を自動調整
+		int num_steps = max(50, min(200, (int)(moveStep / 5.0f)));
 
-		instance.transform.pos.x = (1 - t) * instance.transform.pos.x + t * player->GetTransform().pos.x;
-		instance.transform.pos.z = (1 - t) * instance.transform.pos.z + t * player->GetTransform().pos.z;
+		// `sum_speed_factors` を数値積分で計算
+		float sum_speed_factors = 0.0f;
+		for (int i = 0; i <= num_steps; i++)
+		{
+			float phase = (float)i / num_steps;
+			sum_speed_factors += phase * (2.0f - phase);
+		}
+
+		// MAX_SPEED を計算
+		float MAX_SPEED = moveStep / sum_speed_factors;
+
+		// 現在の移動フェーズの正規化値を計算
+		float attackPhase = (attackAnimTime - currentAnimClip->animInfo.animPhase.startMoveFraction) / moveTimeFraction;
+
+		// 指定された時間範囲内で移動
+		if (attackAnimTime >= currentAnimClip->animInfo.animPhase.startMoveFraction
+			&& attackAnimTime <= currentAnimClip->animInfo.animPhase.endMoveFraction)
+		{
+			// 速度補正係数を計算 (S 曲線補間)
+			float speedFactor = attackPhase * (2.0f - attackPhase);
+			instance.attributes.spd = MAX_SPEED * speedFactor;
+
+			// すでに攻撃範囲内にいる場合、速度を急激に減衰させる
+			if (dist <= enemyAttr.attackRange * enemyAttr.attackRange)
+			{
+				instance.attributes.spd *= (1.0f - attackPhase * attackPhase); // 速度を急激に減少
+			}
+		}
+		else
+		{
+			instance.attributes.spd = 0.0f; // 移動を停止
+		}
 	}
 
 
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_STANDING_MELEE_ATTACK)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_STANDING_MELEE_ATTACK)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Hilichurl::PlayHitAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_HIT_REACTION_1)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_HIT_REACTION_1)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Hilichurl::PlayHit2Anim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_HIT_REACTION_2)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_HIT_REACTION_2)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Hilichurl::PlaySitAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_SIT)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_SIT)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Hilichurl::PlaySurprisedAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_SURPRISED)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_SURPRISED)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed * 1.2f);
 }
 
 void Hilichurl::PlayDieAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_DIE)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_DIE)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Hilichurl::PlayDanceAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_DANCE)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_DANCE)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 bool Hilichurl::CanWalk(void) const
 {
-	return instance.attributes.isMoving && !instance.attributes.isAttacking;
+	return (instance.attributes.isMoving || instance.attributes.isRotating) && !instance.attributes.isAttacking;
 }
 
 bool Hilichurl::CanStopMoving() const
@@ -374,11 +436,8 @@ void Hilichurl::OnAttackAnimationEnd(void)
 
 	enemyAttr.isInCooldown = true;
 	enemyAttr.attackCooldownTimer = GetRandFloat(HILI_MIN_ATTACK_CDTIME, HILI_MAX_ATTACK_CDTIME);
-
+	enemyAttr.cooldownProbability = 0.5f;
 	instance.attributes.isMoving = false;
-	enemyAttr.cooldownMoveDirection = (GetRand(0, 1) == 0) ? -1.0f : 1.0f;
-	enemyAttr.cooldownMoveDistance = GetRandFloat(HILI_MIN_COOLDOWN_MOVE_DISTANCE, HILI_MAX_COOLDOWN_MOVE_DISTANCE);
-	enemyAttr.cooldownWaitTime = enemyAttr.attackCooldownTimer * GetRandFloat(HILI_MIN_COOLDOWN_WAIT_TIME, HILI_MAX_COOLDOWN_WAIT_TIME);
 }
 
 void Hilichurl::OnHitAnimationEnd(void)

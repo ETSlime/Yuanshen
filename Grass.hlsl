@@ -41,27 +41,20 @@ cbuffer PerFrameBuffer : register(b12)
     float2 padding2;
 }
 
-
-//struct VS_INPUT
-//{
-//    float3 Position : POSITION; // 頂点位置
-//    float3 Normal : NORMAL;     // 法線
-//    float2 TexCoord : TEXCOORD; // テクスチャ座標
-//    float Weight : TEXCOORD1;   // 風影響重み
-//    float3 OffsetPosition : POSITION1; // インスタンス位置オフセット
-//    float Scale : TEXCOORD2;    // インスタンススケール
-//};
-
 struct VS_INPUT
 {
     float3 Position : POSITION; // 頂点位置
     float3 Normal : NORMAL; // 法線
     float2 TexCoord : TEXCOORD; // テクスチャ座標
     float Weight : TEXCOORD1; // 風影響重み
+
     float3 OffsetPosition : POSITION1; // インスタンス位置オフセット
     float4 Rotation : TEXCOORD2; // クォータニオンでの回転
-    float Scale : TEXCOORD3; // インスタンススケール
+    float4 initialBillboardRot : TEXCOORD3; // 初期ビルボード回転角度
+    float Scale : TEXCOORD4; // インスタンススケール
+    float Type : TEXCOORD5; // インスタンスタイプ
 };
+
 
 struct VS_OUTPUT
 {
@@ -74,8 +67,8 @@ struct VS_OUTPUT
 //*****************************************************************************
 // グローバル変数
 //*****************************************************************************
-Texture2D NoiseTexture : register(t0); // ノイズテクスチャ (風アニメーション用)
-Texture2D DiffuseTexture : register(t1);
+Texture2D DiffuseTexture : register(t0);
+Texture2D NoiseTexture : register(t7); // ノイズテクスチャ (風アニメーション用)
 Texture2D ShadowMap : register(t2);
 SamplerState SampleType : register(s0); // サンプラーステート
 SamplerComparisonState ShadowSampler : register(s1);
@@ -101,12 +94,18 @@ VS_OUTPUT VS(VS_INPUT input)
     //float noiseValue = NoiseTexture.Sample(SampleType, input.TexCoord).r; // ノイズ取得
     int2 texCoordInt = int2(input.TexCoord * float2(256.0f, 256.0f));
     float noiseValue = NoiseTexture.Load(int3(texCoordInt, 0)).r;
-    float windEffect = sin(Time * 0.002 + input.Position.x * 0.000002 + input.Position.z * 0.000002 + noiseValue * 0.001); // 風アニメーション計算
-    float3 offset = input.Weight * WindStrength * windEffect * WindDirection * input.Scale * 25; // 風偏移
+    
+    float3 windOffset = float3(0, 0, 0);
+    // インスタンスタイプが0の場合のみ風アニメーションを適用
+    if (input.Type == 0)
+    {
+        float windEffect = sin(Time * 0.002 + input.Position.x * 0.000002 + input.Position.z * 0.000002 + noiseValue * 0.001); // 風アニメーション計算
+        windOffset = input.Weight * WindStrength * windEffect * WindDirection * input.Scale * 25; // 風偏移
+    }
+
     
     // 頂点位置に風の偏移 + インスタンス位置オフセット + スケール適用
-    //float3 finalPosition = (input.Position + offset) * input.Scale + input.OffsetPosition;
-    float3 finalPosition = rotatedPosition + offset + input.OffsetPosition;
+    float3 finalPosition = rotatedPosition + windOffset + input.OffsetPosition;
 
     // 射影空間への変換
     output.Position = mul(float4(finalPosition, 1.0f), WorldViewProjection);

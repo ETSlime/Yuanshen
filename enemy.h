@@ -7,22 +7,17 @@
 #pragma once
 #include "GameObject.h"
 #include "SimpleArray.h"
-#include "DoubleLinkedList.h"
-#include "SingletonBase.h"
+#include "Timer.h"
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
-#define MAX_ENEMY		(5)					// エネミーの数
-#define JUMP_CNT_MAX	(120)
-#define	ENEMY_SIZE		(65.0f)				// 当たり判定の大きさ
-#define ROTATION_SPEED				(0.18f)
 #define ENEMY_HIT_WINDOW			(60)
-#define ENEMY_RESPAWON_TIME			(2000.0f)
+#define ENEMY_RESPAWN_TIME			(2000.0f)
 
-enum
+enum class CooldownState
 {
-	ENEMY_IDLE,
-	ENEMY_WALK,
+	MOVE,
+	WAIT,
 };
 
 enum class EnemyType
@@ -33,34 +28,21 @@ enum class EnemyType
 //*****************************************************************************
 // 構造体定義
 //*****************************************************************************
-//struct ENEMY
-//{
-//
-//	XMFLOAT4X4			mtxWorld;			// ワールドマトリックス
-//	XMFLOAT3			pos;				// モデルの位置
-//	XMFLOAT3			rot;				// モデルの向き(回転)
-//	XMFLOAT3			scl;				// モデルの大きさ(スケール)
-//
-//
-//	bool				use;
-//	bool				load;
-//	Model*				pModel;				// モデル情報
-//	XMFLOAT4			diffuse[MODEL_MAX_MATERIAL];	// モデルの色
-//
-//
-//	int					shadowIdx;			// 影のインデックス番号
-//	float				shadowSize;
-//};
 
-struct EnemyAttribute
+struct EnemyAttributes
 {
 	float				HP;
 	float				maxHP;
 
 	float				timer;
-	float				nextChangeDirTime;
-	float				moveDistance;
-	float				distPlayer;
+
+	float				moveDuration;	// 移動する時間
+	float				moveTimer;		// 移動時間のカウンター
+	float				waitTime;		// 待機時間
+	float				distPlayerSq;
+
+	bool				fixedDirMove;
+	float				fixedDir;
 
 	bool				isWaiting;
 	bool				isSurprised;
@@ -73,15 +55,21 @@ struct EnemyAttribute
 	float				chaseRange;    // 追跡範囲
 	float				attackRange;   // 攻撃範囲
 	float				attackCooldownTimer;
+	float				attackCooldownMin;
+	float				attackCooldownMax;
+
+	float				cooldownWaitTimer;
+	float				cooldownMoveDirection;
+	float				cooldownOrbitRadius;
+	float				cooldownMoveTimer;
+
+	float				cooldownProbability;
+	CooldownState		cooldownState;
+
 
 	EnemyState			initState;
 	Transform			initTrans;
 
-	float				cooldownMoveDirection;
-	float				cooldownWaitTime;
-	float				cooldownMoveDistance;
-	
-	float				waitTime;
 	EnemyType			enemyType;
 
 	bool				die;
@@ -89,12 +77,6 @@ struct EnemyAttribute
 	bool				startFadeOut;
 	bool				randomMove;
 	float				respawnTimer;
-
-
-	INTERPOLATION_DATA* moveTbl;
-	XMFLOAT3	move;			// 移動速度
-	float		time;			// 線形補間用
-	int			tblMax;			// そのテーブルのデータ数
 
 	void Initialize()
 	{
@@ -108,14 +90,19 @@ struct EnemyAttribute
 		startFadeOut = false;
 		randomMove = true;
 
+		fixedDirMove = false;
+		fixedDir = 0.0f;
+
 		timer = 0.0f;
-		nextChangeDirTime = 0.0f;
-		moveDistance = 0.0f;
-		distPlayer = 0.0f;
+		moveDuration = 0.0f;
+		moveTimer = 0.0f;
+		distPlayerSq = 0.0f;
 		waitTime = 0.0f;
 		cooldownMoveDirection = 0.0f;
-		cooldownWaitTime = 0.0f;
-		cooldownMoveDistance = 0.0f;
+		cooldownWaitTimer = 0.0f;
+		cooldownMoveTimer = 0.0f;
+		cooldownOrbitRadius = 0.0f;
+		cooldownProbability = 0.5f;
 	}
 };
 
@@ -139,19 +126,25 @@ struct MoveTable
 //*****************************************************************************
 // プロトタイプ宣言
 //*****************************************************************************
-HRESULT MakeVertexHPGauge(int w, int h);
 
+// 前方宣言
 class Player;
+class BehaviorTree;
+class BehaviorNode;
 
 class Enemy : public GameObject<SkinnedMeshModelInstance>
 {
 public:
+
+	friend class BehaviorNode;
+
 	Enemy(EnemyType enemyType, Transform trans);
-	inline EnemyAttribute* GetEnemyAttribute(void) { return &enemyAttr; }
+	~Enemy();
+
+	inline const EnemyAttributes& GetEnemyAttribute(void) { return enemyAttr; }
 	void Update(void) override;
 	void Draw(void) override;
-	inline INTERPOLATION_DATA* GetMoveTbl() { return enemyAttr.moveTbl; }
-	void SetMoveTbl(const MoveTable* moveTbl);
+	void DrawUI(void);
 
 	void SetPlayer(const Player* player) { this->player = player; }
 
@@ -159,34 +152,39 @@ public:
 
 	void SetRandomMove(bool random) { enemyAttr.randomMove = random; }
 
+	void InitHPGauge(void);
+
+	void ChasePlayer(void);
+	void AttackPlayer(void);
+	void Patrol(void);
+	void CooldownMove(void);
+	void CooldownWait(void);
+	bool DetectPlayer(void);
+	bool CheckAvailableToMove(void);
+
 protected:
-	EnemyAttribute enemyAttr;
+	EnemyAttributes enemyAttr;
 	const Player* player;
 	virtual void Initialize(void);
 private:
 	void SetNewPosTarget(void);
 	void StartWaiting(void);
-	bool DetectPlayer(void);
-	void ChasePlayer(void);
-	void AttackPlayer(float dist);
-	void CooldownMovement(void);
+
+	bool UpdateAliveState(void);
+
+	HRESULT MakeVertexHPGauge(float w, float h);
+	void DrawHPGauge(void);
+
+	BehaviorTree*				behaviorTree;  // 敵AIの行動ツリー
+
+	// テクスチャ情報
+	ID3D11ShaderResourceView*	HPGaugeTex = nullptr;
+	ID3D11ShaderResourceView*	HPGaugeCoverTex = nullptr;
+
+	// 頂点バッファ
+	ID3D11Buffer*				HPGaugeVertexBuffer = nullptr;
+	ID3D11Buffer*				HPGaugeCoverVertexBuffer = nullptr;
+	UISprite					HPGauge;
+
 	//void UpdateEditorSelect(int sx, int sy);
-};
-
-class EnemyManager : public SingletonBase<EnemyManager>
-{
-public:
-	EnemyManager();
-	void Init(const Player* player = nullptr);
-	void SpawnEnemy(EnemyType enemType, Transform trans, EnemyState initState, MoveTable* moveTbl = nullptr);
-	void Draw(void);
-	void Update(void);
-	const DoubleLinkedList<Enemy*>* GetEnemy() { return &enemyList; }
-	Renderer& renderer = Renderer::get_instance();
-private:
-	void InitializeMoveTbl();
-
-	DoubleLinkedList<Enemy*> enemyList;
-	SimpleArray<MoveTable> moveTbls;
-	const Player* player;
 };

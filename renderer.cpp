@@ -338,6 +338,20 @@ void Renderer::SetRenderSkinnedMeshShadowMap(int lightIdx)
 
 }
 
+void Renderer::SetRenderInstanceShadowMap(int lightIdx)
+{
+	g_RenderMode = RenderMode::INSTANCE_SHADOW;
+
+
+	ID3D11ShaderResourceView* nullSRV[1] = { nullptr };
+	GetDeviceContext()->PSSetShaderResources(1, 1, nullSRV);
+
+	GetDeviceContext()->OMSetRenderTargets(0, nullptr, g_ShadowDSV[lightIdx]);
+
+	SetLightViewProjBuffer(lightIdx);
+
+}
+
 void Renderer::SetRenderSkinnedMeshModel(void)
 {
 	g_RenderMode = RenderMode::SKINNED_MESH;
@@ -349,17 +363,21 @@ void Renderer::SetRenderSkinnedMeshModel(void)
 	g_ImmediateContext->VSSetConstantBuffers(11, 1, &g_BoneMatrixBuffer);
 	g_ImmediateContext->PSSetConstantBuffers(11, 1, &g_BoneMatrixBuffer);
 
-	GetDeviceContext()->PSSetShaderResources(1, LIGHT_MAX, g_ShadowMapSRV);
+	g_ImmediateContext->PSSetShaderResources(1, LIGHT_MAX, g_ShadowMapSRV);
 }
 
 void Renderer::SetRenderInstance(void)
 {
 	g_RenderMode = RenderMode::INSTANCE;
+
+	g_ImmediateContext->PSSetShaderResources(1, LIGHT_MAX, g_ShadowMapSRV);
 }
 
-void Renderer::SetRenderInstanceShadowMap(void)
+void Renderer::SetRenderUI(void)
 {
-	g_RenderMode = RenderMode::INSTANCE_SHADOW;
+	g_RenderMode = RenderMode::UI;
+	g_ImmediateContext->VSSetShader(g_VertexShader, NULL, 0);
+	g_ImmediateContext->PSSetShader(g_PixelShader, NULL, 0);
 }
 
 void Renderer::SetModelInputLayout(void)
@@ -377,13 +395,14 @@ void Renderer::SetRenderObject(void)
 	g_RenderMode = RenderMode::OBJ;
 
 	ResetRenderTarget();
-	//GetDeviceContext()->ClearDepthStencilView(g_SceneDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
 
-	GetDeviceContext()->VSSetShader(g_VertexShader, NULL, 0);
-	GetDeviceContext()->PSSetShader(g_PixelShader, NULL, 0);
-	GetDeviceContext()->PSSetShaderResources(1, LIGHT_MAX, g_ShadowMapSRV);
+	g_ImmediateContext->VSSetShader(g_VertexShader, NULL, 0);
+	g_ImmediateContext->PSSetShader(g_PixelShader, NULL, 0);
+	g_ImmediateContext->PSSetShaderResources(1, LIGHT_MAX, g_ShadowMapSRV);
 }
+
+
 
 void Renderer::ResetRenderTarget(void)
 {
@@ -393,6 +412,31 @@ void Renderer::ResetRenderTarget(void)
 void Renderer::ClearShadowDSV(int lightIdx)
 {
 	GetDeviceContext()->ClearDepthStencilView(g_ShadowDSV[lightIdx], D3D11_CLEAR_DEPTH, 1.0f, 0);
+}
+
+void Renderer::SetMainPassViewport(void)
+{
+	// ビューポート設定
+	D3D11_VIEWPORT vp;
+	vp.Width = (FLOAT)SCREEN_WIDTH;
+	vp.Height = (FLOAT)SCREEN_HEIGHT;
+	vp.MinDepth = 0.0f;
+	vp.MaxDepth = 1.0f;
+	vp.TopLeftX = 0;
+	vp.TopLeftY = 0;
+	g_ImmediateContext->RSSetViewports(1, &vp);
+}
+
+void Renderer::SetShadowPassViewport(void)
+{
+	D3D11_VIEWPORT shadowVP;
+	shadowVP.Width = (FLOAT)SHADOWMAP_SIZE;
+	shadowVP.Height = (FLOAT)SHADOWMAP_SIZE;
+	shadowVP.MinDepth = 0.0f;
+	shadowVP.MaxDepth = 1.0f;
+	shadowVP.TopLeftX = 0;
+	shadowVP.TopLeftY = 0;
+	g_ImmediateContext->RSSetViewports(1, &shadowVP);
 }
 
 //=============================================================================
@@ -461,8 +505,8 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 		ID3D11Texture2D* depthTexture = NULL;
 		D3D11_TEXTURE2D_DESC td;
 		ZeroMemory(&td, sizeof(td));
-		td.Width = sd.BufferDesc.Width;
-		td.Height = sd.BufferDesc.Height;
+		td.Width = SHADOWMAP_SIZE;
+		td.Height = SHADOWMAP_SIZE;
 		td.MipLevels = 1;
 		td.ArraySize = 1;
 		td.Format = DXGI_FORMAT_R32_TYPELESS;
@@ -509,18 +553,6 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	sceneDSVDesc.Format = DXGI_FORMAT_D32_FLOAT;
 	sceneDSVDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 	g_D3DDevice->CreateDepthStencilView(sceneDepthTexture, &sceneDSVDesc, &g_SceneDepthStencilView);
-
-
-
-	// ビューポート設定
-	D3D11_VIEWPORT vp;
-	vp.Width = (FLOAT)SCREEN_WIDTH;
-	vp.Height = (FLOAT)SCREEN_HEIGHT;
-	vp.MinDepth = 0.0f;
-	vp.MaxDepth = 1.0f;
-	vp.TopLeftX = 0;
-	vp.TopLeftY = 0;
-	g_ImmediateContext->RSSetViewports( 1, &vp );
 
 
 

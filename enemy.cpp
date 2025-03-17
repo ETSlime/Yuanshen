@@ -15,6 +15,8 @@
 #include "score.h"
 #include "Hilichurl.h"
 #include "Player.h"
+#include "sprite.h"
+#include "BehaviorTree.h"
 //*****************************************************************************
 // ƒ}ƒNƒ’è‹`
 //*****************************************************************************
@@ -29,25 +31,17 @@
 
 #define	TEXTURE_MAX			(2)
 
-#define ROTATION_SPEED				(0.18f)
+#define ROTATION_SPEED		(0.09f)
 #define FALLING_SPEED		(5.0f)
+#define SPD_DECAY_RATE		(0.93f)
+
+#define	HPGAUGE_PATH		"data/TEXTURE/EnemyHPGauge.png"
+#define	HPGAUGE_COVER_PATH	"data/TEXTURE/EnemyHPGauge_bg.png"
+#define HPGAUGE_WIDTH_SCL	(0.5f)
+#define HPGAUGE_HEIGHT		(5.0f)
 //*****************************************************************************
 // ƒvƒƒgƒ^ƒCƒvéŒ¾
 //*****************************************************************************
-
-
-//*****************************************************************************
-// ƒOƒ[ƒoƒ‹•Ï”
-//*****************************************************************************
-static UISprite			g_HPGauge[MAX_ENEMY];
-
-static ID3D11Buffer* g_VertexBuffer = NULL;	// ’¸“_ƒoƒbƒtƒ@
-static char* g_TextureName[] = {
-	"data/TEXTURE/EnemyHPGauge.png",
-	"data/TEXTURE/EnemyHPGauge_bg.png",
-};
-static ID3D11ShaderResourceView* g_Texture[TEXTURE_MAX] = { NULL };	// ƒeƒNƒXƒ`ƒƒî•ñ
-
 
 //void Enemy::UpdateEditorSelect(int sx, int sy)
 //{
@@ -137,138 +131,6 @@ static ID3D11ShaderResourceView* g_Texture[TEXTURE_MAX] = { NULL };	// ƒeƒNƒXƒ`ƒ
 //
 //}
 
-//void UpdateHPGauge(int idx)
-//{
-//	g_HPGauge[idx].pos = g_Enemy[idx].pos;
-//	g_HPGauge[idx].pos.y += ENEMY_SIZE;
-//	g_HPGauge[idx].pos.x -= 15.0f;
-//}
-
-//void DrawHPGauge(int idx)
-//{
-//	// ƒ‰ƒCƒeƒBƒ“ƒO‚ğ–³Œø
-//	SetLightEnable(FALSE);
-//
-//	XMMATRIX mtxScl, mtxTranslate, mtxWorld, mtxView;
-//	CAMERA* cam = GetCamera();
-//
-//	// ’¸“_ƒoƒbƒtƒ@İ’è
-//	UINT stride = sizeof(VERTEX_3D);
-//	UINT offset = 0;
-//	GetDeviceContext()->IASetVertexBuffers(0, 1, &g_VertexBuffer, &stride, &offset);
-//
-//	// ƒvƒŠƒ~ƒeƒBƒuƒgƒ|ƒƒWİ’è
-//	GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-//
-//	if (g_HPGauge[idx].bUse)
-//	{
-//		// ƒ[ƒ‹ƒhƒ}ƒgƒŠƒbƒNƒX‚Ì‰Šú‰»
-//		mtxWorld = XMMatrixIdentity();
-//
-//		// ƒrƒ…[ƒ}ƒgƒŠƒbƒNƒX‚ğæ“¾
-//		mtxView = XMLoadFloat4x4(&cam->mtxView);
-//
-//
-//		// ‚È‚É‚©‚·‚é‚Æ‚±‚ë
-//		// ³•ûs—ñi’¼Œğs—ñj‚ğ“]’us—ñ‚³‚¹‚Ä‹ts—ñ‚ğì‚Á‚Ä‚é”Å(‘¬‚¢)
-//		mtxWorld.r[0].m128_f32[0] = mtxView.r[0].m128_f32[0];
-//		mtxWorld.r[0].m128_f32[1] = mtxView.r[1].m128_f32[0];
-//		mtxWorld.r[0].m128_f32[2] = mtxView.r[2].m128_f32[0];
-//
-//		mtxWorld.r[1].m128_f32[0] = mtxView.r[0].m128_f32[1];
-//		mtxWorld.r[1].m128_f32[1] = mtxView.r[1].m128_f32[1];
-//		mtxWorld.r[1].m128_f32[2] = mtxView.r[2].m128_f32[1];
-//
-//		mtxWorld.r[2].m128_f32[0] = mtxView.r[0].m128_f32[2];
-//		mtxWorld.r[2].m128_f32[1] = mtxView.r[1].m128_f32[2];
-//		mtxWorld.r[2].m128_f32[2] = mtxView.r[2].m128_f32[2];
-//
-//		int ratio = g_Enemy[idx].HP / g_Enemy[idx].maxHP;
-//		//MakeVertexHPGauge(15.0f * ratio, 5.0f);
-//
-//		// ƒXƒP[ƒ‹‚ğ”½‰f
-//		mtxScl = XMMatrixScaling(g_HPGauge[idx].scl.x, g_HPGauge[idx].scl.y, g_HPGauge[idx].scl.z);
-//		mtxWorld = XMMatrixMultiply(mtxWorld, mtxScl);
-//
-//		// ˆÚ“®‚ğ”½‰f
-//		mtxTranslate = XMMatrixTranslation(g_HPGauge[idx].pos.x, g_HPGauge[idx].pos.y, g_HPGauge[idx].pos.z);
-//		mtxWorld = XMMatrixMultiply(mtxWorld, mtxTranslate);
-//
-//		// ƒ[ƒ‹ƒhƒ}ƒgƒŠƒbƒNƒX‚Ìİ’è
-//		SetCurrentWorldMatrix(&mtxWorld);
-//
-//
-//		// ƒ}ƒeƒŠƒAƒ‹İ’è
-//		SetMaterial(g_HPGauge[idx].material);
-//
-//		// ƒeƒNƒXƒ`ƒƒİ’è
-//		GetDeviceContext()->PSSetShaderResources(0, 1, &g_Texture[0]);
-//
-//		// ƒ|ƒŠƒSƒ“‚Ì•`‰æ
-//		GetDeviceContext()->Draw(4, 0);
-//	}
-//
-//	// ƒ‰ƒCƒeƒBƒ“ƒO‚ğ—LŒø‚É
-//	SetLightEnable(TRUE);
-//}
-
-//=============================================================================
-// ’¸“_î•ñ‚Ìì¬
-//=============================================================================
-//HRESULT MakeVertexHPGauge(int width, int height)
-//{
-//	// ’¸“_ƒoƒbƒtƒ@¶¬
-//	D3D11_BUFFER_DESC bd;
-//	ZeroMemory(&bd, sizeof(bd));
-//	bd.Usage = D3D11_USAGE_DYNAMIC;
-//	bd.ByteWidth = sizeof(VERTEX_3D) * 4;
-//	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-//	bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-//
-//	renderer.GetDevice()->CreateBuffer(&bd, NULL, &g_VertexBuffer);
-//
-//	// ’¸“_ƒoƒbƒtƒ@‚É’l‚ğƒZƒbƒg‚·‚é
-//	D3D11_MAPPED_SUBRESOURCE msr;
-//	renderer.GetDeviceContext()->Map(g_VertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &msr);
-//
-//	VERTEX_3D* vertex = (VERTEX_3D*)msr.pData;
-//
-//	float fWidth = width;
-//	float fHeight = height;
-//
-//	// ’¸“_À•W‚Ìİ’è
-//	//vertex[0].Position = XMFLOAT3(-fWidth / 2.0f, fHeight, 0.0f);
-//	//vertex[1].Position = XMFLOAT3(fWidth / 2.0f, fHeight, 0.0f);
-//	//vertex[2].Position = XMFLOAT3(-fWidth / 2.0f, 0.0f, 0.0f);
-//	//vertex[3].Position = XMFLOAT3(fWidth / 2.0f, 0.0f, 0.0f);
-//	vertex[0].Position = XMFLOAT3(0.0f, fHeight, 0.0f);
-//	vertex[1].Position = XMFLOAT3(fWidth, fHeight, 0.0f);
-//	vertex[2].Position = XMFLOAT3(0.0f, 0.0f, 0.0f);
-//	vertex[3].Position = XMFLOAT3(fWidth, 0.0f, 0.0f);
-//
-//	// –@ü‚Ìİ’è
-//	vertex[0].Normal = XMFLOAT3(0.0f, 0.0f, -1.0f);
-//	vertex[1].Normal = XMFLOAT3(0.0f, 0.0f, -1.0f);
-//	vertex[2].Normal = XMFLOAT3(0.0f, 0.0f, -1.0f);
-//	vertex[3].Normal = XMFLOAT3(0.0f, 0.0f, -1.0f);
-//
-//	// ŠgUŒõ‚Ìİ’è
-//	vertex[0].Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-//	vertex[1].Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-//	vertex[2].Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-//	vertex[3].Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-//
-//	// ƒeƒNƒXƒ`ƒƒÀ•W‚Ìİ’è
-//	vertex[0].TexCoord = XMFLOAT2(0.0f, 0.0f);
-//	vertex[1].TexCoord = XMFLOAT2(1.0f, 0.0f);
-//	vertex[2].TexCoord = XMFLOAT2(0.0f, 1.0f);
-//	vertex[3].TexCoord = XMFLOAT2(1.0f, 1.0f);
-//
-//	renderer.GetDeviceContext()->Unmap(g_VertexBuffer, 0);
-//
-//	return S_OK;
-//}
-
 //=============================================================================
 // ‰Šú‰»ˆ—
 //=============================================================================
@@ -279,10 +141,11 @@ Enemy::Enemy(EnemyType enemyType, Transform trans)
 	enemyAttr.enemyType = enemyType;
 
 	instance.load = true;
+	behaviorTree = nullptr;
+	player = nullptr;
 
+	instance.attributes.spd = 0.0f;
 
-
-	instance.attributes.spd = VALUE_MOVE;
 	switch (enemyAttr.enemyType)
 	{
 	case EnemyType::Hilichurl:
@@ -292,6 +155,8 @@ Enemy::Enemy(EnemyType enemyType, Transform trans)
 		enemyAttr.viewDistance = HILI_VIEW_DISTANCE;
 		enemyAttr.chaseRange = HILI_CHASING_RANGE;
 		enemyAttr.attackRange = HILI_ATTACK_RANGE;
+
+		behaviorTree = new BehaviorTree(this);
 		break;
 	default:
 		break;
@@ -304,16 +169,17 @@ Enemy::Enemy(EnemyType enemyType, Transform trans)
 	enemyAttr.initTrans.rot = trans.rot;
 	enemyAttr.initTrans.scl = trans.scl;
 
-	enemyAttr.moveTbl = nullptr;
-
-
-	enemyAttr.move = XMFLOAT3(4.0f, 0.0f, 0.0f);		// ˆÚ“®—Ê
-
-	enemyAttr.time = 0.0f;			// üŒ`•âŠÔ—p‚Ìƒ^ƒCƒ}[‚ğƒNƒŠƒA
-	enemyAttr.tblMax = 0;			// Ä¶‚·‚és“®ƒf[ƒ^ƒe[ƒuƒ‹‚ÌƒŒƒR[ƒh”‚ğƒZƒbƒg
-
+	HPGaugeTex = TextureMgr::get_instance().CreateTexture(HPGAUGE_PATH);
+	HPGaugeCoverTex = TextureMgr::get_instance().CreateTexture(HPGAUGE_COVER_PATH);
 
 	instance.use = true;		// true:¶‚«‚Ä‚é
+}
+
+Enemy::~Enemy()
+{
+	SafeRelease(&HPGaugeTex);
+	SafeRelease(&HPGaugeCoverTex);
+	SafeRelease(&HPGaugeVertexBuffer);
 }
 
 //=============================================================================
@@ -324,202 +190,124 @@ void Enemy::Update(void)
 	if (instance.use == true)		// ‚±‚ÌƒGƒlƒ~[‚ªg‚í‚ê‚Ä‚¢‚éH
 	{								// Yes
 
-		if (enemyAttr.isDead == true)
-		{
-			enemyAttr.respawnTimer--;
-			if (enemyAttr.respawnTimer <= 0.0f)
-			{
-				enemyAttr.respawnTimer = 0.0f;
-				Initialize();
-			}
-			else
-				return;
-		}
-
-		if (instance.renderProgress.progress < 1.0f && !enemyAttr.startFadeOut)
-		{
-			instance.renderProgress.isRandomFade = true;
-			instance.renderProgress.progress += 0.01f;
-			if (instance.renderProgress.progress > 1.0f)
-			{
-				instance.renderProgress.isRandomFade = false;
-				instance.renderProgress.progress = 1.0f;
-			}
-		}
-		else if (enemyAttr.startFadeOut == true)
-		{
-			instance.renderProgress.isRandomFade = true;
-			instance.renderProgress.progress -= 0.01f;
-			if (instance.renderProgress.progress <= 0.0f)
-			{
-				instance.renderProgress.isRandomFade = false;
-				instance.renderProgress.progress = 0.0f;
-				enemyAttr.isDead = true;
-			}
+		if (!UpdateAliveState())
 			return;
-		}
 
 		GameObject::Update();
 
-		//UpdateHPGauge(i);
+		BOUNDING_BOX aabb = instance.pModel->GetBoundingBox();
+		float height = aabb.maxPoint.y - aabb.minPoint.y;
+		HPGauge.pos = instance.transform.pos;
+		HPGauge.pos.y += height;
 
-		if (enemyAttr.HP <= 0.0f)
-		{
-			enemyAttr.respawnTimer = ENEMY_RESPAWON_TIME;
-			enemyAttr.die = true;
-			return;
-		}
-
-		enemyAttr.timer++;
-
-		if (instance.attributes.isHit1 ||
-			instance.attributes.isHit2)
-		{
-			instance.attributes.hitTimer--;
-			if (instance.attributes.hitTimer < 0)
-			{
-				instance.attributes.isHit1 = false;
-				instance.attributes.isHit2 = false;
-			}
-		}
+		enemyAttr.timer += timer.GetScaledDeltaTime();
 
 		if (instance.attributes.isGrounded == false)
 		{
-			instance.transform.pos.y -= FALLING_SPEED;
+			instance.transform.pos.y -= FALLING_SPEED * timer.GetScaledDeltaTime();
 		}
 
-		if (instance.attributes.isHit1 ||
-			instance.attributes.isHit2 ||
-			instance.attributes.isAttacking)
+		if (!CheckAvailableToMove())
 			return;
 
-		if (enemyAttr.isInCooldown) 
+		behaviorTree->RunBehaviorTree();
+
+		float deltaDir = instance.attributes.targetDir - instance.attributes.dir;
+		if (deltaDir > XM_PI) deltaDir -= XM_2PI;
+		if (deltaDir < -XM_PI) deltaDir += XM_2PI;
+		instance.attributes.dir += deltaDir * ROTATION_SPEED * timer.GetScaledDeltaTime();
+		instance.transform.rot.y = instance.attributes.dir;
+
+		if (instance.attributes.isMoveBlocked)
+			return;
+
+		if (enemyAttr.fixedDirMove)
 		{
-			enemyAttr.attackCooldownTimer--;
-			if (enemyAttr.attackCooldownTimer <= 0.0f)
-			{
-				enemyAttr.isInCooldown = false;
-			}
-			else 
-			{
-				CooldownMovement();
-				return;
-			}
+			// Šp“x‚Ì‘•ª‚ğŒvZi‘¬“x‚ÉŠî‚Ã‚­‰ñ“]—Êj
+			float deltaTheta = (instance.attributes.spd / enemyAttr.cooldownOrbitRadius)* enemyAttr.cooldownMoveDirection;
+
+			XMVECTOR fixedDirVec = XMVectorReplicate(enemyAttr.fixedDir);
+			XMVECTOR deltaThetaVec = XMVectorReplicate(deltaTheta);
+
+			// Šp“x‚ªdeltaTheta‚¾‚¯•Ï‰»‚µ‚½Œã‚Ìcos‚Æsin‚ğŒvZ
+			XMVECTOR cosNew = XMVectorCos(XMVectorAdd(fixedDirVec, deltaThetaVec));
+			XMVECTOR cosOld = XMVectorCos(fixedDirVec);
+			XMVECTOR sinNew = XMVectorSin(XMVectorAdd(fixedDirVec, deltaThetaVec));
+			XMVECTOR sinOld = XMVectorSin(fixedDirVec);
+
+			// X ²•ûŒü‚Ì‘•ª
+			XMVECTOR dxVec = XMVectorScale(XMVectorSubtract(sinNew, sinOld), enemyAttr.cooldownOrbitRadius);
+			// Z ²•ûŒü‚Ì‘•ª
+			XMVECTOR dzVec = XMVectorScale(XMVectorSubtract(cosNew, cosOld), enemyAttr.cooldownOrbitRadius);
+
+			float dx = XMVectorGetX(dxVec);
+			float dz = XMVectorGetX(dzVec);
+
+			instance.transform.pos.x += dx * timer.GetScaledDeltaTime();
+			instance.transform.pos.z += dz * timer.GetScaledDeltaTime();
+
+		}
+		else
+		{
+			instance.transform.pos.x += sinf(instance.transform.rot.y) * instance.attributes.spd * timer.GetScaledDeltaTime();
+			instance.transform.pos.z += cosf(instance.transform.rot.y) * instance.attributes.spd * timer.GetScaledDeltaTime();
 		}
 
-		// ƒvƒŒƒCƒ„[‚ğ”­Œ©‚·‚é‚©ƒ`ƒFƒbƒN
-		if (DetectPlayer()) 
-		{
-			if (enemyAttr.isSitting == false)
-			{
-				if (enemyAttr.isChasingPlayer == false)
-					enemyAttr.isSurprised = true;
-				if (enemyAttr.isSurprised == false)
-					enemyAttr.isChasingPlayer = true;
-			}
 
-		}
-
-		// ƒvƒŒƒCƒ„[‚ğ’ÇÕ‚·‚éó‘Ô
-		if (enemyAttr.isChasingPlayer)
-		{
-			ChasePlayer();
-		}
-		else if (enemyAttr.randomMove == true)
-		{
-			// ’Êí‚ÌˆÚ“®ƒƒWƒbƒN
-			if (enemyAttr.isWaiting)
-			{
-				if (enemyAttr.timer >= enemyAttr.waitTime)
-				{
-					enemyAttr.isWaiting = false;
-					SetNewPosTarget();
-				}
-			}
-			else
-			{
-				// ˆÚ“®ˆ—
-				float moveStep = instance.attributes.spd;
-				enemyAttr.moveDistance -= moveStep;
-
-				// –Ú•W‹——£‚É’B‚µ‚½ê‡A‘Ò‹@ƒ‚[ƒh‚É“ü‚é
-				if (enemyAttr.moveDistance <= 0.0f)
-				{
-					instance.attributes.isMoving = false;
-					StartWaiting();
-				}
-				else
-				{
-					// “ü—Í‚Ì‚ ‚Á‚½•ûŒü‚ÖŒü‚©‚¹‚ÄˆÚ“®‚³‚¹‚é
-					instance.attributes.isMoving = true;
-					instance.transform.pos.x += sinf(instance.transform.rot.y) * instance.attributes.spd;
-					instance.transform.pos.z += cosf(instance.transform.rot.y) * instance.attributes.spd;
-				}
-			}
-		}
+		instance.attributes.spd *= pow(SPD_DECAY_RATE, timer.GetScaledDeltaTime());
 
 		{
 			//UpdateEditorSelect(GetMousePosX(), GetMousePosY());
-
-
-//BOOL isSelected = this->GetIsModelSelected();
-//if (attribute.tblMax > 0 && isSelected == FALSE)	// üŒ`•âŠÔ‚ğÀs‚·‚éH
-//{	// üŒ`•âŠÔ‚Ìˆ—
-//	int nowNo = (int)attribute.time;			// ®”•ª‚Å‚ ‚éƒe[ƒuƒ‹”Ô†‚ğæ‚èo‚µ‚Ä‚¢‚é
-//	int maxNo = attribute.tblMax;				// “o˜^ƒe[ƒuƒ‹”‚ğ”‚¦‚Ä‚¢‚é
-//	int nextNo = (nowNo + 1) % maxNo;			// ˆÚ“®æƒe[ƒuƒ‹‚Ì”Ô†‚ğ‹‚ß‚Ä‚¢‚é
-//	INTERPOLATION_DATA* tbl = attribute.moveTbl;//g_MoveTblAdr[instance.tblNo];	// s“®ƒe[ƒuƒ‹‚ÌƒAƒhƒŒƒX‚ğæ“¾
-
-//	XMVECTOR nowPos = XMLoadFloat3(&tbl[nowNo].pos);	// XMVECTOR‚Ö•ÏŠ·
-//	XMVECTOR nowRot = XMLoadFloat3(&tbl[nowNo].rot);	// XMVECTOR‚Ö•ÏŠ·
-//	XMVECTOR nowScl = XMLoadFloat3(&tbl[nowNo].scl);	// XMVECTOR‚Ö•ÏŠ·
-
-//	XMVECTOR Pos = XMLoadFloat3(&tbl[nextNo].pos) - nowPos;	// XYZˆÚ“®—Ê‚ğŒvZ‚µ‚Ä‚¢‚é
-//	XMVECTOR Rot = XMLoadFloat3(&tbl[nextNo].rot) - nowRot;	// XYZ‰ñ“]—Ê‚ğŒvZ‚µ‚Ä‚¢‚é
-//	XMVECTOR Scl = XMLoadFloat3(&tbl[nextNo].scl) - nowScl;	// XYZŠg‘å—¦‚ğŒvZ‚µ‚Ä‚¢‚é
-
-//	float nowTime = attribute.time - nowNo;	// ŠÔ•”•ª‚Å‚ ‚é­”‚ğæ‚èo‚µ‚Ä‚¢‚é
-
-//	Pos *= nowTime;								// Œ»İ‚ÌˆÚ“®—Ê‚ğŒvZ‚µ‚Ä‚¢‚é
-//	Rot *= nowTime;								// Œ»İ‚Ì‰ñ“]—Ê‚ğŒvZ‚µ‚Ä‚¢‚é
-//	Scl *= nowTime;								// Œ»İ‚ÌŠg‘å—¦‚ğŒvZ‚µ‚Ä‚¢‚é
-
-//	// ŒvZ‚µ‚Ä‹‚ß‚½ˆÚ“®—Ê‚ğŒ»İ‚ÌˆÚ“®ƒe[ƒuƒ‹XYZ‚É‘«‚µ‚Ä‚¢‚é•\¦À•W‚ğ‹‚ß‚Ä‚¢‚é
-//	float oldY = instance.transform.pos.y;
-//	XMStoreFloat3(&instance.transform.pos, nowPos + Pos);
-//	instance.transform.pos.y += oldY;
-
-//	// ŒvZ‚µ‚Ä‹‚ß‚½‰ñ“]—Ê‚ğŒ»İ‚ÌˆÚ“®ƒe[ƒuƒ‹‚É‘«‚µ‚Ä‚¢‚é
-//	XMStoreFloat3(&instance.transform.rot, nowRot + Rot);
-
-//	// ŒvZ‚µ‚Ä‹‚ß‚½Šg‘å—¦‚ğŒ»İ‚ÌˆÚ“®ƒe[ƒuƒ‹‚É‘«‚µ‚Ä‚¢‚é
-//	XMStoreFloat3(&instance.transform.scl, nowScl + Scl);
-
-//	XMVECTOR direction = XMVectorSubtract(nowPos, Pos);
-//	direction = XMVector3Normalize(direction);
-//	attribute.targetDir = atan2(XMVectorGetZ(direction), XMVectorGetX(direction));
-//	attribute.targetDir += XM_PI / 2;
-//	// frame‚ğg‚ÄŠÔŒo‰ßˆ—‚ğ‚·‚é
-//	attribute.time += 1.0f / tbl[nowNo].frame;	// ŠÔ‚ği‚ß‚Ä‚¢‚é
-//	if ((int)attribute.time >= maxNo)			// “o˜^ƒe[ƒuƒ‹ÅŒã‚Ü‚ÅˆÚ“®‚µ‚½‚©H
-//	{
-//		attribute.time -= maxNo;				// ‚O”Ô–Ú‚ÉƒŠƒZƒbƒg‚µ‚Â‚Â‚à¬”•”•ª‚ğˆø‚«Œp‚¢‚Å‚¢‚é
-//	}
-//}
-
-//float deltaDir = attribute.targetDir - attribute.dir;
-//if (deltaDir > XM_PI) deltaDir -= 2 * XM_PI;
-//if (deltaDir < -XM_PI) deltaDir += 2 * XM_PI;
-//attribute.dir += deltaDir * ROTATION_SPEED;
-////if (i != 4)
-////	instance.rot.y = g_Enemy[i].dir;
-
-
-//XMFLOAT3 pos = instance.transform.pos;
-//pos.y = (-40.0f - ENEMY_OFFSET_Y - 0.1f);
-//SetPositionShadow(g_Enemy[i].shadowIdx, pos);
 		}
 	}
+}
+
+bool Enemy::UpdateAliveState(void)
+{
+	if (enemyAttr.isDead == true)
+	{
+		enemyAttr.respawnTimer -= timer.GetScaledDeltaTime();
+		if (enemyAttr.respawnTimer <= 0.0f)
+		{
+			enemyAttr.respawnTimer = 0.0f;
+			Initialize();
+		}
+		else
+			return false;
+	}
+
+	if (instance.renderProgress.progress < 1.0f && !enemyAttr.startFadeOut)
+	{
+		instance.renderProgress.isRandomFade = true;
+		instance.renderProgress.progress += 0.01f * timer.GetScaledDeltaTime();
+		if (instance.renderProgress.progress > 1.0f)
+		{
+			instance.renderProgress.isRandomFade = false;
+			instance.renderProgress.progress = 1.0f;
+		}
+	}
+	else if (enemyAttr.startFadeOut == true)
+	{
+		instance.renderProgress.isRandomFade = true;
+		instance.renderProgress.progress -= 0.01f * timer.GetScaledDeltaTime();
+		if (instance.renderProgress.progress <= 0.0f)
+		{
+			instance.renderProgress.isRandomFade = false;
+			instance.renderProgress.progress = 0.0f;
+			enemyAttr.isDead = true;
+			instance.collider.enable = false;
+		}
+		return false;
+	}
+
+	if (enemyAttr.HP <= 0.0f)
+	{
+		enemyAttr.respawnTimer = ENEMY_RESPAWN_TIME;
+		enemyAttr.die = true;
+		return false;
+	}
+
+	return true;
 }
 
 //=============================================================================
@@ -527,22 +315,110 @@ void Enemy::Update(void)
 //=============================================================================
 void Enemy::Draw(void)
 {
+	GameObject::Draw();
+}
+
+void Enemy::DrawUI(void)
+{
+	if (HPGauge.bUse)
+		DrawHPGauge();
+}
+
+void Enemy::DrawHPGauge(void)
+{
+	XMMATRIX mtxTranslate, mtxWorld, mtxView;
+	Camera& cam = Camera::get_instance();
+
+	float ratio = enemyAttr.HP / enemyAttr.maxHP;
+
+	// ƒvƒŠƒ~ƒeƒBƒuƒgƒ|ƒƒWİ’è
+	Renderer::get_instance().GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+	// ’¸“_ƒoƒbƒtƒ@İ’è
+	UINT stride = sizeof(VERTEX_3D);
+	UINT offset = 0;
+	Renderer::get_instance().GetDeviceContext()->IASetVertexBuffers(0, 1, &HPGaugeVertexBuffer, &stride, &offset);
+
+	// ƒrƒ…[ƒ}ƒgƒŠƒbƒNƒX‚ğæ“¾
+	mtxView = XMLoadFloat4x4(&cam.GeViewMtx());
+
+	// ³•ûs—ñi’¼Œğs—ñj‚ğ“]’us—ñ‚³‚¹‚Ä‹ts—ñ‚ğì‚Á‚Ä‚é”Å(‘¬‚¢)
+	XMMATRIX billboardRotation = XMMatrixIdentity();
+	billboardRotation.r[0] = XMVectorSet(mtxView.r[0].m128_f32[0], mtxView.r[1].m128_f32[0], mtxView.r[2].m128_f32[0], 0.0f);
+	billboardRotation.r[1] = XMVectorSet(mtxView.r[0].m128_f32[1], mtxView.r[1].m128_f32[1], mtxView.r[2].m128_f32[1], 0.0f);
+	billboardRotation.r[2] = XMVectorSet(mtxView.r[0].m128_f32[2], mtxView.r[1].m128_f32[2], mtxView.r[2].m128_f32[2], 0.0f);
+
+	mtxTranslate = XMMatrixTranslation(HPGauge.pos.x, HPGauge.pos.y, HPGauge.pos.z);
+	mtxWorld = XMMatrixMultiply(billboardRotation, mtxTranslate);
+
+	// ƒ[ƒ‹ƒhƒ}ƒgƒŠƒbƒNƒX‚Ìİ’è
+	Renderer::get_instance().SetCurrentWorldMatrix(&mtxWorld);
+
+	// ƒ}ƒeƒŠƒAƒ‹İ’è
+	HPGauge.material.Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.3f);
+	Renderer::get_instance().SetMaterial(HPGauge.material);
+
+	// ƒeƒNƒXƒ`ƒƒİ’è
+	Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &HPGaugeCoverTex);
+
+	// ƒ|ƒŠƒSƒ“‚Ì•`‰æ
+	Renderer::get_instance().GetDeviceContext()->Draw(4, 0);
+
+
+	// ŒŒğ‚Ìƒ[ƒ‹ƒhÀ•W‚ğŒvZ
+	XMMATRIX worldPosition = XMMatrixTranslation(HPGauge.pos.x, HPGauge.pos.y, HPGauge.pos.z);
+	// ¶’[‚ğƒ[ƒJƒ‹À•W‚ÌŒ´“_‚ÉˆÚ“®
+	XMMATRIX moveToLeft = XMMatrixTranslation(HPGauge.fWidth * 0.5f, 0.0f, 0.0f);
+	// Œ´“_‚ğŠî€‚ÉƒXƒP[ƒŠƒ“ƒO
+	XMMATRIX scaleMatrix = XMMatrixScaling(ratio, 1.0f, 1.0f);
+	// ¶’[‚ğŒÅ’è‚·‚é‚½‚ß‚Ì•â³ˆÚ“®
+	XMMATRIX moveBack = XMMatrixTranslation(-HPGauge.fWidth * 0.5f, 0.0f, 0.0f);
+
+	// ¶’[‚ğŒ´“_‚ÉˆÚ“®
+	mtxWorld = XMMatrixMultiply(moveToLeft, scaleMatrix);
+	// ¶’[‚ğŒÅ’è‚·‚é‚½‚ß‚Ì•â³ˆÚ“®
+	mtxWorld = XMMatrixMultiply(mtxWorld, moveBack);
+	// ƒrƒ‹ƒ{[ƒh‚Ì‰ñ“]‚ğ“K—p
+	mtxWorld = XMMatrixMultiply(mtxWorld, billboardRotation);
+	// ÅI“I‚Èƒ[ƒ‹ƒhÀ•W‚ÉˆÚ“®
+	mtxWorld = XMMatrixMultiply(mtxWorld, worldPosition);
+
+	// ƒ[ƒ‹ƒhƒ}ƒgƒŠƒbƒNƒX‚Ìİ’è
+	Renderer::get_instance().SetCurrentWorldMatrix(&mtxWorld);
+
+	HPGauge.material.Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	Renderer::get_instance().SetMaterial(HPGauge.material);
+
+	Renderer::get_instance().GetDeviceContext()->IASetVertexBuffers(0, 1, &HPGaugeVertexBuffer, &stride, &offset);
+
+	Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &HPGaugeTex);
+
+	// ƒ|ƒŠƒSƒ“‚Ì•`‰æ
+	Renderer::get_instance().GetDeviceContext()->Draw(4, 0);
+
 
 }
 
-void Enemy::SetMoveTbl(const MoveTable* moveTbl)
+void Enemy::InitHPGauge(void)
 {
-	if (moveTbl)
-	{
-		enemyAttr.moveTbl = moveTbl->moveTblAddr;
-		enemyAttr.tblMax = moveTbl->size;
-	}
+	BOUNDING_BOX aabb = instance.pModel->GetBoundingBox();
+	float height = aabb.maxPoint.y - aabb.minPoint.y;
+	float width = (aabb.maxPoint.x - aabb.minPoint.x) * HPGAUGE_WIDTH_SCL;
+
+	HPGauge.pos = instance.transform.pos;
+	HPGauge.pos.y += height;
+	HPGauge.fWidth = width;
+	HPGauge.fHeight = HPGAUGE_HEIGHT;
+	MakeVertexHPGauge(HPGauge.fWidth, HPGauge.fHeight);
+
+	HPGauge.bUse = true;
 }
 
 void Enemy::Initialize(void)
 {
 	enemyAttr.Initialize();
 
+	instance.collider.enable = true;
 	instance.transform.pos = enemyAttr.initTrans.pos;
 	instance.transform.rot = enemyAttr.initTrans.rot;
 	instance.transform.scl = enemyAttr.initTrans.scl;
@@ -559,25 +435,42 @@ void Enemy::Initialize(void)
 
 	instance.renderProgress.isRandomFade = true;
 	instance.renderProgress.progress = 0.0f;
+
 }
 
 void Enemy::SetNewPosTarget()
 {
-	instance.transform.rot.y = GetRandFloat(0.0f, XM_2PI);
-	enemyAttr.moveDistance = GetRandFloat(800.0f, 4500.0f);
-	enemyAttr.nextChangeDirTime = GetRandFloat(1.0f, 3.0f);
+	instance.attributes.targetDir = GetRandFloat(0.0f, XM_2PI);
+	enemyAttr.moveDuration = GetRandFloat(100.0f, 800.0f);  // ˆÚ“®ŠÔ
+	enemyAttr.moveTimer = 0.0f;
 	enemyAttr.timer = 0.0f;
 }
 
 void  Enemy::StartWaiting() 
 {
 	enemyAttr.isWaiting = true;
-	enemyAttr.waitTime = GetRandFloat(400.0f, 2000.0f);
+	enemyAttr.waitTime = GetRandFloat(300.0f, 900.0f);
 	enemyAttr.timer = 0.0f;
+}
+
+void Enemy::CooldownWait(void)
+{
+	// “G‚©‚çƒvƒŒƒCƒ„[‚Ö‚Ì•ûŒüƒxƒNƒgƒ‹
+	XMVECTOR enemyPosVec = XMLoadFloat3(&instance.transform.pos);
+	XMVECTOR playerPosVec = XMLoadFloat3(&player->GetTransform().pos);
+	XMVECTOR toPlayerVec = XMVectorSubtract(playerPosVec, enemyPosVec);
+	toPlayerVec = XMVector3Normalize(toPlayerVec);
+
+	instance.attributes.targetDir = atan2f(XMVectorGetX(toPlayerVec), XMVectorGetZ(toPlayerVec));
+	enemyAttr.fixedDirMove = false;
+	instance.attributes.spd = 0.0f;
+	instance.attributes.isMoving = false;
 }
 
 bool Enemy::DetectPlayer(void)
 {
+	if (enemyAttr.isChasingPlayer == true) return true;
+
 	XMVECTOR enemyPosVec = XMLoadFloat3(&instance.transform.pos);
 	XMVECTOR playerPosVec = XMLoadFloat3(&player->GetTransform().pos);
 
@@ -599,11 +492,35 @@ bool Enemy::DetectPlayer(void)
 	return angle <= enemyAttr.viewAngle * 0.5f;
 }
 
+bool Enemy::CheckAvailableToMove(void)
+{
+	if (instance.attributes.isHit1 ||
+		instance.attributes.isHit2)
+	{
+		instance.attributes.hitTimer--;
+		if (instance.attributes.hitTimer < 0)
+		{
+			instance.attributes.isHit1 = false;
+			instance.attributes.isHit2 = false;
+		}
+	}
+
+	if (instance.attributes.isHit1 ||
+		instance.attributes.isHit2 ||
+		instance.attributes.isAttacking)
+		return false;
+	else
+		return true;
+}
+
 void Enemy::ChasePlayer(void)
 {
 	if (player == nullptr) return;
 
+	if (enemyAttr.isChasingPlayer == false) return;
+
 	Transform playerTransform = player->GetTransform();
+
 	// “G‚©‚çƒvƒŒƒCƒ„[‚Ö‚Ì•ûŒüƒxƒNƒgƒ‹
 	XMVECTOR enemyPosVec = XMLoadFloat3(&instance.transform.pos);
 	XMVECTOR playerPosVec = XMLoadFloat3(&playerTransform.pos);
@@ -611,220 +528,143 @@ void Enemy::ChasePlayer(void)
 	// ƒvƒŒƒCƒ„[‚Ü‚Å‚Ì‹——£
 	XMVECTOR diff = XMVectorSubtract(playerPosVec, enemyPosVec);
 	float distSq = XMVectorGetX(XMVector3LengthSq(diff));
+	enemyAttr.distPlayerSq = distSq;
 
-	if (distSq < enemyAttr.attackRange * enemyAttr.attackRange * 1.1f)
+	if (distSq < enemyAttr.attackRange * enemyAttr.attackRange * 1.5f)
 	{
 		// UŒ‚”ÍˆÍ‚É“ü‚Á‚½‚çUŒ‚ƒ‚[ƒh
-		AttackPlayer(distSq);
+		AttackPlayer();
 		return;
 	}
-
-	if (distSq > enemyAttr.chaseRange * enemyAttr.chaseRange)
+	else if (distSq > enemyAttr.chaseRange * enemyAttr.chaseRange)
 	{
 		// ’ÇÕ”ÍˆÍ‚ğ’´‚¦‚½‚çƒ‰ƒ“ƒ_ƒ€ˆÚ“®‚É–ß‚é
 		enemyAttr.isChasingPlayer = false;
+		enemyAttr.fixedDirMove = false;
+		instance.attributes.isMoving = false;
 		SetNewPosTarget();
 		return;
 	}
+	else
+		enemyAttr.fixedDirMove = false;
 
 	// –Ú•W•ûŒü‚ğŒvZ
 	float dx = instance.transform.pos.x - playerTransform.pos.x;
 	float dz = instance.transform.pos.z - playerTransform.pos.z;
 
-	instance.transform.rot.y = -atan2(dz, dx) - XM_PI * 0.5f;
+	instance.attributes.targetDir = -atan2(dz, dx) - XM_PI * 0.5f;
 
 	// ƒvƒŒƒCƒ„[•ûŒü‚ÉˆÚ“®
 	instance.attributes.isMoving = true;
-	float moveStep = instance.attributes.spd;
-	instance.transform.pos.x += sinf(instance.transform.rot.y) * moveStep;
-	instance.transform.pos.z += cosf(instance.transform.rot.y) * moveStep;
+	instance.attributes.spd = VALUE_MOVE;
 }
 
-void Enemy::AttackPlayer(float dist)
+void Enemy::AttackPlayer(void)
 {
 	instance.attributes.isAttacking = true;
-	enemyAttr.distPlayer = dist;
 }
 
-void Enemy::CooldownMovement(void)
+void Enemy::Patrol(void)
 {
-	if (enemyAttr.cooldownMoveDistance > 0.0f) 
+	// ’Êí‚ÌˆÚ“®ƒƒWƒbƒN
+	if (enemyAttr.isWaiting)
 	{
-		float moveStep = instance.attributes.spd * 0.3f;
-		enemyAttr.cooldownMoveDistance -= moveStep;
-		instance.attributes.isMoving = true;
-		instance.transform.pos.x += cosf(instance.transform.rot.y) * enemyAttr.cooldownMoveDirection * moveStep;
-		instance.transform.pos.z -= sinf(instance.transform.rot.y) * enemyAttr.cooldownMoveDirection * moveStep;
-
-		if (enemyAttr.cooldownMoveDistance <= 0.0f) 
+		if (enemyAttr.timer >= enemyAttr.waitTime)
 		{
-			enemyAttr.cooldownMoveDistance = 0.0f;
-			enemyAttr.timer = 0.0f;
+			enemyAttr.isWaiting = false;
+			SetNewPosTarget();
 		}
 	}
-	else if (enemyAttr.timer >= enemyAttr.cooldownWaitTime) 
-	{
-		enemyAttr.cooldownMoveDirection = (GetRand(0, 1) == 0) ? -1.0f : 1.0f;
-		enemyAttr.cooldownMoveDistance = enemyAttr.attackCooldownTimer * GetRandFloat(HILI_MIN_COOLDOWN_WAIT_TIME, HILI_MAX_COOLDOWN_WAIT_TIME);
-		enemyAttr.cooldownWaitTime = GetRandFloat(0.5f, 1.5f);
-	}
 	else
-		instance.attributes.isMoving = false;
-
-	enemyAttr.attackCooldownTimer--;
-	if (enemyAttr.attackCooldownTimer <= 0.0f)
 	{
-		enemyAttr.isInCooldown = false;
-	}
-}
+		// ˆÚ“®ˆ—
+		enemyAttr.moveTimer += timer.GetScaledDeltaTime();
 
-EnemyManager::EnemyManager()
-{
-	player = nullptr;
-}
-
-void EnemyManager::Init(const Player* player)
-{
-	this->player = player;
-	Transform trans;
-	trans.pos = XMFLOAT3(12937.0f, -2384.0f, -19485.0f);
-	trans.scl = HILICHURL_SIZE;
-	InitializeMoveTbl();
-	for (int i = 0; i < 25; i++)
-	{
-		float radius = 20000.f;
-		float r = GetRandFloat(2000.0f, radius);
-		float angle = GetRandFloat(0.0f, 2.0f * 3.14159265359f);
-		float x = trans.pos.x + r * cos(angle);
-		float z = trans.pos.z + r * sin(angle);
-		Transform t = trans;
-		t.pos.x = x;
-		t.pos.z = z;
-
-		SpawnEnemy(EnemyType::Hilichurl, t, EnemyState::IDLE);
-	}
-
-
-	SpawnEnemy(EnemyType::Hilichurl, trans, EnemyState::IDLE);
-
-	trans.pos = XMFLOAT3(12759.5f, -2384.0f, -19177.56f);
-	SpawnEnemy(EnemyType::Hilichurl, trans, EnemyState::HILI_DANCE);
-
-	trans.pos = XMFLOAT3(12404.5f, -2384.0f, -19177.56f);
-	SpawnEnemy(EnemyType::Hilichurl, trans, EnemyState::HILI_DANCE);
-
-	trans.pos = XMFLOAT3(12227.0f, -2384.0f, -19485.0f);
-	SpawnEnemy(EnemyType::Hilichurl, trans, EnemyState::HILI_DANCE);
-
-	trans.pos = XMFLOAT3(12404.5f, -2384.0f, -19792.43f);
-	SpawnEnemy(EnemyType::Hilichurl, trans, EnemyState::HILI_DANCE);
-
-	trans.pos = XMFLOAT3(12759.5f, -2384.0f, -19792.43f);
-	SpawnEnemy(EnemyType::Hilichurl, trans, EnemyState::HILI_DANCE);
-}
-
-
-
-void EnemyManager::SpawnEnemy(EnemyType enemyType, Transform trans, EnemyState initState, MoveTable* moveTbl)
-{
-	Enemy* enemy;
-	switch (enemyType)
-	{
-	case EnemyType::Hilichurl:
-		enemy = new Hilichurl(trans, initState);
-		break;
-	default:
-		return;
-	}
-	 
-	if (initState == EnemyState::IDLE)
-		enemy->SetRandomMove(true);
-	else
-		enemy->SetRandomMove(false);
-
-	enemy->SetMoveTbl(moveTbl);
-	enemy->SetPlayer(player);
-	enemyList.push_back(enemy);
-}
-
-void EnemyManager::Draw(void)
-{
-	// ƒJƒŠƒ“ƒO–³Œø
-	renderer.SetCullingMode(CULL_MODE_NONE);
-
-	Node<Enemy*>* cur = enemyList.getHead();
-	while (cur != nullptr)
-	{
-		// ƒ‚ƒfƒ‹•`‰æ
-		if (cur->data->GetInstance()->renderProgress.progress < 1.0f)
-			renderer.SetRenderProgress(cur->data->GetInstance()->renderProgress);
-
-		if (!cur->data->GetEnemyAttribute()->isDead)
-			cur->data->Draw();
-
-		if (cur->data->GetInstance()->renderProgress.progress < 1.0f)
+		// –Ú•WŠÔ‚É’B‚µ‚½ê‡A‘Ò‹@ƒ‚[ƒh‚É“ü‚é
+		if (enemyAttr.moveTimer >= enemyAttr.moveDuration)
 		{
-			RenderProgressBuffer defaultRenderProgress;
-			defaultRenderProgress.isRandomFade = false;
-			defaultRenderProgress.progress = 1.0f;
-			renderer.SetRenderProgress(defaultRenderProgress);
-		}
-
-		cur = cur->next;
-	}
-
-	// ƒJƒŠƒ“ƒOİ’è‚ğ–ß‚·
-	renderer.SetCullingMode(CULL_MODE_BACK);
-}
-
-void EnemyManager::Update(void)
-{
-	Node<Enemy*>* cur = enemyList.getHead();
-	while (cur != nullptr)
-	{
-		cur->data->Update();
-		if (cur->data->GetUse() == FALSE)
-		{
-			Node<Enemy*>* toDelete = cur;
-			cur = cur->next;
-			delete toDelete->data;
-			enemyList.remove(toDelete);
+			instance.attributes.isMoving = false;
+			StartWaiting();
 		}
 		else
-			cur = cur->next;
+		{
+			// “ü—Í‚Ì‚ ‚Á‚½•ûŒü‚ÖŒü‚©‚¹‚ÄˆÚ“®‚³‚¹‚é
+			instance.attributes.isMoving = true;
+			instance.attributes.spd = VALUE_MOVE;
+		}
 	}
 }
 
-void EnemyManager::InitializeMoveTbl()
+void Enemy::CooldownMove(void)
 {
-	static INTERPOLATION_DATA moveTbl[] = {
-		//À•W									‰ñ“]—¦							Šg‘å—¦					ŠÔ
-		{ XMFLOAT3(50.0f,  0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),		XMFLOAT3(ENEMY_SCALE, ENEMY_SCALE, ENEMY_SCALE),	600 },
-		{ XMFLOAT3(250.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT3(ENEMY_SCALE, ENEMY_SCALE, ENEMY_SCALE),	600 }
-	};
-	moveTbls.push_back({ moveTbl , sizeof(moveTbl) / sizeof(INTERPOLATION_DATA) });
+	// “G‚©‚çƒvƒŒƒCƒ„[‚Ö‚Ì•ûŒüƒxƒNƒgƒ‹
+	XMVECTOR enemyPosVec = XMLoadFloat3(&instance.transform.pos);
+	XMVECTOR playerPosVec = XMLoadFloat3(&player->GetTransform().pos);
+	XMVECTOR toPlayerVec = XMVectorSubtract(playerPosVec, enemyPosVec);
 
-	static INTERPOLATION_DATA moveTbl2[] = {
-		//À•W									‰ñ“]—¦							Šg‘å—¦							ŠÔ
-		{ XMFLOAT3(450.0f,  0.0f, 55.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),		XMFLOAT3(ENEMY_SCALE, ENEMY_SCALE, ENEMY_SCALE),	600 },
-		{ XMFLOAT3(250.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT3(ENEMY_SCALE, ENEMY_SCALE, ENEMY_SCALE),	600 },
-	};
+	// ƒvƒŒƒCƒ„[‚Ü‚Å‚Ì‹——£
+	float distSq = XMVectorGetX(XMVector3LengthSq(toPlayerVec));
+	enemyAttr.distPlayerSq = distSq;
 
-	moveTbls.push_back({ moveTbl2 , sizeof(moveTbl2) / sizeof(INTERPOLATION_DATA) });
-
-	static INTERPOLATION_DATA moveTbl3[] = {
-		//À•W									‰ñ“]—¦							Šg‘å—¦							ŠÔ
-		{ XMFLOAT3(50.0f,  0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),		XMFLOAT3(ENEMY_SCALE, ENEMY_SCALE, ENEMY_SCALE),	600 },
-		{ XMFLOAT3(250.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT3(ENEMY_SCALE, ENEMY_SCALE, ENEMY_SCALE),	600 },
-	};
-
-	moveTbls.push_back({ moveTbl3 , sizeof(moveTbl3) / sizeof(INTERPOLATION_DATA) });
-
-	static INTERPOLATION_DATA moveTbl4[] = {
-		//À•W									‰ñ“]—¦							Šg‘å—¦							ŠÔ
-		{ XMFLOAT3(471.0f,  0.0f, -437.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),		XMFLOAT3(ENEMY_SCALE, ENEMY_SCALE, ENEMY_SCALE),	600 },
-		{ XMFLOAT3(752.0f, 0.0f, 742.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT3(ENEMY_SCALE, ENEMY_SCALE, ENEMY_SCALE),	600 },
-	};
-	moveTbls.push_back({ moveTbl4 , sizeof(moveTbl4) / sizeof(INTERPOLATION_DATA) });
+	toPlayerVec = XMVector3Normalize(toPlayerVec);
+	enemyAttr.fixedDir = atan2f(XMVectorGetX(toPlayerVec), XMVectorGetZ(toPlayerVec)) * enemyAttr.cooldownMoveDirection;
+	enemyAttr.fixedDirMove = true;
+	enemyAttr.cooldownOrbitRadius = sqrtf(enemyAttr.distPlayerSq);
+	instance.attributes.targetDir = enemyAttr.fixedDir;
+	instance.attributes.spd = VALUE_MOVE * 0.5f;
+	instance.attributes.isMoving = true;
 }
 
+//=============================================================================
+// ’¸“_î•ñ‚Ìì¬
+//=============================================================================
+HRESULT Enemy::MakeVertexHPGauge(float width, float height)
+{
+	// ’¸“_ƒoƒbƒtƒ@¶¬
+	D3D11_BUFFER_DESC bd;
+	ZeroMemory(&bd, sizeof(bd));
+	bd.Usage = D3D11_USAGE_DYNAMIC;
+	bd.ByteWidth = sizeof(VERTEX_3D) * 4;
+	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+	Renderer::get_instance().GetDevice()->CreateBuffer(&bd, NULL, &HPGaugeVertexBuffer);
+
+	// ’¸“_ƒoƒbƒtƒ@‚É’l‚ğƒZƒbƒg‚·‚é
+	D3D11_MAPPED_SUBRESOURCE msr;
+	Renderer::get_instance().GetDeviceContext()->Map(HPGaugeVertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &msr);
+
+	VERTEX_3D* vertex = (VERTEX_3D*)msr.pData;
+
+	HPGauge.fHeight = height;
+	HPGauge.fWidth = width;
+	ZeroMemory(&HPGauge.material, sizeof(HPGauge.material));
+
+	// ’¸“_À•W‚Ìİ’è
+	vertex[0].Position = XMFLOAT3(-HPGauge.fWidth / 2.0f, HPGauge.fHeight, 0.0f);
+	vertex[1].Position = XMFLOAT3(HPGauge.fWidth / 2.0f, HPGauge.fHeight, 0.0f);
+	vertex[2].Position = XMFLOAT3(-HPGauge.fWidth / 2.0f, 0.0f, 0.0f);
+	vertex[3].Position = XMFLOAT3(HPGauge.fWidth / 2.0f, 0.0f, 0.0f);
+
+	// –@ü‚Ìİ’è
+	vertex[0].Normal = XMFLOAT3(0.0f, 0.0f, -1.0f);
+	vertex[1].Normal = XMFLOAT3(0.0f, 0.0f, -1.0f);
+	vertex[2].Normal = XMFLOAT3(0.0f, 0.0f, -1.0f);
+	vertex[3].Normal = XMFLOAT3(0.0f, 0.0f, -1.0f);
+
+	// ŠgUŒõ‚Ìİ’è
+	vertex[0].Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	vertex[1].Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	vertex[2].Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	vertex[3].Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+
+	// ƒeƒNƒXƒ`ƒƒÀ•W‚Ìİ’è
+	vertex[0].TexCoord = XMFLOAT2(0.0f, 0.0f);
+	vertex[1].TexCoord = XMFLOAT2(1.0f, 0.0f);
+	vertex[2].TexCoord = XMFLOAT2(0.0f, 1.0f);
+	vertex[3].TexCoord = XMFLOAT2(1.0f, 1.0f);
+
+	renderer.GetDeviceContext()->Unmap(HPGaugeVertexBuffer, 0);
+
+	return S_OK;
+}

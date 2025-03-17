@@ -8,6 +8,7 @@
 #include "FBXLoader.h"
 #include "AnimStateMachine.h"
 #include "OctreeNode.h"
+#include "Timer.h"
 //*****************************************************************************
 // É}ÉNÉçíËã`
 //*****************************************************************************
@@ -120,7 +121,7 @@ struct ModelData
 		SafeRelease(&VertexBuffer);
 		SafeRelease(&IndexBuffer);
 
-		for (int i = 0; i < boundingBoxes.getSize(); i++)
+		for (UINT i = 0; i < boundingBoxes.getSize(); i++)
 		{
 			SAFE_DELETE(boundingBoxes[i]);
 		}
@@ -183,30 +184,31 @@ public:
 	void LoadTownTexture(void);
 
 	void GetBoneTransformByAnim(FbxNode* currentClipArmatureNode, uint64_t currentClipTime, 
-		SimpleArray<XMFLOAT4X4>* boneFinalTransform, bool loop = true);
+		SimpleArray<XMFLOAT4X4>* boneFinalTransform, AnimationInfo& animInfo);
 
 	void SetBoundingBoxLocationOffset(XMFLOAT3 offset, int boneIdx = 0);
 	void SetBoundingBoxSize(XMFLOAT3 size, int boneIdx = 0);
 	void SetDrawBoundingBox(bool draw) { drawBoundingBox = draw; }
-	void BuildTrianglesByWorldMatrix(XMMATRIX worldMatrix);
+	void BuildTrianglesByWorldMatrix(XMMATRIX worldMatrix, bool alwaysFaceUp = false);
+	void BuildTrianglesByBoundingBox(BOUNDING_BOX bb);
 	bool BuildOctree(void);
 	UINT GetNumBones(void) { return numBones; }
 	BOUNDING_BOX GetBoundingBox(void) { return boundingBox; }
 	const SimpleArray<Triangle*>& GetTriangles(void) const;
 
-	void SetCurrentAnim(AnimationClip* currAnimClp, float startTime = 0);// (AnimationClipName clipName, float startTime = 0);
-	AnimationClipName GetCurrentAnim(void) { return currentAnimClip->name; }
-	AnimationClip* GetAnimationClip(AnimationClipName clipName);
+	void SetCurrentAnim(AnimationClip* currAnimClp, float startTime = 0);// (AnimClipName clipName, float startTime = 0);
+	AnimClipName GetCurrentAnim(void) { return currentAnimClip->name; }
+	AnimationClip* GetAnimationClip(AnimClipName clipName);
 	void PlayCurrentAnim(float playSpeed = 1.0f);
 
 	XMMATRIX GetWeaponTransformMtx(void);
 	XMMATRIX GetBodyTransformMtx(void);
-	XMMATRIX GetBoneFinalTransform(int boneIdx = 0);
+	XMMATRIX GetBoneFinalTransform(UINT boneIdx = 0);
 
 	UINT weaponTransformIdx;
 
 	static SkinnedMeshModel* StoreModel(char* modelPath, char* modelName, char* modelFullPath, 
-		ModelType modelType, AnimationClipName clipName);
+		ModelType modelType, AnimClipName clipName);
 	static SkinnedMeshModelPool* GetModel(char* modelFullPath);
 	static void RemoveModel(char* modelPath);
 
@@ -214,10 +216,10 @@ private:
 
 	static HashMap<char*, SkinnedMeshModelPool, CharPtrHash, CharPtrEquals> modelHashMap;
 
-	void UpdateLimbGlobalTransform(FbxNode* node, FbxNode* deformNode, int& curIdx, int prevIdx, uint64_t time, BoneTransformData* boneTransformData, BOOL isLoop = TRUE);
+	void UpdateLimbGlobalTransform(FbxNode* node, FbxNode* deformNode, int& curIdx, int prevIdx, uint64_t time, BoneTransformData* boneTransformData, AnimationInfo& animInfo);
 	void GetBoneTransform(SimpleArray<XMFLOAT4X4>& boneFinalTransform, ModelData* modelData);
-	XMFLOAT3 GetAnimationValue(FbxNode** ppAnimationCurve, XMFLOAT3 defaultValue, uint64_t time, BOOL isLoop);
-	float GetAnimationCurveValue(FbxNode** ppAnimationCurveNode, uint64_t time, float defaultValue, BOOL isLoop);
+	XMFLOAT3 GetAnimationValue(FbxNode** ppAnimationCurve, XMFLOAT3 defaultValue, uint64_t time, AnimationInfo& animInfo);
+	float GetAnimationCurveValue(FbxNode** ppAnimationCurveNode, uint64_t time, float defaultValue, AnimationInfo& animInfo);
 	void CalculateDrawParameters(ModelData* modelData, float startPercentage, float endPercentage, int& IndexNum, int& StartIndexLocation);
 
 	void DrawSigewinne(ModelData* modelData);
@@ -253,52 +255,52 @@ private:
 	BOUNDING_BOX boundingBox;
 	BindPose bindPose;
 
-	ID3D11ShaderResourceView* bodyDiffuseTexture;
-	ID3D11ShaderResourceView* bodyLightMapTexture;
-	ID3D11ShaderResourceView* bodyNormalMapTexture;
-	ID3D11ShaderResourceView* hairDiffuseTexture;
-	ID3D11ShaderResourceView* hairLightMapTexture;
-	ID3D11ShaderResourceView* faceDiffuseTexture;
-	ID3D11ShaderResourceView* faceLightMapTexture;
+	ID3D11ShaderResourceView* bodyDiffuseTexture = nullptr;
+	ID3D11ShaderResourceView* bodyLightMapTexture = nullptr;
+	ID3D11ShaderResourceView* bodyNormalMapTexture = nullptr;
+	ID3D11ShaderResourceView* hairDiffuseTexture = nullptr;
+	ID3D11ShaderResourceView* hairLightMapTexture = nullptr;
+	ID3D11ShaderResourceView* faceDiffuseTexture = nullptr;
+	ID3D11ShaderResourceView* faceLightMapTexture = nullptr;
 
-	ID3D11ShaderResourceView* Area_Mdcity_Lvy01_Diffuse;
-	ID3D11ShaderResourceView* Area_MdCity_Plot02_Diffuse;
-	ID3D11ShaderResourceView* Area_MdCity_Plot03_Diffuse;
-	ID3D11ShaderResourceView* Area_MdCity_Plot04_Diffuse;
-	ID3D11ShaderResourceView* Area_MdCity_Plot05_Diffuse;
-	ID3D11ShaderResourceView* Area_MdCity_Plot09_Diffuse;
-	ID3D11ShaderResourceView* Area_Mdbuild_Wall06_Diffuse;
-	ID3D11ShaderResourceView* Indoor_OutDoor_MDSkyBox;
-	ID3D11ShaderResourceView* Area_MdBuild_KnightHQ02_Assembly01_Diffuse;
-	ID3D11ShaderResourceView* Area_MdBuild_All_Diffuse;
-	ID3D11ShaderResourceView* Area_Mdbuild_Edge01_Diffuse;
-	ID3D11ShaderResourceView* Area_MdBuild_Wall09_Diffuse; 
-	ID3D11ShaderResourceView* Area_MdBuild_Column01_Diffuse;
-	ID3D11ShaderResourceView* Area_MdBuild_House_Roof04_Diffuse;
-	ID3D11ShaderResourceView* Area_MdBuild_House_Roof05_Diffuse;
-	ID3D11ShaderResourceView* Stages_Wood_Pillar_02_T2_Diffuse;
-	ID3D11ShaderResourceView* Area_MdProps_Gadget02_Diffuse;
-	ID3D11ShaderResourceView* Area_MdBuild_Window50_Diffuse;
-	ID3D11ShaderResourceView* Area_MdBuild_Window30_Diffuse;
-	ID3D11ShaderResourceView* Area_MdBuild_Window_A_Diffuse;
-	ID3D11ShaderResourceView* Area_Mdbuild_ManorWall01_Diffuse;
-	ID3D11ShaderResourceView* Area_MdBuild_House_Wall07_Diffuse; 
-	ID3D11ShaderResourceView* Stages_CyTree02_Leaf_Diffuse; 
-	ID3D11ShaderResourceView* Stages_Tree04_Bark_Diffuse;
-	ID3D11ShaderResourceView* Area_MdBuild_Wall08_Diffuse; 
+	ID3D11ShaderResourceView* Area_Mdcity_Lvy01_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Area_MdCity_Plot02_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Area_MdCity_Plot03_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Area_MdCity_Plot04_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Area_MdCity_Plot05_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Area_MdCity_Plot09_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Area_Mdbuild_Wall06_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Indoor_OutDoor_MDSkyBox = nullptr;
+	ID3D11ShaderResourceView* Area_MdBuild_KnightHQ02_Assembly01_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Area_MdBuild_All_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Area_Mdbuild_Edge01_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Area_MdBuild_Wall09_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Area_MdBuild_Column01_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Area_MdBuild_House_Roof04_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Area_MdBuild_House_Roof05_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Stages_Wood_Pillar_02_T2_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Area_MdProps_Gadget02_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Area_MdBuild_Window50_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Area_MdBuild_Window30_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Area_MdBuild_Window_A_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Area_Mdbuild_ManorWall01_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Area_MdBuild_House_Wall07_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Stages_CyTree02_Leaf_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Stages_Tree04_Bark_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Area_MdBuild_Wall08_Diffuse = nullptr;
 
-	ID3D11ShaderResourceView* Area_MdBuild_Church01_Diffuse;
-	ID3D11ShaderResourceView* Area_MdBuild_Church02_Diffuse;
-	ID3D11ShaderResourceView* Area_MdBuild_Flag_Diffuse;
-	ID3D11ShaderResourceView* Indoor_MdBuild_Church_Ground01_Diffuse;
-	ID3D11ShaderResourceView* Indoor_MdBuild_Church_GroundPattern01_Diffuse;
-	ID3D11ShaderResourceView* Indoor_MdBuild_Church_Stairs01_Diffuse;
-	ID3D11ShaderResourceView* Indoor_MdBuild_Church_Wall01_Diffuse;
-	ID3D11ShaderResourceView* Indoor_MdBuild_Church_Wall02_Diffuse;
-	ID3D11ShaderResourceView* Indoor_Mdprops_Church_Squate02_Diffuse; 
-	ID3D11ShaderResourceView* Indoor_MdProps_Church_Item01_Diffuse;
-	ID3D11ShaderResourceView* Indoor_Mdprops_Church_Lights01_Diffuse; 
-	ID3D11ShaderResourceView* Indoor_MdBuild_WindowEffect04_NoStream;
+	ID3D11ShaderResourceView* Area_MdBuild_Church01_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Area_MdBuild_Church02_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Area_MdBuild_Flag_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Indoor_MdBuild_Church_Ground01_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Indoor_MdBuild_Church_GroundPattern01_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Indoor_MdBuild_Church_Stairs01_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Indoor_MdBuild_Church_Wall01_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Indoor_MdBuild_Church_Wall02_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Indoor_Mdprops_Church_Squate02_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Indoor_MdProps_Church_Item01_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Indoor_Mdprops_Church_Lights01_Diffuse = nullptr;
+	ID3D11ShaderResourceView* Indoor_MdBuild_WindowEffect04_NoStream = nullptr;
 
 	HashMap<uint64_t, FbxNode*, HashUInt64, EqualUInt64> fbxNodes = 
 		HashMap<uint64_t, FbxNode*, HashUInt64, EqualUInt64>(

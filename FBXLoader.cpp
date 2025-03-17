@@ -13,7 +13,7 @@
 #define RIGHT_HAND_BONE_IDX (20)
 
 bool FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshModel& model, 
-    const char* modelPath, const char* modelName, const char* texturePath, AnimationClipName animName, ModelType modelType)
+    const char* modelPath, const char* modelName, const char* texturePath, AnimClipName animName, ModelType modelType)
 {
     char* modelFullPath = new char[MODEL_NAME_LENGTH]{};
 
@@ -44,7 +44,7 @@ bool FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
 
     model.modelType = modelType;
 
-    if (animName != AnimationClipName::ANIM_NONE)
+    if (animName != AnimClipName::ANIM_NONE)
     {
         model.currentAnimClip = new AnimationClip();
         model.currentAnimClip->SetModel(&model);
@@ -129,7 +129,7 @@ bool FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
 
     if (rootNodeChilds.getSize() != 0)
     {
-        for (int i = 0; i < rootNodeChilds.getSize(); i++)
+        for (UINT i = 0; i < rootNodeChilds.getSize(); i++)
         {
             if (rootNodeChilds[i]->nodeType == FbxNodeType::Mesh)
             {
@@ -138,7 +138,7 @@ bool FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
             else if (rootNodeChilds[i]->nodeType == FbxNodeType::None)
             {
                 SimpleArray<FbxNode*> childNodeChilds = rootNodeChilds[i]->childNodes;
-                for (int j = 0; j < childNodeChilds.getSize(); j++)
+                for (UINT j = 0; j < childNodeChilds.getSize(); j++)
                 {
                     if (childNodeChilds[j]->nodeType == FbxNodeType::Mesh)
                     {
@@ -147,7 +147,7 @@ bool FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
                     else if (childNodeChilds[j]->nodeType == FbxNodeType::None)
                     {
                         SimpleArray<FbxNode*> childchildNodeChilds = childNodeChilds[j]->childNodes;
-                        for (int k = 0; k < childchildNodeChilds.getSize(); k++)
+                        for (UINT k = 0; k < childchildNodeChilds.getSize(); k++)
                         {
                             if (childchildNodeChilds[k]->nodeType == FbxNodeType::Mesh)
                             {
@@ -179,7 +179,7 @@ bool FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
         modelData->VertexArray = new SKINNED_VERTEX_3D[modelData->VertexNum];
         modelData->IndexArray = new unsigned int[modelData->IndexNum];
 
-        for (int indexCnt = 0; indexCnt < modelData->IndexNum; indexCnt++)
+        for (unsigned int indexCnt = 0; indexCnt < modelData->IndexNum; indexCnt++)
         {
             SKINNED_VERTEX_3D vertex;
             int vertexIndex = modelData->mesh->IndicesData[indexCnt].Index;
@@ -235,7 +235,7 @@ bool FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
 
                 for (int i = 0; i < MAX_BONE_INDICES; i++)
                 {
-                    BoneIndices[i] = topWeightsIndices[i];
+                    BoneIndices[i] = static_cast<float>(topWeightsIndices[i]);
                     Weights[i] = topWeights[i];
 
                 }
@@ -244,7 +244,7 @@ bool FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
             {
                 for (int i = 0; i < boneIndicesSize; i++)
                 {
-                    BoneIndices[i] = modelData->mesh->VerticesTemp[vertexIndex].BoneIndices[i];
+                    BoneIndices[i] = static_cast<float>(modelData->mesh->VerticesTemp[vertexIndex].BoneIndices[i]);
                     Weights[i] = modelData->mesh->VerticesTemp[vertexIndex].Weights[i];
 
                 }
@@ -360,7 +360,7 @@ bool FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
     return true;
 }
 
-bool FBXLoader::LoadAnimation(ID3D11Device* device, SkinnedMeshModel& model, const char* modelPath, const char* modelName, AnimationClipName animName)
+bool FBXLoader::LoadAnimation(ID3D11Device* device, SkinnedMeshModel& model, const char* modelPath, const char* modelName, AnimClipName animName)
 {
     char* modelFilename = new char[MODEL_NAME_LENGTH] {};
 
@@ -429,7 +429,7 @@ bool FBXLoader::LoadAnimation(ID3D11Device* device, SkinnedMeshModel& model, con
 
     if (rootNodeChilds.getSize() != 0)
     {
-        for (int i = 0; i < rootNodeChilds.getSize(); i++)
+        for (UINT i = 0; i < rootNodeChilds.getSize(); i++)
         {
             FbxNode* childNode = rootNodeChilds[i];
             if (childNode->nodeType == FbxNodeType::None
@@ -834,7 +834,6 @@ bool FBXLoader::ParseObjectProperties(FILE* file, SkinnedMeshModel& model, bool 
 bool FBXLoader::ParseGeometry(FILE* file, SkinnedMeshModel& model, GeometryType type, FbxNode* node)
 {
     char buffer[2048];
-    int readCount;
     bool readVertice = false;
     long int position = 0;
     MeshData* meshData = nullptr;
@@ -959,7 +958,6 @@ bool FBXLoader::ParseModel(FILE* file, SkinnedMeshModel& model, FbxNode* node)
 bool FBXLoader::ParseMaterial(FILE* file, SkinnedMeshModel& model, FbxNode* node)
 {
     char buffer[2048];
-    int readCount;
     long int position = 0;
     FbxMaterial* material = new FbxMaterial();
     // Material内部のフィールドを処理する
@@ -1181,7 +1179,6 @@ bool FBXLoader::ParseMaterialProperty(FILE* file, FbxMaterial& material)
 {
     char buffer[2048];
     char property[128] = { 0 };
-    double value;
     int readCount = 0;
     while (fgets(buffer, sizeof(buffer), file))
     {
@@ -1243,7 +1240,7 @@ bool FBXLoader::ParseMaterialProperty(FILE* file, FbxMaterial& material)
         }
         else if (strstr(property, "BumpFactor"))
         {
-            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%f", &material.BumpFactor);
+            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%lf", &material.BumpFactor);
             if (readCount != 1)
                 return false;
         }
@@ -1255,7 +1252,7 @@ bool FBXLoader::ParseMaterialProperty(FILE* file, FbxMaterial& material)
         }
         else if (strstr(property, "TransparencyFactor"))
         {
-            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%f", &material.TransparencyFactor);
+            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%lf", &material.TransparencyFactor);
             if (readCount != 1)
                 return false;
         }
@@ -1267,7 +1264,7 @@ bool FBXLoader::ParseMaterialProperty(FILE* file, FbxMaterial& material)
         }
         else if (strstr(property, "DisplacementFactor"))
         {
-            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%f", &material.DisplacementFactor);
+            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%lf", &material.DisplacementFactor);
             if (readCount != 1)
                 return false;
         }
@@ -1279,7 +1276,7 @@ bool FBXLoader::ParseMaterialProperty(FILE* file, FbxMaterial& material)
         }
         else if (strstr(property, "VectorDisplacementFactor"))
         {
-            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%f", &material.VectorDisplacementFactor);
+            readCount = sscanf(buffer, "%*[^,],%*[^,],%*[^,],%*[^,],%lf", &material.VectorDisplacementFactor);
             if (readCount != 1)
                 return false;
         }
@@ -1327,7 +1324,6 @@ bool FBXLoader::ParseMaterialProperty(FILE* file, FbxMaterial& material)
 bool FBXLoader::ParseModelProperty(FILE* file, ModelProperty& modelProperty, FbxNode* node)
 {
     char buffer[2048];
-    double value;
     int readCount;
     int propertyCnt = 0;
     long int pos = 0;
@@ -1765,6 +1761,8 @@ bool FBXLoader::ParseModelProperty(FILE* file, ModelProperty& modelProperty, Fbx
         memset(buffer, 0, sizeof(buffer));
         pos = ftell(file);
     }
+
+    return true;
 }
 
 bool FBXLoader::ParseVertexData(FILE* file, SkinnedMeshModel& model, GeometryType geometryType, FbxNode* node, MeshData* &meshData)
@@ -1848,6 +1846,8 @@ bool FBXLoader::ParseVertexData(FILE* file, SkinnedMeshModel& model, GeometryTyp
             fseek(file, position, SEEK_SET);
         return true;
     }
+
+    return true;
 }
 
 bool FBXLoader::ParseIndexData(FILE* file, SkinnedMeshModel& model, GeometryType geometryType, FbxNode* node, MeshData* &meshData)
@@ -1942,9 +1942,8 @@ bool FBXLoader::ParseNormal(FILE* file, SkinnedMeshModel& model, GeometryType ge
     int readCount;
     char MappingInformationTypeBuffer[32];
     char ReferenceInformationTypeBuffer[32];
-    char* ptr;
     int normalFound = 0;
-    long int position = 0;
+    int position;
     MappingInformationType mappingInformationType;
     ReferenceInformationType referenceInformationType;
     SimpleArray<float> normals;
@@ -2033,9 +2032,9 @@ bool FBXLoader::ParseNormalData(FILE* file, SkinnedMeshModel& model, GeometryTyp
 {
     char buffer[4096];
     float normal;
-    int normalCount = 0;
-    int totalNormalCount = 0;
-    int vertexCount = 0;
+    UINT normalCount = 0;
+    UINT totalNormalCount = 0;
+    UINT vertexCount = 0;
     int normalFound = 0;
     float normalsByVertex[3];
     char* ptr;
@@ -2184,7 +2183,7 @@ bool FBXLoader::ParseNormalData(FILE* file, SkinnedMeshModel& model, GeometryTyp
         position = ftell(file);
     }
 
-    int VertexArrayCnt, IndexArrayCnt;
+    int VertexArrayCnt = 0, IndexArrayCnt = 0;
     if (geometryType == GeometryType::Mesh)
     {
         VertexArrayCnt = modelData->mesh->Vertices.getSize();
@@ -2227,7 +2226,7 @@ bool FBXLoader::ParseNormalIndexData(FILE* file, SkinnedMeshModel& model, Geomet
         return false;
 
     char buffer[4096];
-    SimpleArray<float> normalIndex;
+    SimpleArray<int> normalIndex;
     int index;
     int normalIndexFound = 0;
     char* ptr;
@@ -2295,7 +2294,7 @@ bool FBXLoader::ParseUV(FILE* file, SkinnedMeshModel& model, GeometryType geomet
     char ReferenceInformationTypeBuffer[32];
     char* ptr;
     SimpleArray<float> UVCoord;
-    SimpleArray<float> UVCoordIndex;
+    SimpleArray<UINT> UVCoordIndex;
     float UV;
     int UVIndex;
     long int position = 0;
@@ -2780,7 +2779,6 @@ bool FBXLoader::ParseBindPose(FILE* file, SkinnedMeshModel& model, FbxNode* node
 bool FBXLoader::ParseAnimationStackCurve(FILE* file, SkinnedMeshModel& model)
 {
     char buffer[4096];
-    char* ptr;
     while (fgets(buffer, sizeof(buffer), file))
     {
         if (strstr(buffer, "LocalStop"))
@@ -2952,7 +2950,7 @@ void FBXLoader::HandleDeformer(FbxNode* node, ModelData* modelData, SkinnedMeshM
         model.deformerHashMap.insert(curIdx, node->nodeID);
         model.deformerIdxHashMap.insert(node->nodeID, curIdx);
 
-        for (int i = 0; i < deformer->Index.getSize(); i++)
+        for (UINT i = 0; i < deformer->Index.getSize(); i++)
         {
             int vertexIdx = deformer->Index[i];
             float weight = deformer->Weights[i];
@@ -2963,7 +2961,7 @@ void FBXLoader::HandleDeformer(FbxNode* node, ModelData* modelData, SkinnedMeshM
 
         modelData->IndexNum += deformer->Index.getSize();
 
-        for (int i = 0; i < node->childNodes.getSize(); i++)
+        for (UINT i = 0; i < node->childNodes.getSize(); i++)
         {
             if (node->childNodes[i]->nodeType == FbxNodeType::Cluster)
             {
@@ -2986,7 +2984,7 @@ void FBXLoader::HandleMeshNode(FbxNode* node, SkinnedMeshModel& model)
     FbxNode* geometryNode = nullptr;
     FbxNode* materialNode = nullptr;
 
-    for (int i = 0; i < meshNodeChilds.getSize(); i++)
+    for (UINT i = 0; i < meshNodeChilds.getSize(); i++)
     {
         if (meshNodeChilds[i]->nodeType == FbxNodeType::Mesh)
         {
@@ -3007,7 +3005,7 @@ void FBXLoader::HandleMeshNode(FbxNode* node, SkinnedMeshModel& model)
             SimpleArray<FbxNode*> geometryNodeChilds = geometryNode->childNodes;
             (*ppModelData)->material = static_cast<FbxMaterial*>(materialNode->nodeData);
             
-            for (int k = 0; k < geometryNodeChilds.getSize(); k++)
+            for (UINT k = 0; k < geometryNodeChilds.getSize(); k++)
             {
                 FbxNode* deformerArmature = geometryNodeChilds[k];
                 FbxNode* modelArmature = GetModelArmatureNodeByDeformer(deformerArmature);
@@ -3032,7 +3030,7 @@ void FBXLoader::HandleMeshNode(FbxNode* node, SkinnedMeshModel& model)
 void FBXLoader::BuildLimbHierarchy(FbxNode* armatureNode, ModelData* modelData, int curIdx, int prevIdx)
 {
     SimpleArray<FbxNode*> childNodes = armatureNode->childNodes;
-    for (int i = 0; i < childNodes.getSize(); i++)
+    for (UINT i = 0; i < childNodes.getSize(); i++)
     {
         if (childNodes[i]->nodeType == FbxNodeType::LimbNode)
         {
@@ -3046,7 +3044,7 @@ void FBXLoader::BuildLimbHierarchy(FbxNode* armatureNode, ModelData* modelData, 
 FbxNode* FBXLoader::GetGeometryNodeByLimbNode(FbxNode* limbNode)
 {
     SimpleArray<FbxNode*> pParentNodes = limbNode->parentNodes;
-    for (int i = 0; i < pParentNodes.getSize(); i++)
+    for (UINT i = 0; i < pParentNodes.getSize(); i++)
     {
         if (pParentNodes[i]->nodeType == FbxNodeType::Cluster
             || pParentNodes[i]->nodeType == FbxNodeType::Skin)
@@ -3064,10 +3062,10 @@ FbxNode* FBXLoader::GetGeometryNodeByLimbNode(FbxNode* limbNode)
 FbxNode* FBXLoader::GetModelArmatureNodeByDeformer(FbxNode* deformerNode)
 {
     SimpleArray<FbxNode*> subDeformerNodes = deformerNode->childNodes;
-    for (int i = 0; i < subDeformerNodes.getSize(); i++)
+    for (UINT i = 0; i < subDeformerNodes.getSize(); i++)
     {
         SimpleArray<FbxNode*> modelNodes = subDeformerNodes[i]->childNodes;
-        for (int j = 0; j < modelNodes.getSize(); j++)
+        for (UINT j = 0; j < modelNodes.getSize(); j++)
         {
             FbxNode* armatureNode = GetModelArmatureNodeByModel(modelNodes[j]);
             if (armatureNode)
@@ -3080,7 +3078,7 @@ FbxNode* FBXLoader::GetModelArmatureNodeByDeformer(FbxNode* deformerNode)
 FbxNode* FBXLoader::GetModelArmatureNodeByModel(FbxNode* modelNode)
 {
     SimpleArray<FbxNode*> parentModelNodes = modelNode->parentNodes;
-    for (int i = 0; i < parentModelNodes.getSize(); i++)
+    for (UINT i = 0; i < parentModelNodes.getSize(); i++)
     {
         if (parentModelNodes[i]->nodeType == FbxNodeType::LimbNode)
         {

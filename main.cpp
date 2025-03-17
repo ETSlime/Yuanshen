@@ -4,14 +4,14 @@
 // Author : 
 //
 //=============================================================================
+#include <random>
 #include "main.h"
 #include "renderer.h"
 #include "input.h"
 #include "camera.h"
 #include "debugproc.h"
-#include "field.h"
 #include "model.h"
-#include "enemy.h"
+#include "EnemyManager.h"
 #include "light.h"
 #include "Ground.h"
 #include "sprite.h"
@@ -23,7 +23,8 @@
 #include "Player.h"
 #include "CollisionManager.h"
 #include "Skybox.h"
-#include <random>
+#include "Timer.h"
+
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
@@ -46,15 +47,17 @@ long g_MouseX = 0;
 long g_MouseY = 0;
 
 bool g_IsWindowActive = true; // デフォルトでアクティブ
+bool g_IsGamePaused = false;; // ゲームが一時停止中かどうか
 
 //MapEditor& mapEditor = MapEditor::get_instance();
 EnemyManager& enemyManager = EnemyManager::get_instance();
 CollisionManager& collisionManager = CollisionManager::get_instance();
 Renderer& renderer = Renderer::get_instance();
+Timer& timer = Timer::get_instance();
+Camera& camera = Camera::get_instance();
 Ground* ground = nullptr;
 Player* player = nullptr;
 Skybox* skybox = nullptr;
-CAMERA* camera = GetCamera();
 //TextureMgr& mTexMgr = TextureMgr::get_instance();
 //FBXLoader& fbxLoader = FBXLoader::get_instance();
 
@@ -219,12 +222,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		{
 			// ウィンドウがアクティブになった
 			g_IsWindowActive = true;
+			g_IsGamePaused = false;
 			ShowCursor(FALSE); // 必要に応じてカーソルを非表示
 		}
 		else
 		{
 			// ウィンドウが非アクティブになった
 			g_IsWindowActive = false;
+			g_IsGamePaused = true;
 			ShowCursor(TRUE);  // カーソル表示
 		}
 		break;
@@ -245,7 +250,7 @@ HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	renderer.Init(hInstance, hWnd, bWindow);
 
 	// カメラの初期化
-	InitCamera();
+	camera.Init();
 
 	// 入力処理の初期化
 	InitInput(hInstance, hWnd);
@@ -276,6 +281,8 @@ HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	// 背面ポリゴンをカリング
 	renderer.SetCullingMode(CULL_MODE_BACK);
 
+	timer.Init();
+
 	return S_OK;
 }
 
@@ -288,11 +295,8 @@ void Uninit(void)
 
 	delete player;
 
-	// フィールドの終了処理
-	UninitField();
-
 	// カメラの終了処理
-	UninitCamera();
+	camera.Uninit();
 
 	//入力の終了処理
 	UninitInput();
@@ -312,11 +316,13 @@ void Uninit(void)
 //=============================================================================
 void Update(void)
 {
+	timer.Update();
+
 	// 入力の更新処理
 	UpdateInput();
 
 	// カメラ更新
-	UpdateCamera();
+	camera.Update();
 
 	UpdateLight();
 
@@ -353,6 +359,9 @@ void Draw(void)
 		renderer.ClearShadowDSV(lightIdx);
 	}
 
+	renderer.SetShadowPassViewport();
+
+	// obj model shadow map
 	renderer.SetModelInputLayout();
 	for (int i = 2; i >= 0; i--)
 	{
@@ -364,8 +373,8 @@ void Draw(void)
 		ground->Draw();
 	}
 
+	// skinned mesh model shadow map
 	renderer.SetSkinnedMeshInputLayout();
-
 	for (int i = 2; i >= 0; i--)
 	{
 		LIGHT* light = GetLightData(i);
@@ -377,24 +386,49 @@ void Draw(void)
 		ground->Draw();
 	}
 
+	// instance shadow map
+	for (int i = 2; i >= 0; i--)
+	{
+		LIGHT* light = GetLightData(i);
+		if (light->Enable == FALSE) continue;
+
+		renderer.SetRenderInstanceShadowMap(i);
+		ground->Draw();
+	}
+
+	// メインパスのビューポートを設定
+	renderer.SetMainPassViewport();
+
+	// obj model rendering
 	renderer.SetModelInputLayout();
 	renderer.SetRenderObject();
 	ground->Draw();
-
-	//renderer.SetLightEnable(FALSE);
-	//mapEditor.Draw();
-	//renderer.SetLightEnable(TRUE);
 	
 
+	// skinned mesh model rendering
 	renderer.SetSkinnedMeshInputLayout();
 	renderer.SetRenderSkinnedMeshModel();
-
 	player->Draw();
 	enemyManager.Draw();
 	ground->Draw();
 
+	// instance rendering
 	renderer.SetRenderInstance();
 	ground->Draw();
+
+	// UI rendering
+	renderer.SetModelInputLayout();
+	renderer.SetRenderUI();
+	// ライティングを無効
+	renderer.SetLightEnable(FALSE);
+	// 深度テストを無効に
+	renderer.SetDepthEnable(FALSE);
+	//mapEditor.Draw();
+	enemyManager.DrawUI();
+	// ライティングを有効に
+	renderer.SetLightEnable(TRUE);
+	// 深度テストを有効に
+	renderer.SetDepthEnable(TRUE);
 
 
 	//SetOffScreenRender();

@@ -12,15 +12,15 @@ class Sigewinne : public GameObject<SkinnedMeshModelInstance>, public ISkinnedMe
 public:
 	Sigewinne();
 	~Sigewinne();
-	void AddAnimation(char* animPath, char* animName, AnimationClipName clipName);
+	void AddAnimation(char* animPath, char* animName, AnimClipName clipName);
 	void LoadWeapon(char* modelPath, char* modelName);
 
 	void Update(void) override;
 	void Draw(void) override;
 
-	void SetupAnimationStateMachine();
+	void SetupAnimStateMachine();
 
-	AnimationStateMachine* GetStateMachine(void) override;
+	AnimStateMachine* GetStateMachine(void) override;
 
 	void PlayWalkAnim(void) override;
 	void PlayRunAnim(void) override;
@@ -42,7 +42,7 @@ public:
 
 private:
 	GameObject<SkinnedMeshModelInstance> weapon;
-	AnimationStateMachine* stateMachine;
+	AnimStateMachine* stateMachine;
 	float playAnimSpeed;
 	FBXLoader& fbxLoader = FBXLoader::get_instance();
 };

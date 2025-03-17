@@ -31,12 +31,12 @@ Mitachurl::Mitachurl()
 
 	//LoadWeapon("data/MODEL/enemy/Mitachurl", "Mitsurugi.fbx");
 
-	AddAnimation("data/MODEL/enemy/Mitachurl/", "Orc Idle.fbx", AnimationClipName::ANIM_IDLE);
-	AddAnimation("data/MODEL/enemy/Mitachurl/", "Orc Idle.fbx", AnimationClipName::ANIM_IDLE);
+	AddAnimation("data/MODEL/enemy/Mitachurl/", "Orc Idle.fbx", AnimClipName::ANIM_IDLE);
+	AddAnimation("data/MODEL/enemy/Mitachurl/", "Orc Idle.fbx", AnimClipName::ANIM_IDLE);
 
 	playAnimSpeed = PLAY_ANIM_SPD;
 
-	SetupAnimationStateMachine();
+	SetupAnimStateMachine();
 }
 
 Mitachurl::~Mitachurl()
@@ -44,7 +44,7 @@ Mitachurl::~Mitachurl()
 	SAFE_DELETE(stateMachine);
 }
 
-void Mitachurl::AddAnimation(char* animPath, char* animName, AnimationClipName clipName)
+void Mitachurl::AddAnimation(char* animPath, char* animName, AnimClipName clipName)
 {
 	if (instance.pModel)
 		fbxLoader.LoadAnimation(renderer.GetDevice(), *instance.pModel, animPath, animName, clipName);
@@ -60,21 +60,21 @@ void Mitachurl::LoadWeapon(char* modelPath, char* modelName)
 
 void Mitachurl::PlayWalkAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_WALK)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_WALK)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Mitachurl::PlayRunAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_RUN)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_RUN)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Mitachurl::PlayIdleAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_IDLE)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_IDLE)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
@@ -166,16 +166,16 @@ void Mitachurl::Draw(void)
 	//jumpyDumpy.Draw();
 }
 
-AnimationStateMachine* Mitachurl::GetStateMachine(void)
+AnimStateMachine* Mitachurl::GetStateMachine(void)
 {
 	return stateMachine;
 }
 
-void Mitachurl::SetupAnimationStateMachine()
+void Mitachurl::SetupAnimStateMachine()
 {
-	stateMachine = new AnimationStateMachine(dynamic_cast<ISkinnedMeshModelChar*>(this));
+	stateMachine = new AnimStateMachine(dynamic_cast<ISkinnedMeshModelChar*>(this));
 
-	stateMachine->AddState(STATE(EnemyState::IDLE), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_IDLE));
+	stateMachine->AddState(STATE(EnemyState::IDLE), instance.pModel->GetAnimationClip(AnimClipName::ANIM_IDLE));
 
 	//ó‘Ô‘JˆÚ
 	//stateMachine->AddTransition(PlayerState::IDLE, PlayerState::WALK, &ISkinnedMeshModelChar::CanWalk);

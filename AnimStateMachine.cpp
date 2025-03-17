@@ -12,7 +12,7 @@ SimpleArray<XMFLOAT4X4>* AnimationClip::GetBoneMatrices(SimpleArray<XMFLOAT4X4>*
 {
     if (model)
     {
-        model->GetBoneTransformByAnim(armatureNode, currentTime, currBoneTransform, isLoop);
+        model->GetBoneTransformByAnim(armatureNode, currentTime, currBoneTransform, animInfo);
         return currBoneTransform;
     }
     else
@@ -66,6 +66,14 @@ void AnimationState::AddTransition(uint64_t currentState, uint64_t nextState,
 void AnimationState::SetEndCallback(void (ISkinnedMeshModelChar::* callback)())
 {
     onEndCallback = callback;
+}
+
+float AnimationState::GetCurrentAnimTime(void)
+{
+    if (currentClip->stopTime > 0)
+        return static_cast<float>(static_cast<double>(currentClip->currentTime) / currentClip->stopTime);
+    
+    return 0.0f;
 }
 
 void AnimationState::UpdateBlendedMatrix(void)
@@ -130,13 +138,13 @@ SimpleArray<XMFLOAT4X4>* AnimationState::GetBlendedMatrix(void)
     return &blendedMatrices;
 }
 
-void AnimationStateMachine::AddState(uint64_t stateName, AnimationClip* clip)
+void AnimStateMachine::AddState(uint64_t stateName, AnimationClip* clip)
 {
     AnimationState* state = new AnimationState(stateName, clip);
     animStates.insert(stateName, state);
 }
 
-void AnimationStateMachine::SetEndCallback(uint64_t stateName, void (ISkinnedMeshModelChar::* callback)())
+void AnimStateMachine::SetEndCallback(uint64_t stateName, void (ISkinnedMeshModelChar::* callback)())
 {
     AnimationState** animState = animStates.search(stateName);
     if (animState) 
@@ -145,7 +153,7 @@ void AnimationStateMachine::SetEndCallback(uint64_t stateName, void (ISkinnedMes
     }
 }
 
-void AnimationStateMachine::SetCurrentState(uint64_t newStateName)
+void AnimStateMachine::SetCurrentState(uint64_t newStateName)
 {
     AnimationState** newState = animStates.search(newStateName);
     if (newState)
@@ -162,7 +170,7 @@ void AnimationStateMachine::SetCurrentState(uint64_t newStateName)
     }
 }
 
-uint64_t AnimationStateMachine::GetCurrentState(void)
+uint64_t AnimStateMachine::GetCurrentState(void)
 {
     if (currentState)
         return currentState->currentStateName;
@@ -170,7 +178,7 @@ uint64_t AnimationStateMachine::GetCurrentState(void)
     return UINT64_MAX;
 }
 
-void AnimationStateMachine::Update(float deltaTime, ISkinnedMeshModelChar* character)
+void AnimStateMachine::Update(float deltaTime, ISkinnedMeshModelChar* character)
 {
     if (currentState)
     {
@@ -187,7 +195,7 @@ void AnimationStateMachine::Update(float deltaTime, ISkinnedMeshModelChar* chara
     }
 }
 
-void AnimationStateMachine::AddTransition(uint64_t from, uint64_t to, bool (ISkinnedMeshModelChar::* condition)() const, bool waitForAnimationEnd, bool animBlend)
+void AnimStateMachine::AddTransition(uint64_t from, uint64_t to, bool (ISkinnedMeshModelChar::* condition)() const, bool waitForAnimationEnd, bool animBlend)
 {
     AnimationState** animState = animStates.search(from);
     if (animState)
@@ -196,7 +204,7 @@ void AnimationStateMachine::AddTransition(uint64_t from, uint64_t to, bool (ISki
     }
 }
 
-SimpleArray<XMFLOAT4X4>* AnimationStateMachine::GetBoneMatrices()
+SimpleArray<XMFLOAT4X4>* AnimStateMachine::GetBoneMatrices()
 {
     if (currentState)
     {
@@ -205,7 +213,7 @@ SimpleArray<XMFLOAT4X4>* AnimationStateMachine::GetBoneMatrices()
     return nullptr;
 }
 
-AnimationClip* AnimationStateMachine::GetCurrentAnimClip()
+AnimationClip* AnimStateMachine::GetCurrentAnimClip()
 {
     if (currentState)
     {

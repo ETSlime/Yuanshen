@@ -1,4 +1,10 @@
 #pragma once
+//=============================================================================
+//
+// Townèàóù [Town.h]
+// Author : 
+//
+//=============================================================================
 #include "GameObject.h"
 
 class Town
@@ -10,9 +16,6 @@ public:
 	void Draw();
 
 	SimpleArray< GameObject<SkinnedMeshModelInstance>*> models;
-	// skyBox;
-	//GameObject<SkinnedMeshModelInstance>* plot02;
-	//GameObject<SkinnedMeshModelInstance>* plot04;
-	//GameObject<SkinnedMeshModelInstance>* plot05;
-	//GameObject<SkinnedMeshModelInstance>* plot09;
+
+	Renderer& renderer = Renderer::get_instance();
 };

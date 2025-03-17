@@ -23,7 +23,7 @@
     <ProjectGuid>{886725B4-11FC-4A4D-938B-77BD4ECC6D0C}</ProjectGuid>
     <RootNamespace>sample</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>map editor</ProjectName>
+    <ProjectName>Yuanshen</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -136,14 +136,15 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="AnimStateMachine.h" />
-    <ClInclude Include="camera.h" />
+    <ClInclude Include="BehaviorTree.h" />
+    <ClInclude Include="Camera.h" />
     <ClInclude Include="CollisionManager.h" />
     <ClInclude Include="debugproc.h" />
     <ClInclude Include="DoubleLinkedList.h" />
     <ClInclude Include="Enemy.h" />
-    <ClInclude Include="field.h" />
+    <ClInclude Include="EnemyManager.h" />
     <ClInclude Include="GameObject.h" />
-    <ClInclude Include="Grass.h" />
+    <ClInclude Include="Environment.h" />
     <ClInclude Include="Ground.h" />
     <ClInclude Include="HashMap.h" />
     <ClInclude Include="Hilichurl.h" />
@@ -168,20 +169,20 @@
     <ClInclude Include="Skybox.h" />
     <ClInclude Include="sprite.h" />
     <ClInclude Include="TextureMgr.h" />
+    <ClInclude Include="Timer.h" />
     <ClInclude Include="Town.h" />
-    <ClInclude Include="Vertex.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AnimStateMachine.cpp" />
-    <ClCompile Include="camera.cpp" />
+    <ClCompile Include="Camera.cpp" />
     <ClCompile Include="collision.cpp" />
     <ClCompile Include="CollisionManager.cpp" />
     <ClCompile Include="debugproc.cpp" />
     <ClCompile Include="Enemy.cpp" />
+    <ClCompile Include="EnemyManager.cpp" />
     <ClCompile Include="FBXLoader.cpp" />
-    <ClCompile Include="field.cpp" />
     <ClCompile Include="GameObject.cpp" />
-    <ClCompile Include="Grass.cpp" />
+    <ClCompile Include="Environment.cpp" />
     <ClCompile Include="Ground.cpp" />
     <ClCompile Include="Hilichurl.cpp" />
     <ClCompile Include="input.cpp" />
@@ -201,7 +202,6 @@
     <ClCompile Include="sprite.cpp" />
     <ClCompile Include="TextureMgr.cpp" />
     <ClCompile Include="Town.cpp" />
-    <ClCompile Include="Vertex.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

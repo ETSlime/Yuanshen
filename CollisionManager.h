@@ -22,6 +22,7 @@ enum class ColliderType
     WALL,
     TREE,
     ITEM,
+    STATIC_OBJECT,
     TELEPORTER,
     PLAYER_ATTACK,
     ENEMY_ATTACK,
@@ -33,14 +34,14 @@ enum class ColliderType
 class Collider 
 {
 public:
-    BOUNDING_BOX aabb; // ワールド座標での衝突判定用
+    BOUNDING_BOX bbox; // ワールド座標での衝突判定用
     ColliderType type; // 衝突器の種類
     void* owner;
     bool enable;
 
     Collider()
     {
-        aabb = BOUNDING_BOX();
+        bbox = BOUNDING_BOX();
         type = ColliderType::DEFAULT;
         enable = false;
         owner = nullptr;
@@ -83,7 +84,7 @@ public:
     // 衝突イベントを発行する（登録された全リスナーに通知する）
     void publishCollision(const CollisionEvent& event) 
     {
-        for (int i = 0; i < collisionListeners.getSize(); ++i) 
+        for (UINT i = 0; i < collisionListeners.getSize(); ++i) 
         {
             collisionListeners[i].listener(event, collisionListeners[i].context);
         }
@@ -106,7 +107,7 @@ public:
     void InitOctree(const BOUNDING_BOX& boundingBox);
 
     // 動的衝突体の登録
-    void RegisterCollider(const Collider* collider) 
+    void RegisterDynamicCollider(const Collider* collider)
     {
         dynamicColliders.push_back(collider);
     }
@@ -118,6 +119,9 @@ public:
     }
 
     void Update();
+
+private:
+    bool IsSelfCollision(const Collider* collider1, const Collider* collider2);
 
     //// 精密衝突判定関数（Collider と Triangle 間の衝突判定）
     //bool PreciseCollision(Collider* col, Triangle* tri);

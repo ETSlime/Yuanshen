@@ -14,11 +14,12 @@
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
-#define	VALUE_MOVE			(6.5f)							// 移動量
+#define	VALUE_MOVE			(4.5f)							// 移動量
 #define VALUE_RUN			(120.0f)
 #define	VALUE_ROTATE		(XM_PI * 0.02f)					// 回転量
 #define ROTATION_SPEED				(0.18f)
-#define FALLING_SPEED		(25.0f)
+#define FALLING_SPEED		(2.50f)
+#define SPD_DECAY_RATE		(0.93f)
 
 #define PLAYER_INIT_POS		XMFLOAT3(14582.0f, -2424.0f, -19485.0f)
 //=============================================================================
@@ -78,7 +79,7 @@ void Player::Update(void)
 		playerGO = sigewinne;
 	}
 
-	CAMERA* camera = GetCamera();
+	Camera& camera = Camera::get_instance();
 
 #ifdef _DEBUG
 	if (GetKeyboardPress(DIK_UP))
@@ -112,62 +113,64 @@ void Player::Update(void)
 	}
 
 	// 移動させちゃう
-	if (GetKeyboardPress(DIK_A))
-	{	// 左へ移動
-		attributes.spd = VALUE_MOVE;
-
-		attributes.isMoving = true;
-
-		if (GetKeyboardPress(DIK_W))
-			attributes.targetDir = -XM_PI * 3 / 4 + camera->rot.y;
-		else if (GetKeyboardPress(DIK_S))
-			attributes.targetDir = -XM_PI / 4 + camera->rot.y;
-		else
-			attributes.targetDir = -XM_PI / 2 + camera->rot.y;
-	}
-	if (GetKeyboardPress(DIK_D))
-	{	// 右へ移動
-		attributes.spd = VALUE_MOVE;
-
-		attributes.isMoving = true;
-		if (GetKeyboardPress(DIK_W))
-			attributes.targetDir = XM_PI * 3 / 4 + camera->rot.y;
-		else if (GetKeyboardPress(DIK_S))
-			attributes.targetDir = XM_PI / 4 + camera->rot.y;
-		else
-			attributes.targetDir = XM_PI / 2 + camera->rot.y;
-	}
-	if (GetKeyboardPress(DIK_S))
-	{	// 下へ移動
-		attributes.spd = VALUE_MOVE;
-
-		attributes.isMoving = true;
-		if (GetKeyboardPress(DIK_A))
-			attributes.targetDir = -XM_PI * 3 / 4 + camera->rot.y;
-		else if (GetKeyboardPress(DIK_D))
-			attributes.targetDir = -XM_PI * 5 / 4 + camera->rot.y;
-		else
-			attributes.targetDir = -XM_PI + camera->rot.y;
-	}
-	if (GetKeyboardPress(DIK_W))
-	{	// 上へ移動
-		attributes.spd = VALUE_MOVE;
-
-		attributes.isMoving = true;
-		if (GetKeyboardPress(DIK_A))
-			attributes.targetDir = -XM_PI / 4 + camera->rot.y;
-		else if (GetKeyboardPress(DIK_D))
-			attributes.targetDir = XM_PI / 4 + camera->rot.y;
-		else
-			attributes.targetDir = 0.0f + camera->rot.y;
-	}
-
 	if (!attributes.isAttacking && !attributes.isAttacking2 && !attributes.isAttacking3 && !attributes.isHit1)
-		HandlePlayerMove(transform);
+	{
+		if (GetKeyboardPress(DIK_A))
+		{	// 左へ移動
+			attributes.spd = VALUE_MOVE;
+
+			attributes.isMoving = true;
+
+			if (GetKeyboardPress(DIK_W))
+				attributes.targetDir = -XM_PI * 3 / 4 + camera.GetRotation().y;
+			else if (GetKeyboardPress(DIK_S))
+				attributes.targetDir = -XM_PI / 4 + camera.GetRotation().y;
+			else
+				attributes.targetDir = -XM_PI / 2 + camera.GetRotation().y;
+		}
+		if (GetKeyboardPress(DIK_D))
+		{	// 右へ移動
+			attributes.spd = VALUE_MOVE;
+
+			attributes.isMoving = true;
+			if (GetKeyboardPress(DIK_W))
+				attributes.targetDir = XM_PI * 3 / 4 + camera.GetRotation().y;
+			else if (GetKeyboardPress(DIK_S))
+				attributes.targetDir = XM_PI / 4 + camera.GetRotation().y;
+			else
+				attributes.targetDir = XM_PI / 2 + camera.GetRotation().y;
+		}
+		if (GetKeyboardPress(DIK_S))
+		{	// 下へ移動
+			attributes.spd = VALUE_MOVE;
+
+			attributes.isMoving = true;
+			if (GetKeyboardPress(DIK_A))
+				attributes.targetDir = -XM_PI * 3 / 4 + camera.GetRotation().y;
+			else if (GetKeyboardPress(DIK_D))
+				attributes.targetDir = -XM_PI * 5 / 4 + camera.GetRotation().y;
+			else
+				attributes.targetDir = -XM_PI + camera.GetRotation().y;
+		}
+		if (GetKeyboardPress(DIK_W))
+		{	// 上へ移動
+			attributes.spd = VALUE_MOVE;
+
+			attributes.isMoving = true;
+			if (GetKeyboardPress(DIK_A))
+				attributes.targetDir = -XM_PI / 4 + camera.GetRotation().y;
+			else if (GetKeyboardPress(DIK_D))
+				attributes.targetDir = XM_PI / 4 + camera.GetRotation().y;
+			else
+				attributes.targetDir = 0.0f + camera.GetRotation().y;
+		}
+
+	}
+	HandlePlayerMove(transform);
 
 	if (attributes.isHit1 || attributes.hitTimer > 0)
 	{
-		attributes.hitTimer--;
+		attributes.hitTimer -= playerGO->timer.GetScaledDeltaTime();
 		if (attributes.hitTimer < 0)
 		{
 			attributes.isHit1 = false;
@@ -176,12 +179,12 @@ void Player::Update(void)
 
 	if (attributes.isGrounded == false)
 	{
-		transform.pos.y -= FALLING_SPEED;
+		transform.pos.y -= FALLING_SPEED * playerGO->timer.GetScaledDeltaTime();
 	}
 
 	playerGO->SetTransform(transform);
 
-	attributes.spd *= 0.93f;
+	attributes.spd *= pow(SPD_DECAY_RATE,  playerGO->timer.GetScaledDeltaTime());
 
 	playerGO->UpdateAttributes(attributes);
 
@@ -191,8 +194,8 @@ void Player::Update(void)
 	// プレイヤー視点
 	XMFLOAT3 pos = transform.pos;
 	pos.y += 70.0f;
-	SetCameraAT(pos);
-	SetCamera();
+	Camera::get_instance().SetCameraAT(pos);
+	Camera::get_instance().SetCamera();
 
 #ifdef _DEBUG
 	PrintDebugProc("PosX: %f PosY: %f, PosZ: %f\n", transform.pos.x, transform.pos.y, transform.pos.z);
@@ -206,25 +209,25 @@ void Player::Draw(void)
 
 void Player::HandlePlayerMove(Transform& transform)
 {
-
-	CAMERA* cam = GetCamera();
-
 	float deltaDir = attributes.targetDir - attributes.dir;
-	if (deltaDir > XM_PI) deltaDir -= 2 * XM_PI;
-	if (deltaDir < -XM_PI) deltaDir += 2 * XM_PI;
-	attributes.dir += deltaDir * ROTATION_SPEED;
+	if (deltaDir > XM_PI) deltaDir -= XM_2PI;
+	if (deltaDir < -XM_PI) deltaDir += XM_2PI;
+	attributes.dir += deltaDir * ROTATION_SPEED * playerGO->timer.GetScaledDeltaTime();
 
 	transform.rot.y = attributes.dir;
 
+	if (attributes.isMoveBlocked)
+		return;
+
 	// 入力のあった方向へプレイヤーを向かせて移動させる
-	transform.pos.x += sinf(transform.rot.y) * attributes.spd;
-	transform.pos.z += cosf(transform.rot.y) * attributes.spd;
+	transform.pos.x += sinf(transform.rot.y) * attributes.spd * playerGO->timer.GetScaledDeltaTime();
+	transform.pos.z += cosf(transform.rot.y) * attributes.spd * playerGO->timer.GetScaledDeltaTime();
 
 #ifdef _DEBUG
-	if (GetKeyboardPress(DIK_LCONTROL))
+	if (GetKeyboardPress(DIK_TAB))
 	{
-		transform.pos.x += sinf(transform.rot.y) * attributes.spd * 5;
-		transform.pos.z += cosf(transform.rot.y) * attributes.spd * 5;
+		transform.pos.x += sinf(transform.rot.y) * attributes.spd * 5 * playerGO->timer.GetScaledDeltaTime();
+		transform.pos.z += cosf(transform.rot.y) * attributes.spd * 5 * playerGO->timer.GetScaledDeltaTime();
 	}
 #endif // DEBUG
 
@@ -240,7 +243,7 @@ void Player::UpdateActionQueue(void)
 	playerAttr.actionQueueClearTime++;
 	for (UINT i = playerAttr.actionQueueStart; i < playerAttr.actionQueueEnd; i++)
 	{
-		playerAttr.actionQueue[i].liveTime++;
+		playerAttr.actionQueue[i].liveTime += playerGO->timer.GetScaledDeltaTime();
 		if (playerAttr.actionQueue[i].liveTime >= ACTION_QUEUE_CLEAR_WAIT)
 		{
 			playerAttr.actionQueueStart++;

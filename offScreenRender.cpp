@@ -66,7 +66,7 @@ HRESULT InitOffScreenRender()
 
 	renderer.GetDevice()->CreateBuffer(&bd, NULL, &g_VertexBuffer);
 
-	SetSprite(g_VertexBuffer, centerX * 1.75f, centerY * .25, smallScreenWidth, smallScreenHeight, 0.0f, 0.0f, 1.0f, 1.0f);
+	SetSprite(g_VertexBuffer, centerX * 1.75f, centerY * 0.25f, smallScreenWidth, smallScreenHeight, 0.0f, 0.0f, 1.0f, 1.0f);
 
 	renderer.GetDeviceContext()->Unmap(g_VertexBuffer, 0);
 

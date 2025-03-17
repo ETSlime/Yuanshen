@@ -68,7 +68,7 @@ enum class GeometryType
 	Shape,
 };
 
-enum AnimationClipName
+enum AnimClipName
 {
 	ANIM_NONE,
 	ANIM_STANDING,
@@ -123,8 +123,8 @@ enum class ModelType
 struct ModelProperty
 {
 	int			modelIdx;
-	bool		QuaternionInterpolate;
-	bool		Visibility;
+	BOOL		QuaternionInterpolate;
+	BOOL		Visibility;
 	XMFLOAT3	Translation;
 	XMFLOAT3	Rotation;
 	XMFLOAT3	Scaling;
@@ -132,29 +132,29 @@ struct ModelProperty
 	XMFLOAT3	RotationPivot;
 	XMFLOAT3	ScalingOffset;
 	XMFLOAT3	ScalingPivot;
-	bool		TranslationActive;
+	BOOL		TranslationActive;
 	XMFLOAT3	TranslationMin;
 	XMFLOAT3	TranslationMax;
-	bool		TranslationMinX;
-	bool		TranslationMinY;
-	bool		TranslationMinZ;
-	bool		TranslationMaxX;
-	bool		TranslationMaxY;
-	bool		TranslationMaxZ;
+	BOOL		TranslationMinX;
+	BOOL		TranslationMinY;
+	BOOL		TranslationMinZ;
+	BOOL		TranslationMaxX;
+	BOOL		TranslationMaxY;
+	BOOL		TranslationMaxZ;
 	UINT		RotationOrder;
-	bool		RotationSpaceForLimitOnly;
+	BOOL		RotationSpaceForLimitOnly;
 	double		AxisLen;
 	XMFLOAT3	PreRotation;
 	XMFLOAT3	PostRotation;
-	bool		RotationActive;
+	BOOL		RotationActive;
 	XMFLOAT3	RotationMin;
 	XMFLOAT3	RotationMax;
-	bool		RotationMinX;
-	bool		RotationMinY;
-	bool		RotationMinZ;
-	bool		RotationMaxX;
-	bool		RotationMaxY;
-	bool		RotationMaxZ;
+	BOOL		RotationMinX;
+	BOOL		RotationMinY;
+	BOOL		RotationMinZ;
+	BOOL		RotationMaxX;
+	BOOL		RotationMaxY;
+	BOOL		RotationMaxZ;
 	double		RotationStiffnessX;
 	double		RotationStiffnessY;
 	double		RotationStiffnessZ;
@@ -174,31 +174,31 @@ struct ModelProperty
 	double		PreferedAngleY;
 	double		PreferedAngleZ;
 	UINT		InheritType;
-	bool		ScalingActive;
+	BOOL		ScalingActive;
 	XMFLOAT3	ScalingMin;
 	XMFLOAT3	ScalingMax;
-	bool		ScalingMinX;
-	bool		ScalingMinY;
-	bool		ScalingMinZ;
-	bool		ScalingMaxX;
-	bool		ScalingMaxY;
-	bool		ScalingMaxZ;
+	BOOL		ScalingMinX;
+	BOOL		ScalingMinY;
+	BOOL		ScalingMinZ;
+	BOOL		ScalingMaxX;
+	BOOL		ScalingMaxY;
+	BOOL		ScalingMaxZ;
 	XMFLOAT3	GeometricTranslation;
 	XMFLOAT3	GeometricRotation;
 	XMFLOAT3	GeometricScaling;
 	void*		LookAtProperty;
 	void*		UpVectorProperty;
-	bool		Show;
-	bool		NegativePercentShapeSupport;
+	BOOL		Show;
+	BOOL		NegativePercentShapeSupport;
 	int			DefaultAttributeIndex;
 	XMFLOAT3	Color;
 	int			Camera_Index;
 	double		Size;
 	double		LimbLength;
 	int			Look;
-	bool		Freeze;
-	bool		LODBox;
-	bool		VisibilityInheritance;
+	BOOL		Freeze;
+	BOOL		LODBox;
+	BOOL		VisibilityInheritance;
 
 	void Clear()
 	{
@@ -336,7 +336,7 @@ struct FbxNode
 	{
 		this->nodeID = nodeID;
 		memset(nodeName, 0, sizeof(nodeName));
-		strcpy(this->nodeName, nodeName);
+		strcpy_s(this->nodeName, nodeName);
 		this->nodeType = nodeType;
 		nodeData = nullptr;
 		limbNodeAnimation = nullptr;
@@ -367,7 +367,7 @@ struct FbxNode
 struct FbxMaterial
 {
 	ShadingModelEnum	ShadingModel;
-	bool				MultiLayer;
+	BOOL				MultiLayer;
 	XMFLOAT3			EmissiveColor;
 	float				EmissiveFactor;
 	XMFLOAT3			AmbientColor;
@@ -378,7 +378,7 @@ struct FbxMaterial
 	XMFLOAT3			NormalMap;
 	double				BumpFactor;
 	XMFLOAT3			TransparentColor;
-	XMFLOAT3			TransparencyFactor;
+	double				TransparencyFactor;
 	XMFLOAT3			DisplacementColor;
 	double				DisplacementFactor;
 	XMFLOAT3			VectorDisplacementColor;
@@ -401,10 +401,10 @@ class FBXLoader : public SingletonBase<FBXLoader>
 public:
 	FBXLoader() {};
 	bool LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshModel& model, 
-		const char* modelPath, const char* modelName, const char* texturePath, AnimationClipName name = AnimationClipName::ANIM_NONE, ModelType modelType = ModelType::Default);
+		const char* modelPath, const char* modelName, const char* texturePath, AnimClipName name = AnimClipName::ANIM_NONE, ModelType modelType = ModelType::Default);
 
 	bool LoadAnimation(ID3D11Device* device, SkinnedMeshModel& model,
-		const char* modelPath, const char* modelName, AnimationClipName name);
+		const char* modelPath, const char* modelName, AnimClipName name);
 
 private:
 	bool ParseObjectDefinitions(FILE* file, SkinnedMeshModel& model);

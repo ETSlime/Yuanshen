@@ -54,28 +54,51 @@ enum class EnemyState : uint64_t
     HILI_DIE,
 };
 
+enum class AnimPlayMode
+{
+    ONCE,
+    LOOP,
+    PINGPONG
+};
+
 class SkinnedMeshModel;
 class ISkinnedMeshModelChar;
 
+struct AnimationPhase 
+{
+    float startMoveFraction; // 移動開始時間 (0~1)
+    float endMoveFraction;   // 移動終了時間 (0~1)
+    float startAttackFraction; // 攻撃開始時間 (0~1)
+    float endAttackFraction;   // 攻撃終了時間 (0~1)
+};
+
+struct AnimationInfo
+{
+    BOOL                isReversed;
+    AnimPlayMode        playMode;
+    AnimationPhase      animPhase;
+};
+
 struct AnimationClip
 {
-    AnimationClipName       name;
+    AnimClipName            name;
     FbxNode*                armatureNode;
     uint64_t                stopTime;
     uint64_t                currentTime;
     SkinnedMeshModel*       model;
     SimpleArray<XMFLOAT4X4> currBoneTransform;
-    BOOL                    isLoop;
+    AnimationInfo           animInfo;
 
     AnimationClip()
     {
-        name = AnimationClipName::ANIM_NONE;
+        name = AnimClipName::ANIM_NONE;
         armatureNode = nullptr;
         stopTime = 0;
         currentTime = 0;
         model = nullptr;
-        isLoop = TRUE;
         currBoneTransform = SimpleArray<XMFLOAT4X4>();
+        animInfo.isReversed = false;
+        animInfo.playMode = AnimPlayMode::LOOP;
     }
 
     ~AnimationClip()
@@ -92,9 +115,14 @@ struct AnimationClip
         return currentTime >= stopTime;
     }
 
-    inline void SetAnimLoop(bool loop)
+    inline void SetAnimPlayMode(AnimPlayMode playMode)
     {
-        isLoop = loop;
+        animInfo.playMode = playMode;
+    }
+
+    inline void CutAnimStopTime(uint64_t stopTime)
+    {
+        this->stopTime = stopTime;
     }
 
     SimpleArray<XMFLOAT4X4>* GetBoneMatrices(SimpleArray<XMFLOAT4X4>* currBoneTransform);
@@ -148,9 +176,12 @@ public:
     // 遷移可能な状態があるかをチェック
     NextStateInfo GetNextState(ISkinnedMeshModelChar* character);
 
-    void AddTransition(uint64_t currentState, uint64_t nextState, bool (ISkinnedMeshModelChar::* condition)() const, bool waitForAnimationEnd = false, bool animBlend = true);
+    void AddTransition(uint64_t currentState, uint64_t nextState, bool (ISkinnedMeshModelChar::* condition)() const, 
+        bool waitForAnimationEnd = false, bool animBlend = true);
 
     void SetEndCallback(void (ISkinnedMeshModelChar::* callback)());
+
+    float GetCurrentAnimTime(void);
 
     // 各ボーンの変換行列をブレンドする
     void UpdateBlendedMatrix(void);
@@ -158,7 +189,7 @@ public:
     SimpleArray<XMFLOAT4X4>* GetBlendedMatrix(void);
 };
 
-class AnimationStateMachine 
+class AnimStateMachine 
 {
 private:
     HashMap<uint64_t, AnimationState*, HashUInt64, EqualUInt64> animStates =
@@ -173,7 +204,7 @@ private:
 
 
 public:
-    AnimationStateMachine(ISkinnedMeshModelChar* c) : currentState(nullptr), character(c), blendOn(true) {}
+    AnimStateMachine(ISkinnedMeshModelChar* c) : currentState(nullptr), character(c), blendOn(true) {}
 
     void AddState(uint64_t stateName, AnimationClip* clip);
 
@@ -185,9 +216,12 @@ public:
 
     void Update(float deltaTime, ISkinnedMeshModelChar* character);
 
-    void AddTransition(uint64_t from, uint64_t to, bool (ISkinnedMeshModelChar::* condition)() const, bool waitForAnimationEnd = false, bool animBlend = true);
+    void AddTransition(uint64_t from, uint64_t to, bool (ISkinnedMeshModelChar::* condition)() const, 
+        bool waitForAnimationEnd = false, bool animBlend = true);
 
-    SimpleArray<XMFLOAT4X4>* GetBoneMatrices();
+    float GetCurrentAnimTime(void) { return currentState->GetCurrentAnimTime(); };
 
-    AnimationClip* GetCurrentAnimClip();
+    SimpleArray<XMFLOAT4X4>* GetBoneMatrices(void);
+
+    AnimationClip* GetCurrentAnimClip(void);
 };

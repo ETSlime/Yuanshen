@@ -4,6 +4,10 @@
 // 定数バッファ
 //*****************************************************************************
 
+#define LIGHT_MAX_NUM   5
+#define SCREEN_WIDTH    1920
+#define SHADOWMAP_SIZE  SCREEN_WIDTH * 3.5
+
 // マテリアルバッファ
 struct MATERIAL
 {
@@ -20,12 +24,12 @@ struct MATERIAL
 // ライト用バッファ
 struct LIGHT
 {
-    float4 Direction[5];
-    float4 Position[5];
-    float4 Diffuse[5];
-    float4 Ambient[5];
-    float4 Attenuation[5];
-    int4 Flags[5];
+    float4 Direction[LIGHT_MAX_NUM];
+    float4 Position[LIGHT_MAX_NUM];
+    float4 Diffuse[LIGHT_MAX_NUM];
+    float4 Ambient[LIGHT_MAX_NUM];
+    float4 Attenuation[LIGHT_MAX_NUM];
+    int4 Flags[LIGHT_MAX_NUM];
     int Enable;
     int Dummy[3]; //16byte境界用
     float4x4 LightViewProj;
@@ -41,7 +45,7 @@ struct FOG
 
 struct LightViewProjBuffer
 {
-    matrix ProjView[5];
+    matrix ProjView[LIGHT_MAX_NUM];
     int LightIndex;
     int padding[3];
 };
@@ -73,7 +77,7 @@ struct PixelInputType
     float2 texcoord : TEXCOORD;
     float4 color : COLOR;
     float4 worldPos : POSITION;
-    float4 shadowCoord[5] : TEXCOORD1;
+    float4 shadowCoord[LIGHT_MAX_NUM] : TEXCOORD1;
 };
 
 // マトリクスバッファ
@@ -156,7 +160,7 @@ void VertexShaderPolygon( in  float4 inPosition		: POSITION0,
 						  out float2 outTexCoord	: TEXCOORD0,
 						  out float4 outDiffuse		: COLOR0,
 						  out float4 outWorldPos    : POSITION0,
-								out float4 outshadowCoord[5] : TEXCOORD1)
+								out float4 outshadowCoord[LIGHT_MAX_NUM] : TEXCOORD1)
 {
 	matrix wvp;
 	wvp = mul(World, View);
@@ -168,7 +172,7 @@ void VertexShaderPolygon( in  float4 inPosition		: POSITION0,
 	outTexCoord = inTexCoord;
 
 	outWorldPos = mul(inPosition, World);
-    for (int i = 0; i < 5; ++i)
+    for (int i = 0; i < LIGHT_MAX_NUM; ++i)
     {
         outshadowCoord[i] = mul(outWorldPos, ProjView.ProjView[i]);
     }
@@ -208,7 +212,7 @@ PixelInputType SkinnedMeshVertexShaderPolygon(SkinnedMeshVertexInputType input)
 
     // Compute shadow coordinates for multiple light sources
     output.worldPos = mul(input.position, World);
-    for (int j = 0; j < 5; ++j)
+    for (int j = 0; j < LIGHT_MAX_NUM; ++j)
     {
         output.shadowCoord[j] = mul(output.worldPos, ProjView.ProjView[i]);
     }
@@ -221,7 +225,7 @@ PixelInputType SkinnedMeshVertexShaderPolygon(SkinnedMeshVertexInputType input)
 // グローバル変数
 //*****************************************************************************
 Texture2D g_Texture : register( t0 );
-Texture2D g_ShadowMap[5] : register(t1);
+Texture2D g_ShadowMap[LIGHT_MAX_NUM] : register(t1);
 Texture2D g_TextureSmall : register(t7);
 Texture2D g_LightMap : register(t8);
 Texture2D g_NormalMap : register(t9);
@@ -296,7 +300,7 @@ void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
 						 in  float2 inTexCoord		: TEXCOORD0,
 						 in  float4 inDiffuse		: COLOR0,
 						 in  float4 inWorldPos      : POSITION0,
-						in float4 inShadowCoord[5] : TEXCOORD1,
+						in float4 inShadowCoord[LIGHT_MAX_NUM] : TEXCOORD1,
 
 						 out float4 outDiffuse		: SV_Target )
 {
@@ -323,7 +327,7 @@ void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
 		float4 tempColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
 		float4 outColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
 
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < LIGHT_MAX_NUM; i++)
 		{
 			float3 lightDir;
 			float light;
@@ -375,7 +379,7 @@ void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
                     //float shadowMapValue = g_ShadowMap[2].Sample(g_SamplerState, shadowTexCoord).r;
                    // tempColor = float4(shadowMapValue, shadowMapValue, shadowMapValue, 1.0f);
                     int kernelSize = 1;
-                    float2 shadowMapDimensions = float2(1920, 1080);
+                    float2 shadowMapDimensions = float2(SHADOWMAP_SIZE, SHADOWMAP_SIZE);
                     float shadow = 0.0;
                     float2 texelSize = 1.0 / shadowMapDimensions;
                     float totalWeight = 0.0;
@@ -509,7 +513,7 @@ void SkinnedMeshPixelShader(PixelInputType input,
         
         float3 viewDir = normalize(CameraPos.xyz - input.position.xyz);
 
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < LIGHT_MAX_NUM; i++)
         {
             float3 lightDir;
             float light;
@@ -578,7 +582,7 @@ void SkinnedMeshPixelShader(PixelInputType input,
                     
                     
                     int kernelSize = 1;
-                    float2 shadowMapDimensions = float2(1920, 1080);
+                    float2 shadowMapDimensions = float2(SHADOWMAP_SIZE, SHADOWMAP_SIZE);
                     float shadow = 0.0;
                     float2 texelSize = 1.0 / shadowMapDimensions;
                     float totalWeight = 0.0;

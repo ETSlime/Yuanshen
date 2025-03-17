@@ -7,7 +7,7 @@
 #pragma once
 #include "GameObject.h"
 #include "SimpleArray.h"
-#include "Grass.h"
+#include "Environment.h"
 #include "Town.h"
 //*****************************************************************************
 // É}ÉNÉçíËã`
@@ -58,6 +58,6 @@ private:
 	SimpleArray<GameObject<SkinnedMeshModelInstance>*> skinnedMeshGroundGO;
 	SimpleArray<GameObject<ModelInstance>*>	groundGO;
 	Town* town;
-	Grass* grass;
+	Environment* environment;
 	Renderer& renderer = Renderer::get_instance();
 };

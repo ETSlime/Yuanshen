@@ -19,9 +19,9 @@ HashMap<char*, SkinnedMeshModelPool, CharPtrHash, CharPtrEquals> SkinnedMeshMode
 
 int ModelData::modelCnt = 0;
 
-FBXLoader& fbxLoader = FBXLoader::get_instance();
-TextureMgr& mTexMgr = TextureMgr::get_instance();
-
+static FBXLoader& fbxLoader = FBXLoader::get_instance();
+static TextureMgr& mTexMgr = TextureMgr::get_instance();
+static Timer& t = Timer::get_instance();
 
 void SkinnedMeshModel::UpdateBoneTransform(SimpleArray<XMFLOAT4X4>* boneTransforms)
 {
@@ -63,7 +63,7 @@ void SkinnedMeshModel::UpdateBoneTransform(SimpleArray<XMFLOAT4X4>* boneTransfor
                 int curIdx = 0;
                 int prevIdx = -1;
 
-                UpdateLimbGlobalTransform(currentAnimClip->armatureNode, armatureNode, curIdx, prevIdx, currentAnimClip->currentTime, &boneTransformData, currentAnimClip->isLoop);
+                UpdateLimbGlobalTransform(currentAnimClip->armatureNode, armatureNode, curIdx, prevIdx, currentAnimClip->currentTime, &boneTransformData, currentAnimClip->animInfo);
                 GetBoneTransform(boneTransformData.mBoneFinalTransforms, modelData);
             }
         }
@@ -142,13 +142,19 @@ void SkinnedMeshModel::DrawModel()
             DrawField(modelData);
             break;
         case ModelType::Town_LOD0:
+            //Renderer::get_instance().SetFillMode(D3D11_FILL_WIREFRAME);
             DrawTownLoD(modelData, 0);
+            //Renderer::get_instance().SetFillMode(D3D11_FILL_SOLID);
             break;
         case ModelType::Town_LOD1:
+            //Renderer::get_instance().SetFillMode(D3D11_FILL_WIREFRAME);
             DrawTownLoD(modelData, 1);
+            //Renderer::get_instance().SetFillMode(D3D11_FILL_SOLID);
             break;
         case ModelType::Town_LOD2:
+            //Renderer::get_instance().SetFillMode(D3D11_FILL_WIREFRAME);
             DrawTownLoD(modelData, 2);
+            //Renderer::get_instance().SetFillMode(D3D11_FILL_SOLID);
             break;
         case ModelType::Church:
             DrawChurch(modelData);
@@ -250,7 +256,7 @@ void SkinnedMeshModel::LoadTownTexture(void)
 }
 
 void SkinnedMeshModel::GetBoneTransformByAnim(FbxNode* currentClipArmatureNode, uint64_t currentClipTime, 
-    SimpleArray<XMFLOAT4X4>* boneFinalTransform, bool loop)
+    SimpleArray<XMFLOAT4X4>* boneFinalTransform, AnimationInfo& animInfo)
 {
     (*boneFinalTransform).clear();
     
@@ -274,7 +280,7 @@ void SkinnedMeshModel::GetBoneTransformByAnim(FbxNode* currentClipArmatureNode, 
             int curIdx = 0;
             int prevIdx = -1;
 
-            UpdateLimbGlobalTransform(currentClipArmatureNode, armatureNode, curIdx, prevIdx, currentClipTime, &boneTransformData, loop);
+            UpdateLimbGlobalTransform(currentClipArmatureNode, armatureNode, curIdx, prevIdx, currentClipTime, &boneTransformData, animInfo);
             GetBoneTransform(*boneFinalTransform, modelData);
         }
     }
@@ -372,7 +378,7 @@ void SkinnedMeshModel::SetBoundingBoxSize(XMFLOAT3 size, int boneIdx)
     }
 }
 
-void SkinnedMeshModel::BuildTrianglesByWorldMatrix(XMMATRIX worldMatrix)
+void SkinnedMeshModel::BuildTrianglesByWorldMatrix(XMMATRIX worldMatrix, bool alwaysFaceUp)
 {
     for (auto& it : meshDataMap)
     {
@@ -444,7 +450,8 @@ void SkinnedMeshModel::BuildTrianglesByWorldMatrix(XMMATRIX worldMatrix)
                 Triangle* triangle = new Triangle(
                     triangleVertices[0],
                     triangleVertices[1],
-                    triangleVertices[2]
+                    triangleVertices[2],
+                    alwaysFaceUp
                 );
 
 
@@ -454,6 +461,58 @@ void SkinnedMeshModel::BuildTrianglesByWorldMatrix(XMMATRIX worldMatrix)
             }
         }
 
+    }
+}
+
+void SkinnedMeshModel::BuildTrianglesByBoundingBox(BOUNDING_BOX box)
+{
+    for (auto& it : meshDataMap)
+    {
+        ModelData* modelData = it.value;
+
+        // AABB の 8 つの頂点を定義
+        XMFLOAT3 v0 = XMFLOAT3(box.minPoint.x, box.minPoint.y, box.minPoint.z);
+        XMFLOAT3 v1 = XMFLOAT3(box.maxPoint.x, box.minPoint.y, box.minPoint.z);
+        XMFLOAT3 v2 = XMFLOAT3(box.minPoint.x, box.maxPoint.y, box.minPoint.z);
+        XMFLOAT3 v3 = XMFLOAT3(box.maxPoint.x, box.maxPoint.y, box.minPoint.z);
+        XMFLOAT3 v4 = XMFLOAT3(box.minPoint.x, box.minPoint.y, box.maxPoint.z);
+        XMFLOAT3 v5 = XMFLOAT3(box.maxPoint.x, box.minPoint.y, box.maxPoint.z);
+        XMFLOAT3 v6 = XMFLOAT3(box.minPoint.x, box.maxPoint.y, box.maxPoint.z);
+        XMFLOAT3 v7 = XMFLOAT3(box.maxPoint.x, box.maxPoint.y, box.maxPoint.z);
+
+        // 各面の法線
+        XMFLOAT3 normalXPlus = XMFLOAT3(1, 0, 0);   // +X 面の法線
+        XMFLOAT3 normalXMinus = XMFLOAT3(-1, 0, 0);  // -X 面の法線
+        XMFLOAT3 normalYPlus = XMFLOAT3(0, 1, 0);   // +Y 面の法線
+        XMFLOAT3 normalYMinus = XMFLOAT3(0, -1, 0);  // -Y 面の法線
+        XMFLOAT3 normalZPlus = XMFLOAT3(0, 0, 1);   // +Z 面の法線
+        XMFLOAT3 normalZMinus = XMFLOAT3(0, 0, -1);  // -Z 面の法線
+
+        // 各面を 2 つの三角形で作成（法線を追加）
+
+        // -X 面
+        modelData->triangles.push_back(new Triangle(v3, v7, v5, normalXMinus)); // 三角形 1
+        modelData->triangles.push_back(new Triangle(v3, v5, v1, normalXMinus)); // 三角形 2
+
+        // +X 面
+        modelData->triangles.push_back(new Triangle(v2, v0, v4, normalXPlus)); // 三角形 3
+        modelData->triangles.push_back(new Triangle(v2, v4, v6, normalXPlus)); // 三角形 4
+
+        // -Y 面
+        modelData->triangles.push_back(new Triangle(v2, v6, v7, normalYPlus)); // 三角形 5
+        modelData->triangles.push_back(new Triangle(v2, v7, v3, normalYPlus)); // 三角形 6
+
+        // +Y 面
+        modelData->triangles.push_back(new Triangle(v0, v1, v5, normalYMinus)); // 三角形 7
+        modelData->triangles.push_back(new Triangle(v0, v5, v4, normalYMinus)); // 三角形 8
+
+        // -Z 面
+        modelData->triangles.push_back(new Triangle(v7, v6, v4, normalZMinus)); // 三角形 9
+        modelData->triangles.push_back(new Triangle(v7, v4, v5, normalZMinus)); // 三角形 10
+
+        // +Z 面
+        modelData->triangles.push_back(new Triangle(v3, v2, v0, normalZPlus)); // 三角形 11
+        modelData->triangles.push_back(new Triangle(v3, v0, v1, normalZPlus)); // 三角形 12
     }
 }
 
@@ -495,24 +554,16 @@ const SimpleArray<Triangle*>& SkinnedMeshModel::GetTriangles(void) const
     return SimpleArray<Triangle*>();    
 }
 
-void SkinnedMeshModel::SetCurrentAnim(AnimationClip* currAnimClip, float startTime)//(AnimationClipName clipName, float startTime)
+void SkinnedMeshModel::SetCurrentAnim(AnimationClip* currAnimClip, float startTime)
 {
-    //AnimationClip* animClip = animationClips.search(clipName);
-
-    //if (animClip)
-    //{
-    //    currentAnimClip = *animClip;
-    //    currentAnimClip.currentTime = animClip->stopTime * startTime;
-    //}
-
     if (currAnimClip)
     {
         this->currentAnimClip = currAnimClip;
-        this->currentAnimClip->currentTime = currAnimClip->stopTime * startTime;
+        this->currentAnimClip->currentTime = static_cast<uint64_t>(currAnimClip->stopTime * startTime);
     }
 }
 
-AnimationClip* SkinnedMeshModel::GetAnimationClip(AnimationClipName clipName)
+AnimationClip* SkinnedMeshModel::GetAnimationClip(AnimClipName clipName)
 {
     AnimationClip* animClip = animationClips.search(clipName);
     if (animClip)
@@ -523,7 +574,7 @@ AnimationClip* SkinnedMeshModel::GetAnimationClip(AnimationClipName clipName)
 
 void SkinnedMeshModel::PlayCurrentAnim(float playSpeed)
 {
-    currentAnimClip->currentTime += ANIM_SPD * playSpeed;
+    currentAnimClip->currentTime += static_cast<uint64_t>(ANIM_SPD * playSpeed * t.GetScaledDeltaTime());
 }
 
 XMMATRIX SkinnedMeshModel::GetWeaponTransformMtx(void)
@@ -550,7 +601,7 @@ XMMATRIX SkinnedMeshModel::GetBodyTransformMtx(void)
     return XMMatrixIdentity();
 }
 
-XMMATRIX SkinnedMeshModel::GetBoneFinalTransform(int boneIdx)
+XMMATRIX SkinnedMeshModel::GetBoneFinalTransform(UINT boneIdx)
 {
     if (boneTransformData.mBoneFinalTransforms.getSize() > boneIdx )
     {
@@ -629,7 +680,7 @@ XMMATRIX CreateRotationMatrix(float pitch, float yaw, float roll)
 }
 
 SkinnedMeshModel* SkinnedMeshModel::StoreModel(char* modelPath, char* modelName, char* modelFullPath, 
-    ModelType modelType, AnimationClipName clipName)
+    ModelType modelType, AnimClipName clipName)
 {
     SkinnedMeshModelPool* modelPool = GetModel(modelFullPath);
     if (modelPool == nullptr)
@@ -667,7 +718,7 @@ void SkinnedMeshModel::RemoveModel(char* modelPath)
 }
 
 void SkinnedMeshModel::UpdateLimbGlobalTransform(FbxNode* node, FbxNode* deformNode, 
-    int& curIdx, int prevIdx, uint64_t time, BoneTransformData* boneTransformData, BOOL isLoop)
+    int& curIdx, int prevIdx, uint64_t time, BoneTransformData* boneTransformData, AnimationInfo& animInfo)
 {
     ModelProperty* modelProperty = static_cast<ModelProperty*>(node->nodeData);
 
@@ -683,15 +734,15 @@ void SkinnedMeshModel::UpdateLimbGlobalTransform(FbxNode* node, FbxNode* deformN
         if (limbNodeAnimation)
         {
             FbxNode** animationCurveNodeScl = fbxNodes.search(limbNodeAnimation->LclScl);
-            XMFLOAT3 animationValueScl = GetAnimationValue(animationCurveNodeScl, modelProperty->Scaling, time, isLoop);
+            XMFLOAT3 animationValueScl = GetAnimationValue(animationCurveNodeScl, modelProperty->Scaling, time, animInfo);
             mtxLocalScl = XMMatrixScaling(animationValueScl.x, animationValueScl.y, animationValueScl.z);
 
             FbxNode** animationCurveNodeRot = fbxNodes.search(limbNodeAnimation->LclRot);
-            XMFLOAT3 animationValueRot = GetAnimationValue(animationCurveNodeRot, modelProperty->Rotation, time, isLoop);
+            XMFLOAT3 animationValueRot = GetAnimationValue(animationCurveNodeRot, modelProperty->Rotation, time, animInfo);
             mtxLocalRot = CreateRotationMatrix(XMConvertToRadians(animationValueRot.x), XMConvertToRadians(animationValueRot.y), XMConvertToRadians(animationValueRot.z));
 
             FbxNode** animationCurveNodeTranslation = fbxNodes.search(limbNodeAnimation->LclTranslation);
-            XMFLOAT3 animationValueTranslation = GetAnimationValue(animationCurveNodeTranslation, modelProperty->Translation, time, isLoop);
+            XMFLOAT3 animationValueTranslation = GetAnimationValue(animationCurveNodeTranslation, modelProperty->Translation, time, animInfo);
             mtxLocalTranslate = XMMatrixTranslation(animationValueTranslation.x, animationValueTranslation.y, animationValueTranslation.z);
 
         }
@@ -752,24 +803,24 @@ void SkinnedMeshModel::UpdateLimbGlobalTransform(FbxNode* node, FbxNode* deformN
         boneTransformData->mModelLocalTrans.push_back(localTrans);
 
         SimpleArray<FbxNode*> childNodes = node->childNodes;
-        for (int i = 0; i < childNodes.getSize(); i++)
+        for (UINT i = 0; i < childNodes.getSize(); i++)
         {
             if (childNodes[i]->nodeType == FbxNodeType::LimbNode)
             {
                 int prev = modelProperty->modelIdx;
                 curIdx++;
-                UpdateLimbGlobalTransform(node->childNodes[i], deformNode->childNodes[i], curIdx, prev, time, boneTransformData, isLoop);
+                UpdateLimbGlobalTransform(node->childNodes[i], deformNode->childNodes[i], curIdx, prev, time, boneTransformData, animInfo);
             }
             else if (childNodes[i]->nodeType == FbxNodeType::Mesh)
             {
                 SimpleArray<FbxNode*> limbNodes = childNodes[i]->childNodes;
-                for (int j = 0; j < limbNodes.getSize(); j++)
+                for (UINT j = 0; j < limbNodes.getSize(); j++)
                 {
                     if (limbNodes[j]->nodeType == FbxNodeType::LimbNode)
                     {
                         int prev = modelProperty->modelIdx;
                         curIdx++;
-                        UpdateLimbGlobalTransform(node->childNodes[i]->childNodes[j], deformNode->childNodes[i]->childNodes[j], curIdx, prev, time, boneTransformData, isLoop);
+                        UpdateLimbGlobalTransform(node->childNodes[i]->childNodes[j], deformNode->childNodes[i]->childNodes[j], curIdx, prev, time, boneTransformData, animInfo);
                     }
                 }
             }
@@ -956,7 +1007,7 @@ void SkinnedMeshModel::GetBoneTransform(SimpleArray<XMFLOAT4X4>& boneFinalTransf
     }
 }
 
-XMFLOAT3 SkinnedMeshModel::GetAnimationValue(FbxNode** ppAnimationCurve, XMFLOAT3 defaultValue, uint64_t time, BOOL isLoop)
+XMFLOAT3 SkinnedMeshModel::GetAnimationValue(FbxNode** ppAnimationCurve, XMFLOAT3 defaultValue, uint64_t time, AnimationInfo& animInfo)
 {
 	if (ppAnimationCurve)
 	{
@@ -967,9 +1018,9 @@ XMFLOAT3 SkinnedMeshModel::GetAnimationValue(FbxNode** ppAnimationCurve, XMFLOAT
 			FbxNode** animationCurveX = fbxNodes.search(animationCurveNode->dX);
 			FbxNode** animationCurveY = fbxNodes.search(animationCurveNode->dY);
 			FbxNode** animationCurveZ = fbxNodes.search(animationCurveNode->dZ);
-			animationValue.x = GetAnimationCurveValue(animationCurveX, time, defaultValue.x, isLoop);
-			animationValue.y = GetAnimationCurveValue(animationCurveY, time, defaultValue.y, isLoop);
-			animationValue.z = GetAnimationCurveValue(animationCurveZ, time, defaultValue.z, isLoop);
+			animationValue.x = GetAnimationCurveValue(animationCurveX, time, defaultValue.x, animInfo);
+			animationValue.y = GetAnimationCurveValue(animationCurveY, time, defaultValue.y, animInfo);
+			animationValue.z = GetAnimationCurveValue(animationCurveZ, time, defaultValue.z, animInfo);
 			return animationValue;
 		}
 		else
@@ -980,7 +1031,7 @@ XMFLOAT3 SkinnedMeshModel::GetAnimationValue(FbxNode** ppAnimationCurve, XMFLOAT
 		return defaultValue;
 }
 
-float SkinnedMeshModel::GetAnimationCurveValue(FbxNode** ppAnimationCurveNode, uint64_t time, float defaultValue, BOOL isLoop)
+float SkinnedMeshModel::GetAnimationCurveValue(FbxNode** ppAnimationCurveNode, uint64_t time, float defaultValue, AnimationInfo& animInfo)
 {
 	if (ppAnimationCurveNode)
 	{
@@ -996,19 +1047,23 @@ float SkinnedMeshModel::GetAnimationCurveValue(FbxNode** ppAnimationCurveNode, u
             uint64_t startTime = animationCurve->KeyTime[0];
             uint64_t endTime = animationCurve->KeyTime[keyCount - 1];
 
-            if (isLoop)
+            if (animInfo.playMode == AnimPlayMode::LOOP)
             {
                 if (time < startTime)
                 {
-                    time = endTime - fmod(startTime - time, endTime - startTime);
+                    time = endTime - static_cast<uint64_t>(fmod(startTime - time, endTime - startTime));
                 }
                 else if (time > endTime)
                 {
-                    time = fmod(time - startTime, endTime - startTime) + startTime;
+                    time = static_cast<uint64_t>(fmod(time - startTime, endTime - startTime)) + startTime;
                 }
             }
-            else if (time > endTime)
-                time = endTime;
+            else if (animInfo.playMode == AnimPlayMode::ONCE)
+            {
+                if (time > endTime)
+                    time = endTime;
+            }
+
 
 
 			for (int i = 0; i < animationCurve->KeyAttrRefCount; i++)

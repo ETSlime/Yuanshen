@@ -13,7 +13,8 @@
 #define LIGHT_MAX			(5)
 #define BONE_MAX			(512)
 #define MAX_BONE_INDICES	(4)
-
+#define SHADOWMAP_SIZE		(SCREEN_WIDTH * 3.5f)
+//*********************************************************
 enum LIGHT_TYPE
 {
 	LIGHT_TYPE_NONE,		//ƒ‰ƒCƒg–³‚µ
@@ -50,6 +51,7 @@ enum class RenderMode
 	SKINNED_MESH_SHADOW,
 	INSTANCE,
 	INSTANCE_SHADOW,
+	UI,
 };
 
 //*********************************************************
@@ -98,8 +100,8 @@ struct SKINNED_VERTEX_3D
 		Normal = XMFLOAT3(0.0f, 0.0f, 0.0f);
 		Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 		TexCoord = XMFLOAT2(0.0f, 0.0f);
-		//Tangent = XMFLOAT3(0.0f, 0.0f, 0.0f);
-		//Bitangent = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		Tangent = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		Bitangent = XMFLOAT3(0.0f, 0.0f, 0.0f);
 		//for (int i = 0; i < MAX_BONE_INDICES; i++)
 		//{
 		//	Weights[i] = 0.0f;
@@ -113,7 +115,7 @@ struct SKINNED_VERTEX_3D
 	{
 		Position = pos;
 		Normal = norm;
-		//Tangent = tangent;
+		Tangent = tangent;
 		Diffuse = dif;
 		TexCoord = tex;
 		//for (int i = 0; i < MAX_BONE_INDICES; i++)
@@ -121,6 +123,7 @@ struct SKINNED_VERTEX_3D
 		//	Weights[i] = 0.0f;
 		//	BoneIndices[i] = 0;
 		//}
+		Bitangent = XMFLOAT3(0.0f, 0.0f, 0.0f);
 		Weights = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 		BoneIndices = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	}
@@ -295,15 +298,19 @@ public:
 
 	void SetRenderShadowMap(int lightIdx);
 	void SetRenderSkinnedMeshShadowMap(int lightIdx);
+	void SetRenderInstanceShadowMap(int lightIdx);
 	void SetRenderObject(void);
 	void SetRenderSkinnedMeshModel(void);
 	void SetRenderInstance(void);
-	void SetRenderInstanceShadowMap(void);
+	void SetRenderUI(void);
 	void SetModelInputLayout(void);
 	void SetSkinnedMeshInputLayout(void);
 	void ResetRenderTarget(void);
 	void SetLightModeBuffer(int mode);
 	void ClearShadowDSV(int lightIdx);
+
+	void SetMainPassViewport(void);
+	void SetShadowPassViewport(void);
 
 	RenderMode GetRenderMode(void);
 	void SetRenderMode(RenderMode mode);
@@ -348,13 +355,13 @@ private:
 
 	ID3D11ShaderResourceView* g_ShadowMapSRV[LIGHT_MAX];
 
-	ID3D11DepthStencilState* g_DepthStateEnable;
-	ID3D11DepthStencilState* g_DepthStateDisable;
+	ID3D11DepthStencilState* g_DepthStateEnable = NULL;
+	ID3D11DepthStencilState* g_DepthStateDisable = NULL;
 
-	ID3D11BlendState* g_BlendStateNone;
-	ID3D11BlendState* g_BlendStateAlphaBlend;
-	ID3D11BlendState* g_BlendStateAdd;
-	ID3D11BlendState* g_BlendStateSubtract;
+	ID3D11BlendState* g_BlendStateNone = NULL;
+	ID3D11BlendState* g_BlendStateAlphaBlend = NULL;
+	ID3D11BlendState* g_BlendStateAdd = NULL;
+	ID3D11BlendState* g_BlendStateSubtract = NULL;
 	BLEND_MODE				g_BlendStateParam;
 
 

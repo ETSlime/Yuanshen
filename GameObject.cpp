@@ -27,7 +27,7 @@ GameObject<SkinnedMeshModelInstance>::~GameObject()
 
 template <>
 void GameObject<SkinnedMeshModelInstance>::Instantiate(char* modelPath, char* modelName, 
-	ModelType modelType, AnimationClipName clipName)
+	ModelType modelType, AnimClipName clipName)
 {
 	char* modelFullPath = new char[MODEL_NAME_LENGTH] {};
 
@@ -106,13 +106,13 @@ void GameObject< SkinnedMeshModelInstance>::Update()
 	XMStoreFloat3(&worldPos2, worldPosMin);
 
 	// コライダーのAABBを更新
-	instance.collider.aabb.maxPoint = XMFLOAT3(
+	instance.collider.bbox.maxPoint = XMFLOAT3(
 		max(worldPos1.x, worldPos2.x),
 		max(worldPos1.y, worldPos2.y),
 		max(worldPos1.z, worldPos2.z)
 	);
 
-	instance.collider.aabb.minPoint = XMFLOAT3(
+	instance.collider.bbox.minPoint = XMFLOAT3(
 		min(worldPos1.x, worldPos2.x),
 		min(worldPos1.y, worldPos2.y),
 		min(worldPos1.z, worldPos2.z)

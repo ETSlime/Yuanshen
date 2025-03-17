@@ -8,7 +8,7 @@
 #include "input.h"
 #include "debugproc.h"
 #include "Player.h"
-#include "Enemy.h"
+#include "EnemyManager.h"
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
@@ -42,26 +42,26 @@ Lumine::Lumine()
 	instance.collider.type = ColliderType::PLAYER;
 	instance.collider.owner = this;
 	instance.collider.enable = true;
-	CollisionManager::get_instance().RegisterCollider(&instance.collider);
+	CollisionManager::get_instance().RegisterDynamicCollider(&instance.collider);
 
 	LoadWeapon("data/MODEL/character/Lumine", "Mitsurugi.fbx");
 	weapon.SetColliderType(ColliderType::PLAYER_ATTACK);
 	weapon.SetColliderOwner(&weapon);
-	CollisionManager::get_instance().RegisterCollider(&weapon.GetCollider());
+	CollisionManager::get_instance().RegisterDynamicCollider(&weapon.GetCollider());
 	
 	instance.pModel->SetDrawBoundingBox(false);
 	weapon.GetSkinnedMeshModel()->SetDrawBoundingBox(false);
 
-	AddAnimation("data/MODEL/character/Lumine/", "Idle.fbx", AnimationClipName::ANIM_STANDING);
-	AddAnimation("data/MODEL/character/Lumine/", "Looking Around.fbx", AnimationClipName::ANIM_IDLE);
-	AddAnimation("data/MODEL/character/Lumine/", "Sneak Walk.fbx", AnimationClipName::ANIM_DASH);
-	AddAnimation("data/MODEL/character/Lumine/", "Running.fbx", AnimationClipName::ANIM_RUN);
-	AddAnimation("data/MODEL/character/Lumine/", "Walking.fbx", AnimationClipName::ANIM_WALK);
-	AddAnimation("data/MODEL/character/Lumine/", "Jump.fbx", AnimationClipName::ANIM_JUMP);
-	AddAnimation("data/MODEL/character/Lumine/", "Standing React Small From Left.fbx", AnimationClipName::ANIM_HIT_REACTION_1);
-	AddAnimation("data/MODEL/character/Lumine/", "Sword And Shield Slash.fbx", AnimationClipName::ANIM_SWORD_SHIELD_SLASH);
-	AddAnimation("data/MODEL/character/Lumine/", "Sword And Shield Slash 2.fbx", AnimationClipName::ANIM_SWORD_SHIELD_SLASH2);
-	AddAnimation("data/MODEL/character/Lumine/", "Sword And Shield Slash 3.fbx", AnimationClipName::ANIM_SWORD_SHIELD_SLASH3);
+	AddAnimation("data/MODEL/character/Lumine/", "Idle.fbx", AnimClipName::ANIM_STANDING);
+	AddAnimation("data/MODEL/character/Lumine/", "Looking Around.fbx", AnimClipName::ANIM_IDLE);
+	AddAnimation("data/MODEL/character/Lumine/", "Sneak Walk.fbx", AnimClipName::ANIM_DASH);
+	AddAnimation("data/MODEL/character/Lumine/", "Running.fbx", AnimClipName::ANIM_RUN);
+	AddAnimation("data/MODEL/character/Lumine/", "Walking.fbx", AnimClipName::ANIM_WALK);
+	AddAnimation("data/MODEL/character/Lumine/", "Jump.fbx", AnimClipName::ANIM_JUMP);
+	AddAnimation("data/MODEL/character/Lumine/", "Standing React Small From Left.fbx", AnimClipName::ANIM_HIT_REACTION_1);
+	AddAnimation("data/MODEL/character/Lumine/", "Sword And Shield Slash.fbx", AnimClipName::ANIM_SWORD_SHIELD_SLASH);
+	AddAnimation("data/MODEL/character/Lumine/", "Sword And Shield Slash 2.fbx", AnimClipName::ANIM_SWORD_SHIELD_SLASH2);
+	AddAnimation("data/MODEL/character/Lumine/", "Sword And Shield Slash 3.fbx", AnimClipName::ANIM_SWORD_SHIELD_SLASH3);
 
 	instance.pModel->SetBodyDiffuseTexture("data/MODEL/character/Lumine/texture_0.png");
 	instance.pModel->SetHairDiffuseTexture("data/MODEL/character/Lumine/hair.png");
@@ -74,7 +74,9 @@ Lumine::Lumine()
 	storeWeaponOnBack = false;
 	storeWeapon = false;
 	instance.renderProgress.progress = 0.0f;
-	SetupAnimationStateMachine();
+
+	SetupAnimStateMachine();
+	InitAnimInfo();
 }
 
 Lumine::~Lumine()
@@ -82,7 +84,7 @@ Lumine::~Lumine()
 	SAFE_DELETE(stateMachine);
 }
 
-void Lumine::AddAnimation(char* animPath, char* animName, AnimationClipName clipName)
+void Lumine::AddAnimation(char* animPath, char* animName, AnimClipName clipName)
 {
 	if (instance.pModel)
 		fbxLoader.LoadAnimation(renderer.GetDevice(), *instance.pModel, animPath, animName, clipName);
@@ -109,7 +111,7 @@ void Lumine::Update(void)
 	if (instance.attributes.attackWindow2 == true
 		|| instance.attributes.attackWindow3 == true)
 	{
-		instance.attributes.attackWinwdowCnt++;
+		instance.attributes.attackWinwdowCnt += timer.GetScaledDeltaTime();
 		if (instance.attributes.attackWinwdowCnt >= ATTACK_COMBO_WINDOW
 			|| instance.attributes.isMoving)
 		{
@@ -118,7 +120,6 @@ void Lumine::Update(void)
 			instance.attributes.attackWinwdowCnt = 0;
 		}
 	}
-
 
 
 	switch (stateMachine->GetCurrentState())
@@ -158,7 +159,7 @@ void Lumine::Update(void)
 	}
 
 	GameObject::Update();
-	stateMachine->Update(ANIM_BLEND_SPD, dynamic_cast<ISkinnedMeshModelChar*>(this));
+	stateMachine->Update(ANIM_BLEND_SPD * timer.GetScaledDeltaTime(), dynamic_cast<ISkinnedMeshModelChar*>(this));
 	instance.pModel->UpdateBoneTransform(stateMachine->GetBoneMatrices());
 
 	UpdateWeapon();
@@ -169,7 +170,7 @@ void Lumine::Draw(void)
 	if (storeWeaponOnBack)
 	{
 		instance.renderProgress.isRandomFade = true;
-		instance.renderProgress.progress -= 0.01f;
+		instance.renderProgress.progress -= 0.01f * timer.GetScaledDeltaTime();
 		if (instance.renderProgress.progress < 0.0f)
 		{
 			instance.renderProgress.progress = 0.0f;
@@ -182,7 +183,7 @@ void Lumine::Draw(void)
 	}
 	else if (weaponOnBackTimer >= 0 && weaponOnBack == true)
 	{
-		instance.renderProgress.progress += 0.01f;
+		instance.renderProgress.progress += 0.01f * timer.GetScaledDeltaTime();
 		if (instance.renderProgress.progress >= 1.0f)
 		{
 			//weaponOnBack = false;
@@ -191,7 +192,7 @@ void Lumine::Draw(void)
 	}
 	else if (storeWeapon)
 	{
-		instance.renderProgress.progress -= 0.01f;
+		instance.renderProgress.progress -= 0.01f * timer.GetScaledDeltaTime();
 		if (instance.renderProgress.progress < 0.0f)
 		{
 			instance.renderProgress.progress = 0.0f;
@@ -205,7 +206,7 @@ void Lumine::Draw(void)
 
 	if (instance.attributes.charSwitchEffect == TRUE)
 	{
-		instance.renderProgress.progress += 0.01f;
+		instance.renderProgress.progress += 0.01f * timer.GetScaledDeltaTime();
 		if (instance.renderProgress.progress >= 1.0f)
 		{
 			instance.renderProgress.progress = 1.0f;
@@ -227,25 +228,25 @@ void Lumine::Draw(void)
 
 }
 
-AnimationStateMachine* Lumine::GetStateMachine(void)
+AnimStateMachine* Lumine::GetStateMachine(void)
 {
 	return stateMachine;
 }
 
-void Lumine::SetupAnimationStateMachine()
+void Lumine::SetupAnimStateMachine()
 {
-	stateMachine = new AnimationStateMachine(dynamic_cast<ISkinnedMeshModelChar*>(this));
+	stateMachine = new AnimStateMachine(dynamic_cast<ISkinnedMeshModelChar*>(this));
 
-	stateMachine->AddState(STATE(PlayerState::IDLE), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_IDLE));
-	stateMachine->AddState(STATE(PlayerState::STANDING), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_STANDING));
-	stateMachine->AddState(STATE(PlayerState::WALK), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_WALK));
-	stateMachine->AddState(STATE(PlayerState::RUN), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_RUN));
-	stateMachine->AddState(STATE(PlayerState::DASH), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_DASH));
-	stateMachine->AddState(STATE(PlayerState::JUMP), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_JUMP));
-	stateMachine->AddState(STATE(PlayerState::ATTACK_1), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_SWORD_SHIELD_SLASH));
-	stateMachine->AddState(STATE(PlayerState::ATTACK_2), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_SWORD_SHIELD_SLASH2));
-	stateMachine->AddState(STATE(PlayerState::ATTACK_3), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_SWORD_SHIELD_SLASH3));
-	stateMachine->AddState(STATE(PlayerState::HIT), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_HIT_REACTION_1));
+	stateMachine->AddState(STATE(PlayerState::IDLE), instance.pModel->GetAnimationClip(AnimClipName::ANIM_IDLE));
+	stateMachine->AddState(STATE(PlayerState::STANDING), instance.pModel->GetAnimationClip(AnimClipName::ANIM_STANDING));
+	stateMachine->AddState(STATE(PlayerState::WALK), instance.pModel->GetAnimationClip(AnimClipName::ANIM_WALK));
+	stateMachine->AddState(STATE(PlayerState::RUN), instance.pModel->GetAnimationClip(AnimClipName::ANIM_RUN));
+	stateMachine->AddState(STATE(PlayerState::DASH), instance.pModel->GetAnimationClip(AnimClipName::ANIM_DASH));
+	stateMachine->AddState(STATE(PlayerState::JUMP), instance.pModel->GetAnimationClip(AnimClipName::ANIM_JUMP));
+	stateMachine->AddState(STATE(PlayerState::ATTACK_1), instance.pModel->GetAnimationClip(AnimClipName::ANIM_SWORD_SHIELD_SLASH));
+	stateMachine->AddState(STATE(PlayerState::ATTACK_2), instance.pModel->GetAnimationClip(AnimClipName::ANIM_SWORD_SHIELD_SLASH2));
+	stateMachine->AddState(STATE(PlayerState::ATTACK_3), instance.pModel->GetAnimationClip(AnimClipName::ANIM_SWORD_SHIELD_SLASH3));
+	stateMachine->AddState(STATE(PlayerState::HIT), instance.pModel->GetAnimationClip(AnimClipName::ANIM_HIT_REACTION_1));
 
 	//状態遷移
 	stateMachine->AddTransition(STATE(PlayerState::STANDING), STATE(PlayerState::WALK), &ISkinnedMeshModelChar::CanWalk);
@@ -283,37 +284,65 @@ void Lumine::SetupAnimationStateMachine()
 	stateMachine->SetCurrentState(STATE(PlayerState::STANDING));
 }
 
+void Lumine::InitAnimInfo(void)
+{
+	AnimationClip* attack1 = instance.pModel->GetAnimationClip(AnimClipName::ANIM_SWORD_SHIELD_SLASH);
+	if (attack1)
+	{
+		attack1->animInfo.animPhase.startMoveFraction = 0.0f;
+		attack1->animInfo.animPhase.endMoveFraction = 0.3f;
+		attack1->animInfo.animPhase.startAttackFraction = 0.3f;
+		attack1->animInfo.animPhase.endAttackFraction = 0.6f;
+	}
+	AnimationClip* attack2 = instance.pModel->GetAnimationClip(AnimClipName::ANIM_SWORD_SHIELD_SLASH2);
+	if (attack2)
+	{
+		attack2->animInfo.animPhase.startMoveFraction = 0.0f;
+		attack2->animInfo.animPhase.endMoveFraction = 0.3f;
+		attack2->animInfo.animPhase.startAttackFraction = 0.3f;
+		attack2->animInfo.animPhase.endAttackFraction = 0.6f;
+	}
+	AnimationClip* attack3 = instance.pModel->GetAnimationClip(AnimClipName::ANIM_SWORD_SHIELD_SLASH3);
+	if (attack3)
+	{
+		attack3->animInfo.animPhase.startMoveFraction = 0.0f;
+		attack3->animInfo.animPhase.endMoveFraction = 0.3f;
+		attack3->animInfo.animPhase.startAttackFraction = 0.3f;
+		attack3->animInfo.animPhase.endAttackFraction = 0.6f;
+	}
+}
+
 void Lumine::PlayWalkAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_WALK)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_WALK)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Lumine::PlayRunAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_RUN)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_RUN)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Lumine::PlayJumpAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_JUMP)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_JUMP)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Lumine::PlayIdleAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_IDLE)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_IDLE)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Lumine::PlayStandingAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_STANDING)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_STANDING)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
@@ -364,7 +393,7 @@ bool Lumine::ExecuteAction(ActionEnum action)
 
 void Lumine::PlayDashAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_DASH)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_DASH)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
@@ -373,8 +402,17 @@ void Lumine::PlayAttackAnim(void)
 {
 	FaceToNearestEnemy();
 
-	weapon.SetColliderEnable(true);
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_SWORD_SHIELD_SLASH)
+	float curAnimTime = stateMachine->GetCurrentAnimTime();
+	if (curAnimTime >= stateMachine->GetCurrentAnimClip()->animInfo.animPhase.startAttackFraction
+		&& curAnimTime <= stateMachine->GetCurrentAnimClip()->animInfo.animPhase.endAttackFraction)
+	{
+		weapon.SetColliderEnable(true);
+	}
+	else
+	{
+		weapon.SetColliderEnable(false);
+	}
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_SWORD_SHIELD_SLASH)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed * 1.5f);
 }
@@ -382,9 +420,17 @@ void Lumine::PlayAttackAnim(void)
 void Lumine::PlayAttack2Anim(void)
 {
 	FaceToNearestEnemy();
-
-	weapon.SetColliderEnable(true);
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_SWORD_SHIELD_SLASH2)
+	float curAnimTime = stateMachine->GetCurrentAnimTime();
+	if (curAnimTime >= stateMachine->GetCurrentAnimClip()->animInfo.animPhase.startAttackFraction
+		&& curAnimTime <= stateMachine->GetCurrentAnimClip()->animInfo.animPhase.endAttackFraction)
+	{
+		weapon.SetColliderEnable(true);
+	}
+	else
+	{
+		weapon.SetColliderEnable(false);
+	}
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_SWORD_SHIELD_SLASH2)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed * 1.5f);
 }
@@ -393,15 +439,25 @@ void Lumine::PlayAttack3Anim(void)
 {
 	FaceToNearestEnemy();
 
-	weapon.SetColliderEnable(true);
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_SWORD_SHIELD_SLASH3)
+	float curAnimTime = stateMachine->GetCurrentAnimTime();
+	if (curAnimTime >= stateMachine->GetCurrentAnimClip()->animInfo.animPhase.startAttackFraction
+		&& curAnimTime <= stateMachine->GetCurrentAnimClip()->animInfo.animPhase.endAttackFraction)
+	{
+		weapon.SetColliderEnable(true);
+	}
+	else
+	{
+		weapon.SetColliderEnable(false);
+	}
+
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_SWORD_SHIELD_SLASH3)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed * 1.5f);
 }
 
 void Lumine::PlayHitAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_HIT_REACTION_1)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_HIT_REACTION_1)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed * 1.2f);
 }
@@ -415,6 +471,12 @@ void Lumine::FaceToNearestEnemy(void)
 	float minDistSq = FLT_MAX;
 	while (cur != nullptr)
 	{
+		if (cur->data->GetEnemyAttribute().isDead == true)
+		{
+			cur = cur->next;
+			continue;
+		}
+
 		XMVECTOR enemyPosVec = XMLoadFloat3(&cur->data->GetTransform().pos);
 		XMVECTOR diff = XMVectorSubtract(enemyPosVec, playerPosVec);
 		float distSq = XMVectorGetX(XMVector3LengthSq(diff));
@@ -428,6 +490,9 @@ void Lumine::FaceToNearestEnemy(void)
 		cur = cur->next;
 	}
 
+	if (nearestEnemy == nullptr)
+		return;
+
 	float dx = nearestEnemy->GetTransform().pos.x - instance.transform.pos.x;
 	float dz = nearestEnemy->GetTransform().pos.z - instance.transform.pos.z;
 
@@ -437,13 +502,50 @@ void Lumine::FaceToNearestEnemy(void)
 
 	if (minDistSq > ATTACK_RANGE * ATTACK_RANGE)
 	{
+		const AnimationClip* currentAnimClip = stateMachine->GetCurrentAnimClip();
+
+		// アニメーションの再生進捗を取得
+		float attackAnimTime = stateMachine->GetCurrentAnimTime();
+		// 最大移動距離
 		float moveStep = min(minDistSq - ATTACK_RANGE, MAX_ATTACK_STEP);
+		// どのくらいの割合の時間が移動に使われるか計算
+		float moveTimeFraction = currentAnimClip->animInfo.animPhase.endMoveFraction - currentAnimClip->animInfo.animPhase.startMoveFraction;
 
-		float t = min(moveStep / minDistSq, 1.0f);
+		// `num_steps` を自動調整
+		int num_steps = max(50, min(200, (int)(moveStep / 5.0f)));
 
+		// `sum_speed_factors` を数値積分で計算
+		float sum_speed_factors = 0.0f;
+		for (int i = 0; i <= num_steps; i++) 
+		{
+			float phase = (float)i / num_steps;
+			sum_speed_factors += phase * (2.0f - phase);
+		}
 
-		instance.transform.pos.x = (1 - t) * instance.transform.pos.x + t * nearestEnemy->GetTransform().pos.x;
-		instance.transform.pos.z = (1 - t) * instance.transform.pos.z + t * nearestEnemy->GetTransform().pos.z;
+		// MAX_SPEED を計算
+		float MAX_SPEED = moveStep / sum_speed_factors;
+
+		// 現在の移動フェーズの正規化値を計算
+		float attackPhase = (attackAnimTime - currentAnimClip->animInfo.animPhase.startMoveFraction) / moveTimeFraction;
+
+		// 指定された時間範囲内で移動
+		if (attackAnimTime >= currentAnimClip->animInfo.animPhase.startMoveFraction 
+			&& attackAnimTime <= currentAnimClip->animInfo.animPhase.endMoveFraction)
+		{
+			// 速度補正係数を計算 (S 曲線補間)
+			float speedFactor = attackPhase * (2.0f - attackPhase);
+			instance.attributes.spd = MAX_SPEED * speedFactor;
+
+			// すでに攻撃範囲内にいる場合、速度を急激に減衰させる
+			if (minDistSq <= ATTACK_RANGE * ATTACK_RANGE)
+			{
+				instance.attributes.spd *= (1.0f - attackPhase * attackPhase); // 速度を急激に減少
+			}
+		}
+		else
+		{
+			instance.attributes.spd = 0.0f; // 移動を停止
+		}
 	}
 }
 
@@ -451,7 +553,7 @@ void Lumine::UpdateWeapon(void)
 {
 	if (weaponOnHandTimer > 0)
 	{
-		weaponOnHandTimer--;
+		weaponOnHandTimer -= timer.GetScaledDeltaTime();
 		if (weaponOnHandTimer <= 0)
 		{
 			storeWeaponOnBack = true;
@@ -461,15 +563,12 @@ void Lumine::UpdateWeapon(void)
 
 	if (weaponOnBackTimer > 0)
 	{
-		weaponOnBackTimer--;
+		weaponOnBackTimer -= timer.GetScaledDeltaTime();
 		if (weaponOnBackTimer <= 0)
 		{
 			storeWeapon = true;
 		}
 	}
-
-
-
 
 	weapon.Update();
 	XMMATRIX weaponMtx;

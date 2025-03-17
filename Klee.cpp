@@ -35,7 +35,7 @@ Klee::Klee()
 	instance.collider.type = ColliderType::PLAYER;
 	instance.collider.owner = this;
 	instance.collider.enable = true;
-	CollisionManager::get_instance().RegisterCollider(&instance.collider);
+	CollisionManager::get_instance().RegisterDynamicCollider(&instance.collider);
 
 	jumpyDumpy.Instantiate("data/MODEL/character/Klee", "JumpyDumpty.fbx");
 	jumpyDumpy.SetScale(XMFLOAT3(JUMPYDUMPTY_SIZE, JUMPYDUMPTY_SIZE, JUMPYDUMPTY_SIZE));
@@ -57,13 +57,13 @@ Klee::Klee()
 	instance.pModel->SetDrawBoundingBox(false);
 	weapon.GetSkinnedMeshModel()->SetDrawBoundingBox(false);
 
-	AddAnimation("data/MODEL/character/Klee/", "Idle.fbx", AnimationClipName::ANIM_IDLE);
-	AddAnimation("data/MODEL/character/Klee/", "Standing Draw Arrow.fbx", AnimationClipName::ANIM_STANDING_DRAW_ARROW);
-	AddAnimation("data/MODEL/character/Klee/", "Standing Aim Walk Forward.fbx", AnimationClipName::ANIM_STANDING_AIM_WALK_FORWARD);
-	AddAnimation("data/MODEL/character/Klee/", "Standing Aim Walk Left.fbx", AnimationClipName::ANIM_STANDING_AIM_WALK_LEFT);
-	AddAnimation("data/MODEL/character/Klee/", "Walking.fbx", AnimationClipName::ANIM_WALK);
-	AddAnimation("data/MODEL/character/Klee/", "Running.fbx", AnimationClipName::ANIM_RUN);
-	AddAnimation("data/MODEL/character/Klee/", "Breakdance Uprock Var 2.fbx", AnimationClipName::ANIM_BREAKDANCE_UPROCK);
+	AddAnimation("data/MODEL/character/Klee/", "Idle.fbx", AnimClipName::ANIM_IDLE);
+	AddAnimation("data/MODEL/character/Klee/", "Standing Draw Arrow.fbx", AnimClipName::ANIM_STANDING_DRAW_ARROW);
+	AddAnimation("data/MODEL/character/Klee/", "Standing Aim Walk Forward.fbx", AnimClipName::ANIM_STANDING_AIM_WALK_FORWARD);
+	AddAnimation("data/MODEL/character/Klee/", "Standing Aim Walk Left.fbx", AnimClipName::ANIM_STANDING_AIM_WALK_LEFT);
+	AddAnimation("data/MODEL/character/Klee/", "Walking.fbx", AnimClipName::ANIM_WALK);
+	AddAnimation("data/MODEL/character/Klee/", "Running.fbx", AnimClipName::ANIM_RUN);
+	AddAnimation("data/MODEL/character/Klee/", "Breakdance Uprock Var 2.fbx", AnimClipName::ANIM_BREAKDANCE_UPROCK);
 
 	instance.pModel->SetBodyDiffuseTexture("data/MODEL/character/Klee/texture_0.png");
 	instance.pModel->SetHairDiffuseTexture("data/MODEL/character/Klee/Avatar_Loli_Catalyst_Klee_Tex_Hair_Diffuse.png");
@@ -71,7 +71,7 @@ Klee::Klee()
 
 	playAnimSpeed = PLAY_ANIM_SPD;
 
-	SetupAnimationStateMachine();
+	SetupAnimStateMachine();
 }
 
 Klee::~Klee()
@@ -79,7 +79,7 @@ Klee::~Klee()
 	SAFE_DELETE(stateMachine);
 }
 
-void Klee::AddAnimation(char* animPath, char* animName, AnimationClipName clipName)
+void Klee::AddAnimation(char* animPath, char* animName, AnimClipName clipName)
 {
 	if (instance.pModel)
 		fbxLoader.LoadAnimation(renderer.GetDevice(), *instance.pModel, animPath, animName, clipName);
@@ -162,19 +162,19 @@ void Klee::Draw(void)
 	//jumpyDumpy.Draw();
 }
 
-AnimationStateMachine* Klee::GetStateMachine(void)
+AnimStateMachine* Klee::GetStateMachine(void)
 {
 	return stateMachine;
 }
 
-void Klee::SetupAnimationStateMachine()
+void Klee::SetupAnimStateMachine()
 {
-	stateMachine = new AnimationStateMachine(dynamic_cast<ISkinnedMeshModelChar*>(this));
+	stateMachine = new AnimStateMachine(dynamic_cast<ISkinnedMeshModelChar*>(this));
 
-	stateMachine->AddState(STATE(PlayerState::IDLE), instance.pModel->GetAnimationClip(AnimationClipName::ANIM_IDLE));
-	//stateMachine->AddState(PlayerState::WALK, instance.pModel->GetAnimationClip(AnimationClipName::ANIM_WALK));
-	//stateMachine->AddState(PlayerState::RUN, instance.pModel->GetAnimationClip(AnimationClipName::ANIM_RUN));
-	//stateMachine->AddState(PlayerState::ATTACK, instance.pModel->GetAnimationClip(AnimationClipName::ANIM_STANDING_DRAW_ARROW));
+	stateMachine->AddState(STATE(PlayerState::IDLE), instance.pModel->GetAnimationClip(AnimClipName::ANIM_IDLE));
+	//stateMachine->AddState(PlayerState::WALK, instance.pModel->GetAnimationClip(AnimClipName::ANIM_WALK));
+	//stateMachine->AddState(PlayerState::RUN, instance.pModel->GetAnimationClip(AnimClipName::ANIM_RUN));
+	//stateMachine->AddState(PlayerState::ATTACK, instance.pModel->GetAnimationClip(AnimClipName::ANIM_STANDING_DRAW_ARROW));
 
 	//ó‘Ô‘JˆÚ
 	//stateMachine->AddTransition(PlayerState::IDLE, PlayerState::WALK, &ISkinnedMeshModelChar::CanWalk);
@@ -192,35 +192,35 @@ void Klee::SetupAnimationStateMachine()
 
 void Klee::PlayWalkAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_WALK)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_WALK)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Klee::PlayRunAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_RUN)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_RUN)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Klee::PlayJumpAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_JUMP)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_JUMP)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Klee::PlayIdleAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_IDLE)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_IDLE)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }
 
 void Klee::PlayStandingAnim(void)
 {
-	if (instance.pModel->GetCurrentAnim() != AnimationClipName::ANIM_STANDING)
+	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_STANDING)
 		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
 	instance.pModel->PlayCurrentAnim(playAnimSpeed);
 }

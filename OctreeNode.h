@@ -103,7 +103,7 @@ struct Triangle
     XMFLOAT3 normal;
 
     // AABBを計算
-    Triangle(const XMFLOAT3& a, const XMFLOAT3& b, const XMFLOAT3& c) : v0(a), v1(b), v2(c)
+    Triangle(const XMFLOAT3& a, const XMFLOAT3& b, const XMFLOAT3& c, bool alwaysFaceUp = false) : v0(a), v1(b), v2(c)
     {
         bbox.minPoint.x = min(min(v0.x, v1.x), v2.x);
         bbox.minPoint.y = min(min(v0.y, v1.y), v2.y);
@@ -120,12 +120,25 @@ struct Triangle
         XMVECTOR edge2 = XMVectorSubtract(v2Vec, v0Vec);
         XMVECTOR normVec = XMVector3Cross(edge1, edge2);
         normVec = XMVector3Normalize(normVec);
+
         // 法線のy成分を確認し、負の場合は反転
-        if (XMVectorGetY(normVec) < 0.0f) 
+        if (XMVectorGetY(normVec) < 0.0f && alwaysFaceUp)
         {
             normVec = XMVectorNegate(normVec);  // 法線反転
         }
         XMStoreFloat3(&normal, normVec);
+    }
+
+    // コンストラクタ：三角形の法線を直接指定できるようにする
+    Triangle(const XMFLOAT3& a, const XMFLOAT3& b, const XMFLOAT3& c, const XMFLOAT3& norm)
+        : v0(a), v1(b), v2(c), normal(norm)
+    {
+        bbox.minPoint.x = min(min(v0.x, v1.x), v2.x);
+        bbox.minPoint.y = min(min(v0.y, v1.y), v2.y);
+        bbox.minPoint.z = min(min(v0.z, v1.z), v2.z);
+        bbox.maxPoint.x = max(max(v0.x, v1.x), v2.x);
+        bbox.maxPoint.y = max(max(v0.y, v1.y), v2.y);
+        bbox.maxPoint.z = max(max(v0.z, v1.z), v2.z);
     }
 };
 

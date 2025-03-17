@@ -18,8 +18,6 @@
 #define MAX_TREE			(0)
 
 #define TREE_SIZE			(350.0f)
-//#define TOWN_SIZE			(125850.0f)
-#define TOWN_SIZE			(550.0f)
 #define FIELD_SIZE			(56850.0f)
 #define BONFIRE_SIZE		(80.0f)
 
@@ -53,7 +51,7 @@ Ground::Ground()
 		treeGO->SetColliderOwner(treeGO);
 		treeGO->SetColliderEnable(true);
 		treeGO->SetColliderType(ColliderType::TREE);
-		CollisionManager::get_instance().RegisterCollider(&treeGO->GetCollider());
+		CollisionManager::get_instance().RegisterDynamicCollider(&treeGO->GetCollider());
 
 		skinnedMeshGroundGO.push_back(treeGO);
 	}
@@ -65,34 +63,36 @@ Ground::Ground()
 
 	town = new Town();
 
+	XMMATRIX worldMatrix;
+
 	GameObject<SkinnedMeshModelInstance>* fieldGO = new GameObject<SkinnedMeshModelInstance>();
 	fieldGO->Instantiate(MODEL_ENVIRONMENT_PATH, MODEL_FIELD_NAME, ModelType::Field);
 	fieldGO->SetScale(XMFLOAT3(FIELD_SIZE, FIELD_SIZE, FIELD_SIZE));
 	fieldGO->SetRotation(XMFLOAT3(XM_PI / 2, XM_PI, 0.0f));
 	fieldGO->SetPosition(XMFLOAT3(0.0f, -650.0f, 0.0f));
 	fieldGO->Update();
-	XMMATRIX worldMatrix = fieldGO->GetWorldMatrix();
-	fieldGO->GetSkinnedMeshModel()->BuildTrianglesByWorldMatrix(worldMatrix);
+	worldMatrix = fieldGO->GetWorldMatrix();
+	fieldGO->GetSkinnedMeshModel()->BuildTrianglesByWorldMatrix(worldMatrix, true);
 	fieldGO->GetSkinnedMeshModel()->BuildOctree();
-	fieldGO->SetRenderShadow(false);
 	fieldGO->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
 	skinnedMeshGroundGO.push_back(fieldGO);
 
 	GameObject<SkinnedMeshModelInstance>* bonfireGO = new GameObject<SkinnedMeshModelInstance>();
 	bonfireGO->Instantiate(MODEL_ENVIRONMENT_PATH, MODEL_BONFIRE_NAME);
 	bonfireGO->SetScale(XMFLOAT3(BONFIRE_SIZE, BONFIRE_SIZE, BONFIRE_SIZE));
-	bonfireGO->SetPosition(XMFLOAT3(12582.0f, -2384.0f, -19485.0f));
+	bonfireGO->SetPosition(XMFLOAT3(12582.0f, -2374.0f, -19485.0f));
 	bonfireGO->Update();
+	bonfireGO->SetCastShadow(true);
 	worldMatrix = bonfireGO->GetWorldMatrix();
-	bonfireGO->GetSkinnedMeshModel()->BuildTrianglesByWorldMatrix(worldMatrix);
+	BOUNDING_BOX boundingBox = bonfireGO->GetCollider().bbox;
+	bonfireGO->GetSkinnedMeshModel()->BuildTrianglesByBoundingBox(boundingBox);
 	bonfireGO->GetSkinnedMeshModel()->BuildOctree();
-	bonfireGO->SetRenderShadow(false);
 	bonfireGO->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
 	skinnedMeshGroundGO.push_back(bonfireGO);
-	
 
-	//grass = new Grass();
-	//grass->GenerateGrassInstances(fieldGO->GetSkinnedMeshModel()->GetTriangles(), fieldGO->GetSkinnedMeshModel()->GetBoundingBox(), 15);
+
+	environment = new Environment();
+	environment->GenerateInstances(EnvironmentObjectType::Shrubbery_1, fieldGO->GetSkinnedMeshModel()->GetTriangles(), fieldGO->GetSkinnedMeshModel()->GetBoundingBox(), 15);
 }
 
 //=============================================================================
@@ -139,6 +139,9 @@ void Ground::Update(void)
 
 	if (town)
 		town->Update();
+
+	if (environment)
+		environment->Update();
 }
 
 //=============================================================================
@@ -151,27 +154,50 @@ void Ground::Draw(void)
 	if (town)
 		town->Draw();
 
-	if (renderer.GetRenderMode() == RenderMode::INSTANCE)
+	if (renderer.GetRenderMode() == RenderMode::INSTANCE
+		|| renderer.GetRenderMode() == RenderMode::INSTANCE_SHADOW)
 	{
-		if (grass)
-			grass->Draw();
+		if (environment)
+			environment->Draw();
 	}
 	else if (renderer.GetRenderMode() == RenderMode::OBJ)
 	{
-		int size = groundGO.getSize();
-		for (int i = 0; i < size; i++)
+		UINT size = groundGO.getSize();
+		for (UINT i = 0; i < size; i++)
 		{
 			if (groundGO[i]->GetUse() == false) continue;
 
 			groundGO[i]->Draw();
 		}
 	}
+	else if (renderer.GetRenderMode() == RenderMode::OBJ_SHADOW)
+	{
+		UINT size = groundGO.getSize();
+		for (UINT i = 0; i < size; i++)
+		{
+			if (groundGO[i]->GetUse() == false || groundGO[i]->GetCastShadow() == false) continue;
+
+			groundGO[i]->Draw();
+		}
+	}
 	else if (renderer.GetRenderMode() == RenderMode::SKINNED_MESH)
 	{
-		int size = skinnedMeshGroundGO.getSize();
-		for (int i = 0; i < size; i++)
+		UINT size = skinnedMeshGroundGO.getSize();
+		for (UINT i = 0; i < size; i++)
 		{
-			if (skinnedMeshGroundGO[i]->GetUse() == false) continue;
+			if (skinnedMeshGroundGO[i]->GetUse() == false) 
+				continue;
+
+			skinnedMeshGroundGO[i]->Draw();
+		}
+	}
+	else if (renderer.GetRenderMode() == RenderMode::SKINNED_MESH_SHADOW)
+	{
+		UINT size = skinnedMeshGroundGO.getSize();
+		for (UINT i = 0; i < size; i++)
+		{
+			if (skinnedMeshGroundGO[i]->GetUse() == false || skinnedMeshGroundGO[i]->GetCastShadow() == false) 
+				continue;
 
 			skinnedMeshGroundGO[i]->Draw();
 		}

@@ -4,8 +4,8 @@ class SimpleArray
 {
 private:
     T* array;
-    int capacity;
-    int size;
+    UINT capacity;
+    UINT size;
 
 public:
     SimpleArray() : array(nullptr), capacity(0), size(0) {}
@@ -23,7 +23,7 @@ public:
     {
         if (other.size > 0) {
             array = new T[other.capacity];
-            for (int i = 0; i < other.size; i++) {
+            for (UINT i = 0; i < other.size; i++) {
                 array[i] = other.array[i];
             }
             capacity = other.capacity;
@@ -36,7 +36,7 @@ public:
         if (this != &other) {
             delete[] array;
             array = new T[other.capacity];
-            for (int i = 0; i < other.size; i++) {
+            for (UINT i = 0; i < other.size; i++) {
                 array[i] = other.array[i];
             }
             capacity = other.capacity;
@@ -59,7 +59,7 @@ public:
         if (size >= capacity) {
             int newCapacity = (capacity == 0) ? 4 : capacity * 2;
             T* newArray = new T[newCapacity];
-            for (int i = 0; i < size; i++) {
+            for (UINT i = 0; i < size; i++) {
                 newArray[i] = array[i];
             }
             //for (int i = 0; i < size; i++) {
@@ -98,24 +98,24 @@ public:
         //size = 0;
         //capacity = 0;
 
-        for (int i = 0; i < size; i++)
+        for (UINT i = 0; i < size; i++)
         {
             array[i].~T();
         }
         size = 0;
     }
 
-    int getSize() const {
+    UINT getSize() const {
         return size;
     }
 
-    void resize(int newCapacity) {
+    void resize(UINT newCapacity) {
         if (newCapacity < size) {
             return;
         }
 
         T* newArray = new T[newCapacity];
-        for (int i = 0; i < size; i++) {
+        for (UINT i = 0; i < size; i++) {
             newArray[i] = array[i];
         }
         delete[] array;
@@ -145,11 +145,11 @@ public:
     }
 
 
-    T& operator[](int index) {
+    T& operator[](UINT index) {
         return array[index];
     }
 
-    const T& operator[](int index) const {
+    const T& operator[](UINT index) const {
         return array[index];
     }
 };

@@ -12,15 +12,16 @@ class Lumine : public GameObject<SkinnedMeshModelInstance>, public ISkinnedMeshM
 public:
 	Lumine();
 	~Lumine();
-	void AddAnimation(char* animPath, char* animName, AnimationClipName clipName);
+	void AddAnimation(char* animPath, char* animName, AnimClipName clipName);
 	void LoadWeapon(char* modelPath, char* modelName);
 
 	void Update(void) override;
 	void Draw(void) override;
 
-	void SetupAnimationStateMachine();
+	void SetupAnimStateMachine(void);
+	void InitAnimInfo(void) override;
 
-	AnimationStateMachine* GetStateMachine(void) override;
+	AnimStateMachine* GetStateMachine(void) override;
 
 	void PlayWalkAnim(void) override;
 	void PlayRunAnim(void) override;
@@ -38,10 +39,10 @@ public:
 	void PlayHitAnim(void) override;
 
 	virtual bool CanWalk(void) const override;
-	virtual bool CanStopMoving() const override;
-	virtual bool CanAttack() const override;
-	virtual bool CanAttack2() const override;
-	virtual bool CanAttack3() const override;
+	virtual bool CanStopMoving(void) const override;
+	virtual bool CanAttack(void) const override;
+	virtual bool CanAttack2(void) const override;
+	virtual bool CanAttack3(void) const override;
 	virtual bool CanRun(void) const override;
 	virtual bool CanHit(void) const override;
 	virtual bool CanJump(void) const override;
@@ -56,7 +57,7 @@ private:
 	void UpdateWeapon(void);
 
 	GameObject<SkinnedMeshModelInstance> weapon;
-	AnimationStateMachine* stateMachine;
+	AnimStateMachine* stateMachine;
 	float playAnimSpeed;
 	float weaponOnBackTimer;
 	float weaponOnHandTimer;

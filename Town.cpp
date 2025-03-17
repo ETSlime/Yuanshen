@@ -1,3 +1,9 @@
+//=============================================================================
+//
+// Townˆ— [Town.cpp]
+// Author : 
+//
+//=============================================================================
 #include "Town.h"
 
 
@@ -11,7 +17,7 @@
 #define	MODEL_LOD2_NAME				"LOD2.fbx"
 #define	MODEL_CHURCH_NAME			"church.fbx"
 
-#define SIZE_SCALE				(0.6f)
+#define SIZE_SCALE				(0.5f)
 #define SKYBOX_SIZE				(225850.0f)
 #define PLOT_LOD0_SIZE			(5250.0f * SIZE_SCALE)
 #define PLOT_LOD1_SIZE			(5250.0f * SIZE_SCALE)
@@ -30,7 +36,7 @@ Town::Town()
 	worldMatrix = skyBox->GetWorldMatrix();
 	skyBox->GetSkinnedMeshModel()->BuildTrianglesByWorldMatrix(worldMatrix);
 	skyBox->GetSkinnedMeshModel()->BuildOctree();
-	skyBox->SetRenderShadow(false);
+	skyBox->SetCastShadow(false);
 
 	models.push_back(skyBox);
 
@@ -39,13 +45,13 @@ Town::Town()
 	LoD0->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
 	LoD0->SetScale(XMFLOAT3(PLOT_LOD0_SIZE, PLOT_LOD0_SIZE, PLOT_LOD0_SIZE));
 	LoD0->SetRotation(XMFLOAT3(0, -XM_PI * 0.2f, 0.0f));
-	LoD0->SetPosition(XMFLOAT3(PLOT_LOD0_SIZE * 0.63f, PLOT_LOD0_SIZE * 0.6f, -PLOT_LOD0_SIZE * 2.14f));
+	LoD0->SetPosition(XMFLOAT3(PLOT_LOD0_SIZE * 0.63f, PLOT_LOD0_SIZE * 0.2f, -PLOT_LOD0_SIZE * 2.14f));
 	LoD0->GetSkinnedMeshModel()->LoadTownTexture();
 	LoD0->Update();
 	worldMatrix = LoD0->GetWorldMatrix();
-	LoD0->GetSkinnedMeshModel()->BuildTrianglesByWorldMatrix(worldMatrix);
+	LoD0->GetSkinnedMeshModel()->BuildTrianglesByWorldMatrix(worldMatrix, true);
 	LoD0->GetSkinnedMeshModel()->BuildOctree();
-	LoD0->SetRenderShadow(false);
+	LoD0->SetCastShadow(true);
 
 	models.push_back(LoD0);
 
@@ -54,13 +60,13 @@ Town::Town()
 	LoD1->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
 	LoD1->SetScale(XMFLOAT3(PLOT_LOD1_SIZE, PLOT_LOD1_SIZE, PLOT_LOD1_SIZE));
 	LoD1->SetRotation(XMFLOAT3(0, -XM_PI * 0.5f, 0.0f));
-	LoD1->SetPosition(XMFLOAT3(PLOT_LOD1_SIZE * 0.76f, PLOT_LOD1_SIZE * 0.04f, -PLOT_LOD1_SIZE * 1.34f));
+	LoD1->SetPosition(XMFLOAT3(PLOT_LOD1_SIZE * 0.76f, -PLOT_LOD1_SIZE * 0.26f, -PLOT_LOD1_SIZE * 1.34f));
 	LoD1->GetSkinnedMeshModel()->LoadTownTexture();
 	LoD1->Update();
 	worldMatrix = LoD1->GetWorldMatrix();
-	LoD1->GetSkinnedMeshModel()->BuildTrianglesByWorldMatrix(worldMatrix);
+	LoD1->GetSkinnedMeshModel()->BuildTrianglesByWorldMatrix(worldMatrix, true);
 	LoD1->GetSkinnedMeshModel()->BuildOctree();
-	LoD1->SetRenderShadow(false);
+	LoD1->SetCastShadow(true);
 
 	models.push_back(LoD1);
 
@@ -69,13 +75,13 @@ Town::Town()
 	LoD2->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
 	LoD2->SetScale(XMFLOAT3(PLOT_LOD2_SIZE, PLOT_LOD2_SIZE, PLOT_LOD2_SIZE));
 	LoD2->SetRotation(XMFLOAT3(0, -XM_PI * 0.5f, 0.0f));
-	LoD2->SetPosition(XMFLOAT3(PLOT_LOD2_SIZE * 0.2f, -PLOT_LOD2_SIZE * 0.07f, -PLOT_LOD2_SIZE * 0.5f));
+	LoD2->SetPosition(XMFLOAT3(PLOT_LOD2_SIZE * 0.2f, -PLOT_LOD2_SIZE * 0.15f, -PLOT_LOD2_SIZE * 0.5f));
 	LoD2->GetSkinnedMeshModel()->LoadTownTexture();
 	LoD2->Update();
 	worldMatrix = LoD2->GetWorldMatrix();
-	LoD2->GetSkinnedMeshModel()->BuildTrianglesByWorldMatrix(worldMatrix);
+	LoD2->GetSkinnedMeshModel()->BuildTrianglesByWorldMatrix(worldMatrix, true);
 	LoD2->GetSkinnedMeshModel()->BuildOctree();
-	LoD2->SetRenderShadow(false);
+	LoD2->SetCastShadow(true);
 
 	models.push_back(LoD2);
 
@@ -129,5 +135,14 @@ void Town::Draw()
 {
 	int modelCnt = models.getSize();
 	for (int i = 0; i < modelCnt; i++)
-		models[i]->Draw();
+	{
+		if (renderer.GetRenderMode() == RenderMode::SKINNED_MESH_SHADOW)
+		{
+			if (models[i]->GetCastShadow())
+				models[i]->Draw();
+		}
+		else if (renderer.GetRenderMode() == RenderMode::SKINNED_MESH)
+			models[i]->Draw();
+	}
+
 }

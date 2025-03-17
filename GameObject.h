@@ -10,7 +10,7 @@
 #include "model.h"
 #include "SkinnedMeshModel.h"
 #include "CollisionManager.h"
-
+#include "Timer.h"
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
@@ -53,6 +53,7 @@ struct Attributes
 
 	bool			stopRun;
 	bool			isMoving;
+	bool			isRotating;
 	bool			isRunning;
 	bool			isAttacking;
 	bool			isAttacking2;
@@ -63,13 +64,13 @@ struct Attributes
 	bool			isMoveBlocked;
 	bool			isHit1;
 	bool			isHit2;
-	int				hitTimer;
+	float			hitTimer;
 
 	bool			charSwitchEffect;
 
 	bool			attackWindow2;
 	bool			attackWindow3;
-	int				attackWinwdowCnt;
+	float			attackWinwdowCnt;
 
 	Attributes()
 	{
@@ -81,6 +82,7 @@ struct Attributes
 		targetDir = 0.0f;
 		stopRun = TRUE;
 		isMoving = FALSE;
+		isRotating = FALSE;
 		isRunning = FALSE;
 		isAttacking = FALSE;
 		isAttacking2 = FALSE;
@@ -98,18 +100,20 @@ struct Attributes
 		attackWinwdowCnt = 0;
 
 		charSwitchEffect = FALSE;
+
+		mtxWorld = XMFLOAT4X4();
 	}
 };
 
 struct SkinnedMeshModelInstance
 {
-	char*				modelPath;
-	char*				modelName;
-	char*				modelFullPath;
+	char*				modelPath = nullptr;
+	char*				modelName = nullptr;
+	char*				modelFullPath = nullptr;
 	bool				use;
 	bool				load;
-	bool				renderShadow;
-	SkinnedMeshModel*	pModel;
+	bool				castShadow;
+	SkinnedMeshModel*	pModel = nullptr;
 	Transform			transform;
 
 	BOOL			isSelected;
@@ -123,12 +127,12 @@ struct SkinnedMeshModelInstance
 
 struct ModelInstance
 {
-	char*				modelPath;
+	char*				modelPath = nullptr;
 	int					state;
 	bool				use;
 	bool				load;
-	bool				renderShadow;
-	Model*				pModel;				// モデル情報
+	bool				castShadow;
+	Model*				pModel = nullptr;				// モデル情報
 	XMFLOAT4			diffuse[MODEL_MAX_MATERIAL];	// モデルの色
 	Transform			transform;
 
@@ -151,7 +155,7 @@ public:
 	~GameObject();
 	void Instantiate(char* modelPath);
 	void Instantiate(char* modelPath, char* modelName, ModelType modelType = ModelType::Default, 
-		AnimationClipName clipName = AnimationClipName::ANIM_NONE);
+		AnimClipName clipName = AnimClipName::ANIM_NONE);
 	virtual void Update();
 	virtual void Draw();
 	void DrawModelEditor();
@@ -170,20 +174,20 @@ public:
 	inline XMFLOAT4* GetDiffuse() { return instance.diffuse; }
 	inline bool GetUse() { return instance.use; }
 	inline void SetUse(bool use) { instance.use = use; }
-	inline bool GetRenderShadow() { return instance.renderShadow; }
-	inline void SetRenderShadow(bool render) { instance.renderShadow = render; }
+	inline bool GetCastShadow() { return instance.castShadow; }
+	inline void SetCastShadow(bool shadow) { instance.castShadow = shadow; }
 	inline BOOL GetIsModelSelected() { return instance.isSelected; }
 	inline BOOL GetIsCursorIn() { return instance.isCursorIn; }
 	inline void SetIsCursorIn(BOOL cursorIn) { instance.isCursorIn = cursorIn; }
 	inline int GetEditorIndex() { return instance.editorIdx; }
 	inline void SetEditorIndex(int idx) { instance.editorIdx = idx; }
-	inline Attributes GetAttributes() { return instance.attributes; }
+	inline const Attributes& GetAttributes() { return instance.attributes; }
 	inline void UpdateAttributes(Attributes attributes) { instance.attributes = attributes; }
 	inline void SetDrawBoundingBox(bool draw) { instance.pModel.SetDrawBoundingBox(draw); }
 	inline void SetColliderType(ColliderType type) { instance.collider.type = type; }
 	inline void SetColliderOwner(void* owner) { instance.collider.owner = owner; }
 	inline void SetColliderEnable(bool enable) { instance.collider.enable = enable; }
-	inline void SetColliderBoundingBox(BOUNDING_BOX boundingBox) { instance.collider.aabb = boundingBox; }
+	inline void SetColliderBoundingBox(BOUNDING_BOX boundingBox) { instance.collider.bbox = boundingBox; }
 	inline const Collider& GetCollider(void) { return instance.collider; }
 	inline void SetGrounded(bool grounded) { instance.attributes.isGrounded = grounded; }
 	inline void SetMoveBlock(bool blocked) { instance.attributes.isMoveBlocked = blocked; }
@@ -192,10 +196,10 @@ public:
 	inline void SetIsHit2(bool isHit) { instance.attributes.isHit2 = isHit; }
 	inline bool GetIsHit2(void) { return instance.attributes.isHit2; }
 	inline int	GetHitTimer(void) { return instance.attributes.hitTimer; }
-	inline void SetHitTimer(int hitTimer) { instance.attributes.hitTimer = hitTimer; }
+	inline void SetHitTimer(float hitTimer) { instance.attributes.hitTimer = hitTimer; }
 	//inline void SetRenderProgress(float progress) { instance.attributes.renderProgress.progress = progress; }
 	//inline void SetSwitchCharEffect(bool effectON) { instance.attributes.charSwitchEffect = effectOn; }
-	virtual AnimationStateMachine* GetStateMachine() { return nullptr; }
+	virtual AnimStateMachine* GetStateMachine() { return nullptr; }
 
 	void SetBoundingboxSize(XMFLOAT3 size)
 	{
@@ -207,6 +211,7 @@ public:
 	}
 
 	Renderer& renderer = Renderer::get_instance();
+	Timer& timer = Timer::get_instance();
 
 protected:
 	T instance;
@@ -224,6 +229,7 @@ public:
 	virtual void PlayDashAnim() {}
 	virtual void PlayJumpAnim() {}
 	virtual void PlaySurprisedAnim() {}
+	virtual void InitAnimInfo() {}
 
 	virtual bool CanWalk() const = 0;
 	virtual bool CanStopMoving() const = 0;
@@ -255,7 +261,7 @@ GameObject<T>::GameObject()
 	instance.isSelected = FALSE;
 	instance.isCursorIn = FALSE;
 	instance.editorIdx = -1;
-	instance.renderShadow = true;
+	instance.castShadow = true;
 	instance.renderProgress.progress = 0.0f;
 	instance.renderProgress.isRandomFade = TRUE;
 }
@@ -293,7 +299,7 @@ void GameObject<T>::Instantiate(char* modelPath)
 
 template <>
 void GameObject<SkinnedMeshModelInstance>::Instantiate(char* modelPath, char* modelName, 
-	ModelType modelType, AnimationClipName clipName);
+	ModelType modelType, AnimClipName clipName);
 
 template<>
 void GameObject< SkinnedMeshModelInstance>::Update();
@@ -342,13 +348,13 @@ void GameObject<T>::Update()
 	XMVECTOR worldPosMin = XMVector3Transform(localAABBMin, mtxWorld);
 	XMStoreFloat3(&worldPos2, worldPosMin);
 
-	instance.collider.aabb.maxPoint = XMFLOAT3(
+	instance.collider.bbox.maxPoint = XMFLOAT3(
 		max(worldPos1.x, worldPos2.x),
 		max(worldPos1.y, worldPos2.y),
 		max(worldPos1.z, worldPos2.z)
 	);
 
-	instance.collider.aabb.minPoint = XMFLOAT3(
+	instance.collider.bbox.minPoint = XMFLOAT3(
 		min(worldPos1.x, worldPos2.x),
 		min(worldPos1.y, worldPos2.y),
 		min(worldPos1.z, worldPos2.z)

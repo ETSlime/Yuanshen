@@ -147,7 +147,7 @@ void UpdateLight(void)
 		pos + lightDir,
 		XMLoadFloat3(&lightUp)
 	);
-	XMMATRIX lightProj = XMMatrixOrthographicLH(SCREEN_WIDTH * 1.2f, SCREEN_WIDTH * 1.2f, VIEW_NEAR_Z, VIEW_FAR_Z);
+	XMMATRIX lightProj = XMMatrixOrthographicLH(SHADOWMAP_SIZE, SHADOWMAP_SIZE, VIEW_NEAR_Z, VIEW_FAR_Z);
 	g_LightViewProj.ProjView[0] = XMMatrixTranspose(lightView * lightProj);
 
 	renderer.SetLight(0, &g_Light[0]);

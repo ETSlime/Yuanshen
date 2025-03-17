@@ -12,15 +12,15 @@ class Klee : public GameObject<SkinnedMeshModelInstance>, public ISkinnedMeshMod
 public:
 	Klee();
 	~Klee();
-	void AddAnimation(char* animPath, char* animName, AnimationClipName clipName);
+	void AddAnimation(char* animPath, char* animName, AnimClipName clipName);
 	void LoadWeapon(char* modelPath, char* modelName);
 
 	void Update(void) override;
 	void Draw(void) override;
 
-	void SetupAnimationStateMachine();
+	void SetupAnimStateMachine();
 
-	AnimationStateMachine* GetStateMachine(void) override;
+	AnimStateMachine* GetStateMachine(void) override;
 
 	void PlayWalkAnim(void) override;
 	void PlayRunAnim(void) override;
@@ -46,7 +46,7 @@ private:
 	GameObject<SkinnedMeshModelInstance> clover;
 	GameObject<SkinnedMeshModelInstance> bomb;
 	GameObject<SkinnedMeshModelInstance> normalAttack;
-	AnimationStateMachine* stateMachine;
+	AnimStateMachine* stateMachine;
 	float playAnimSpeed;
 	FBXLoader& fbxLoader = FBXLoader::get_instance();
 };

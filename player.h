@@ -26,7 +26,7 @@
 struct PlayerAction
 {
 	ActionEnum	actionType;
-	UINT		liveTime;
+	float		liveTime;
 };
 
 struct PlayerAttributes
