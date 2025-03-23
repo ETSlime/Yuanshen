@@ -193,7 +193,7 @@ public:
 	void BuildTrianglesByBoundingBox(BOUNDING_BOX bb);
 	bool BuildOctree(void);
 	UINT GetNumBones(void) { return numBones; }
-	BOUNDING_BOX GetBoundingBox(void) { return boundingBox; }
+	BOUNDING_BOX GetBoundingBox(void) const { return boundingBox; }
 	const SimpleArray<Triangle*>& GetTriangles(void) const;
 
 	void SetCurrentAnim(AnimationClip* currAnimClp, float startTime = 0);// (AnimClipName clipName, float startTime = 0);

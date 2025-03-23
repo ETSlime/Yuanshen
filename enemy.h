@@ -20,6 +20,12 @@ enum class CooldownState
 	WAIT,
 };
 
+enum class EnemyUIType
+{
+	HPGauge,
+	HPGaugeCover,
+};
+
 enum class EnemyType
 {
 	Hilichurl,
@@ -110,6 +116,7 @@ struct UISprite
 {
 	XMFLOAT3	pos;			// 位置
 	XMFLOAT3	scl;			// スケール
+	XMMATRIX	rot;
 	MATERIAL	material;		// マテリアル
 	float		fWidth;			// 幅
 	float		fHeight;		// 高さ
@@ -144,7 +151,7 @@ public:
 	inline const EnemyAttributes& GetEnemyAttribute(void) { return enemyAttr; }
 	void Update(void) override;
 	void Draw(void) override;
-	void DrawUI(void);
+	void DrawUI(EnemyUIType type);
 
 	void SetPlayer(const Player* player) { this->player = player; }
 
@@ -153,6 +160,7 @@ public:
 	void SetRandomMove(bool random) { enemyAttr.randomMove = random; }
 
 	void InitHPGauge(void);
+	void UpdateHPGauge(void);
 
 	void ChasePlayer(void);
 	void AttackPlayer(void);
@@ -174,6 +182,7 @@ private:
 
 	HRESULT MakeVertexHPGauge(float w, float h);
 	void DrawHPGauge(void);
+	void DrawHPGaugeCover(void);
 
 	BehaviorTree*				behaviorTree;  // 敵AIの行動ツリー
 

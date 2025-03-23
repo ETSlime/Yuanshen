@@ -416,19 +416,28 @@ void Draw(void)
 	renderer.SetRenderInstance();
 	ground->Draw();
 
+	// VFX rendering
+	renderer.SetVFXInputLayout();
+	renderer.SetRenderVFX();
+	player->DrawEffect();
+	renderer.SetCullingMode(CULL_MODE_BACK);
+
 	// UI rendering
 	renderer.SetModelInputLayout();
 	renderer.SetRenderUI();
 	// ライティングを無効
 	renderer.SetLightEnable(FALSE);
-	// 深度テストを無効に
-	renderer.SetDepthEnable(FALSE);
 	//mapEditor.Draw();
-	enemyManager.DrawUI();
+	renderer.SetRenderLayer(RenderLayer::LAYER_1);
+	enemyManager.DrawUI(EnemyUIType::HPGauge);
+	renderer.SetRenderLayer(RenderLayer::DEFAULT);
+	enemyManager.DrawUI(EnemyUIType::HPGaugeCover);
+	//// 深度テストを無効に
+	//renderer.SetDepthEnable(FALSE);
+	//// 深度テストを有効に
+	//renderer.SetDepthEnable(TRUE);
 	// ライティングを有効に
 	renderer.SetLightEnable(TRUE);
-	// 深度テストを有効に
-	renderer.SetDepthEnable(TRUE);
 
 
 	//SetOffScreenRender();

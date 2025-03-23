@@ -45,6 +45,7 @@ public:
 	~Player();
 	void Update(void);
 	void Draw(void);
+	void DrawEffect(void);
 	Transform GetTransform(void) const;
 
 private:

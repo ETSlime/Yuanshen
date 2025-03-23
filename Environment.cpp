@@ -28,13 +28,13 @@ Environment::Environment(EnvironmentConfig config) :
 	CompileShaders();
 
 	if (config.loadGrass)
-		InitializeEnvironmentObj(EnvironmentObjectType::Grass);
+		InitializeEnvironmentObj(EnvironmentObjectType::Grass_1);
 	if (config.loadBush)
-		InitializeEnvironmentObj(EnvironmentObjectType::Bush);
+		InitializeEnvironmentObj(EnvironmentObjectType::Bush_1);
 	if (config.loadFlower)
 		InitializeEnvironmentObj(EnvironmentObjectType::Flower_1);
 	if (config.loadTree)
-		InitializeEnvironmentObj(EnvironmentObjectType::Tree);
+		InitializeEnvironmentObj(EnvironmentObjectType::Tree_1);
 	if (config.loadRock)
 		InitializeEnvironmentObj(EnvironmentObjectType::Rock);
 }
@@ -89,7 +89,7 @@ EnvironmentObject* Environment::InitializeEnvironmentObj(EnvironmentObjectType t
 
     switch (type)
     {
-    case EnvironmentObjectType::Grass:
+    case EnvironmentObjectType::Grass_1:
         obj = new EnvironmentObject();
         obj->type = type;
         obj->attributes.load = true;
@@ -98,10 +98,11 @@ EnvironmentObject* Environment::InitializeEnvironmentObj(EnvironmentObjectType t
         obj->attributes.collision = false;
         obj->attributes.adaptedToTerrain = true;
         obj->attributes.billboard = false;
-        obj->modelPath = GRASS_MODEL_PATH;
-        obj->texturePath = GRASS_TEX_PATH;
+        obj->attributes.maxSlopeAngle = GRASS_MAX_SLOPE_ANGLE;
+        obj->modelPath = GRASS_1_MODEL_PATH;
+        obj->texturePath = GRASS_1_TEX_PATH;
         break;
-    case EnvironmentObjectType::Bush:
+    case EnvironmentObjectType::Grass_2:
         obj = new EnvironmentObject();
         obj->type = type;
         obj->attributes.load = true;
@@ -110,8 +111,46 @@ EnvironmentObject* Environment::InitializeEnvironmentObj(EnvironmentObjectType t
         obj->attributes.collision = false;
         obj->attributes.adaptedToTerrain = true;
         obj->attributes.billboard = true;
-        obj->modelPath = BUSH_MODEL_PATH;
-        obj->texturePath = BUSH_TEX_PATH;
+        obj->attributes.maxSlopeAngle = GRASS_MAX_SLOPE_ANGLE;
+        obj->modelPath = GRASS_2_MODEL_PATH;
+        obj->texturePath = GRASS_2_TEX_PATH;
+        break;
+    case EnvironmentObjectType::Clover_1:
+        obj = new EnvironmentObject();
+        obj->type = type;
+        obj->attributes.load = true;
+        obj->attributes.affectedByWind = false;
+        obj->attributes.castShadow = false;
+        obj->attributes.collision = false;
+        obj->attributes.adaptedToTerrain = true;
+        obj->attributes.billboard = false;
+        obj->attributes.maxSlopeAngle = CLOVER_MAX_SLOPE_ANGLE;
+        obj->modelPath = CLOVER_1_MODEL_PATH;
+        obj->texturePath = CLOVER_1_TEX_PATH;
+        break;
+    case EnvironmentObjectType::Bush_1:
+        obj = new EnvironmentObject();
+        obj->type = type;
+        obj->attributes.load = true;
+        obj->attributes.affectedByWind = false;
+        obj->attributes.castShadow = true;
+        obj->attributes.collision = false;
+        obj->attributes.adaptedToTerrain = true;
+        obj->attributes.billboard = false;
+        obj->attributes.maxSlopeAngle = BUSH_MAX_SLOPE_ANGLE;
+        obj->modelPath = BUSH_1_MODEL_PATH;
+        break;
+    case EnvironmentObjectType::Bush_2:
+        obj = new EnvironmentObject();
+        obj->type = type;
+        obj->attributes.load = true;
+        obj->attributes.affectedByWind = false;
+        obj->attributes.castShadow = true;
+        obj->attributes.collision = true;
+        obj->attributes.adaptedToTerrain = true;
+        obj->attributes.billboard = false;
+        obj->attributes.maxSlopeAngle = BUSH_MAX_SLOPE_ANGLE;
+        obj->modelPath = BUSH_2_MODEL_PATH;
         break;
     case EnvironmentObjectType::Flower_1:
         obj = new EnvironmentObject();
@@ -122,8 +161,9 @@ EnvironmentObject* Environment::InitializeEnvironmentObj(EnvironmentObjectType t
         obj->attributes.collision = false;
         obj->attributes.adaptedToTerrain = true;
         obj->attributes.billboard = true;
-        obj->modelPath = FLOWER1_MODEL_PATH;
-        obj->texturePath = FLOWER1_TEX_PATH;
+        obj->attributes.maxSlopeAngle = FLOWER_MAX_SLOPE_ANGLE;
+        obj->modelPath = FLOWER_1_MODEL_PATH;
+        obj->texturePath = FLOWER_1_TEX_PATH;
         break;
     case EnvironmentObjectType::Shrubbery_1:
         obj = new EnvironmentObject();
@@ -134,8 +174,22 @@ EnvironmentObject* Environment::InitializeEnvironmentObj(EnvironmentObjectType t
         obj->attributes.collision = false;
         obj->attributes.adaptedToTerrain = true;
         obj->attributes.billboard = true;
+        obj->attributes.maxSlopeAngle = SHRUBBERY_MAX_SLOPE_ANGLE;
         obj->modelPath = SHRUBBERY_1_MODEL_PATH;
         obj->texturePath = SHRUBBERY_1_TEX_PATH;
+        break;
+    case EnvironmentObjectType::Tree_1:
+        obj = new EnvironmentObject();
+        obj->type = type;
+        obj->attributes.load = true;
+        obj->attributes.affectedByWind = false;
+        obj->attributes.castShadow = true;
+        obj->attributes.collision = true;
+        obj->attributes.adaptedToTerrain = false;
+        obj->attributes.billboard = true;
+        obj->attributes.maxSlopeAngle = TREE_MAX_SLOPE_ANGLE;
+        obj->modelPath = TREE_1_MODEL_PATH;
+        obj->texturePath = TREE_1_TEX_PATH;
         break;
     default:
         return nullptr;
@@ -209,6 +263,7 @@ void Environment::Update(void)
             {
                 XMVECTOR quat = XMQuaternionRotationMatrix(
                     XMMatrixRotationQuaternion(XMLoadFloat4(&obj->instanceData[j].initialBillboardRot)) * billboardRotation);
+
                 XMStoreFloat4(&obj->instanceData[j].Rotation, quat);
             }
 
@@ -260,6 +315,8 @@ void Environment::RenderEnvironmentObj(EnvironmentObject* obj)
     m_context->IASetVertexBuffers(0, 2, buffers, strides, offsets);
     // インデックスバッファ設定
     m_context->IASetIndexBuffer(obj->indexBuffer, DXGI_FORMAT_R32_UINT, 0); 
+    
+    m_context->VSSetConstantBuffers(12, 1, &perFrameBuffer);
 
     if (Renderer::get_instance().GetRenderMode() == RenderMode::INSTANCE)
     {
@@ -270,8 +327,8 @@ void Environment::RenderEnvironmentObj(EnvironmentObject* obj)
             m_context->VSSetShaderResources(7, 1, &noiseTextureSRV);
 
         m_context->PSSetShader(obj->pixelShader, nullptr, 0);
-        m_context->PSSetShaderResources(0, 1, &obj->diffuseTextureSRV);
         m_context->PSSetSamplers(0, 1, &samplerState);
+
     }
     else if (Renderer::get_instance().GetRenderMode() == RenderMode::INSTANCE_SHADOW)
     {
@@ -280,11 +337,57 @@ void Environment::RenderEnvironmentObj(EnvironmentObject* obj)
         m_context->PSSetSamplers(1, 1, &shadowSamplerState);
     }
 
-    m_context->VSSetConstantBuffers(12, 1, &perFrameBuffer);
+    if (obj->externTexPath)
+    {
+        MATERIAL material;
+        ZeroMemory(&material, sizeof(material));
+        material.Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+        Renderer::get_instance().SetMaterial(material);
+        m_context->PSSetShaderResources(0, 1, &obj->externDiffuseTextureSRV);
+        // インスタンス化描画実行
+        m_context->DrawIndexedInstanced(obj->indexCount, obj->instanceCount, 0, 0, 0);
+    }
+    else
+    {
+        const SUBSET* subset = obj->model->GetModel()->GetSubset();
+        unsigned int subsetNum = obj->model->GetModel()->GetSubNum();
 
+        for (unsigned int i = 0; i < subsetNum; i++)
+        {
+            // マテリアル設定
+            if (subset[i].Material.MaterialData.LoadMaterial)
+                Renderer::get_instance().SetMaterial(subset[i].Material.MaterialData);
 
-    // インスタンス化描画実行
-    m_context->DrawIndexedInstanced(obj->indexCount, obj->instanceCount, 0, 0, 0);
+            // テクスチャ設定
+            if (subset[i].Material.MaterialData.noTexSampling == 0)
+            {
+                m_context->PSSetShaderResources(0, 1, &subset[i].diffuseTexture);
+            }
+            if (subset[i].Material.MaterialData.normalMapSampling == 1)
+            {
+                m_context->PSSetShaderResources(9, 1, &subset[i].normalTexture);
+            }
+            if (subset[i].Material.MaterialData.bumpMapSampling == 1)
+            {
+                m_context->PSSetShaderResources(10, 1, &subset[i].bumpTexture);
+            }
+            if (subset[i].Material.MaterialData.opacityMapSampling == 1)
+            {
+                m_context->PSSetShaderResources(11, 1, &subset[i].opacityTexture);
+            }
+            if (subset[i].Material.MaterialData.reflectMapSampling == 1)
+            {
+                m_context->PSSetShaderResources(12, 1, &subset[i].reflectTexture);
+            }
+            if (subset[i].Material.MaterialData.translucencyMapSampling == 1)
+            {
+                m_context->PSSetShaderResources(13, 1, &subset[i].translucencyTexture);
+            }
+
+            // インスタンス化描画実行
+            m_context->DrawIndexedInstanced(subset[i].IndexNum, obj->instanceCount, subset[i].StartIndex, 0, 0);
+        }
+    }
 }
 
 XMFLOAT3 Environment::CalculateDynamicWindDirection(float time)
@@ -388,9 +491,13 @@ bool Environment::LoadEnvironmentObj(EnvironmentObject* obj)
     const SUBSET* subset = obj->model->GetModel()->GetSubset();
     unsigned int subsetNum = obj->model->GetModel()->GetSubNum();
     if (subsetNum > 0)
-        obj->diffuseTextureSRV = subset[0].Texture;
-    if (obj->diffuseTextureSRV == nullptr)
-        obj->diffuseTextureSRV = TextureMgr::get_instance().CreateTexture(obj->texturePath);
+    {
+        if (subset[0].diffuseTexture == nullptr && obj->texturePath)
+        {
+            obj->externTexPath = true;
+            obj->externDiffuseTextureSRV = TextureMgr::get_instance().CreateTexture(obj->texturePath);
+        }
+    }
 
     const MODEL_DATA* modelData = obj->model->GetModel()->GetModelData();
     BOUNDING_BOX boudningBox = obj->model->GetModel()->GetBoundingBox();
@@ -401,6 +508,7 @@ bool Environment::LoadEnvironmentObj(EnvironmentObject* obj)
     {
         VertexArray[i].Position = modelData->VertexArray[i].Position;
         VertexArray[i].Normal = modelData->VertexArray[i].Normal;
+        VertexArray[i].Tangent = modelData->VertexArray[i].Tangent;
         VertexArray[i].TexCoord = modelData->VertexArray[i].TexCoord;
 
         // 風に影響される場合、重みを計算
@@ -505,8 +613,8 @@ void Environment::CompileShaders(void)
         MessageBox(NULL, (char*)pErrorBlob->GetBufferPointer(), "PS", MB_OK | MB_ICONERROR);
     }
 
-    m_device->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &treeVertexShader);
-    m_device->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &treePixelShader);
+    m_device->CreateVertexShader(pVSBlob2->GetBufferPointer(), pVSBlob2->GetBufferSize(), nullptr, &treeVertexShader);
+    m_device->CreatePixelShader(pPSBlob2->GetBufferPointer(), pPSBlob2->GetBufferSize(), nullptr, &treePixelShader);
 
     ID3DBlob* pVSBlob3;
     hr = D3DX11CompileFromFile("Tree.hlsl", NULL, NULL, "VSShadow", "vs_4_0", 0, 0, NULL, &pVSBlob3, &pErrorBlob, NULL);
@@ -524,9 +632,10 @@ void Environment::CompileShaders(void)
         { "NORMAL",     0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12,  D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "TEXCOORD",   0, DXGI_FORMAT_R32G32_FLOAT,    0, 24,  D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "TEXCOORD",   1, DXGI_FORMAT_R32_FLOAT,       0, 32,  D3D11_INPUT_PER_VERTEX_DATA, 0 }, // Weight
+        { "TANGENT",    0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 36,  D3D11_INPUT_PER_VERTEX_DATA, 0 },
 
         // インスタンスデータ
-        { "POSITION",   1, DXGI_FORMAT_R32G32B32_FLOAT, 1, 0,   D3D11_INPUT_PER_INSTANCE_DATA, 1 }, // OffsetPosition
+        { "POSITION",   1, DXGI_FORMAT_R32G32B32_FLOAT,    1, 0,   D3D11_INPUT_PER_INSTANCE_DATA, 1 }, // OffsetPosition
         { "TEXCOORD",   2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 12,  D3D11_INPUT_PER_INSTANCE_DATA, 1 }, // Rotation (Quaternion)
         { "TEXCOORD",   3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 28, D3D11_INPUT_PER_INSTANCE_DATA, 1 },  // initialBillboardRot (初期ビルボード回転)
         { "TEXCOORD",   4, DXGI_FORMAT_R32_FLOAT,          1, 44, D3D11_INPUT_PER_INSTANCE_DATA, 1 },  // Scale
@@ -561,7 +670,7 @@ OctreeNode* Environment::GenerateOctree(const SimpleArray<Triangle*>& triangles,
     return octree;
 }
 
-bool Environment::GenerateInstances(EnvironmentObjectType type, const SimpleArray<Triangle*>& triangles, BOUNDING_BOX boundingBox, int clusterCount)
+bool Environment::GenerateRandomInstances(EnvironmentObjectType type, const SkinnedMeshModel* fieldModel, int clusterCount)
 {
     // 環境オブジェクト検索
     EnvironmentObject* obj = nullptr;
@@ -588,6 +697,8 @@ bool Environment::GenerateInstances(EnvironmentObjectType type, const SimpleArra
     
     SimpleArray<InstanceData> instanceDataArray;
 
+    const SimpleArray<Triangle*>& triangles = fieldModel->GetTriangles();
+    BOUNDING_BOX boundingBox = fieldModel->GetBoundingBox();
     OctreeNode* octree = GenerateOctree(triangles, boundingBox);
 
     for (int i = 0; i < clusterCount; ++i)
@@ -626,9 +737,9 @@ bool Environment::GenerateInstances(EnvironmentObjectType type, const SimpleArra
                 octree->boundary.maxPoint.y, // 高い位置からレイを下向きに投射
                 clusterCenter.z + sinf(randomaAngle) * randomRadius
             };
-            BOUNDING_BOX grassBoundingBox;
-            grassBoundingBox.maxPoint = XMFLOAT3(pos.x + 0.1f, octree->boundary.maxPoint.y, pos.z + 0.1f);
-            grassBoundingBox.minPoint = XMFLOAT3(pos.x - 0.1f, octree->boundary.minPoint.y, pos.z - 0.1f);
+            BOUNDING_BOX instanceBoundingBox;
+            instanceBoundingBox.maxPoint = XMFLOAT3(pos.x + 0.1f, octree->boundary.maxPoint.y, pos.z + 0.1f);
+            instanceBoundingBox.minPoint = XMFLOAT3(pos.x - 0.1f, octree->boundary.minPoint.y, pos.z - 0.1f);
             // 八分木で取得した三角形の中から最も高いものを選択
             const Triangle* bestTriangle = nullptr;
             XMFLOAT3 rayDir = { 0.0f, -1.0f, 0.0f };
@@ -648,103 +759,235 @@ bool Environment::GenerateInstances(EnvironmentObjectType type, const SimpleArra
             // オブジェクトの Y 座標を最高点に調整
             pos.y = maxHeight;
 
-
-            XMFLOAT4 rotation;
-
-            // 地形に適応されている場合、地形に合わせて回転
-            if (obj->attributes.adaptedToTerrain)
-            {
-                // 法線から回転クォータニオンを計算
-                XMVECTOR normalVec = XMLoadFloat3(&bestTriangle->normal);
-
-                // デフォルトの上方向ベクトル (Y 軸)
-                XMVECTOR upVec = XMVectorSet(0, 1, 0, 0);
-
-                // 法線がすでに上方向を向いている場合、回転を適用しない
-                float dotProduct = XMVectorGetX(XMVector3Dot(upVec, normalVec));
-                float angle = acosf(dotProduct); // ラジアン単位の角度
-
-                constexpr float maxSlopeAngle = XMConvertToRadians(60.0f); // 最大許容角度 (60°)
-
-                // もし角度が最大許容値を超えた場合、草を生成しない
-                if (angle > maxSlopeAngle)
-                    continue;
-
-                // 法線がすでに上方向を向いている場合、回転を適用しない
-                if (XMVector3Equal(normalVec, upVec))
-                {
-                    rotation = XMFLOAT4(0, 0, 0, 1);
-                }
-                else
-                {
-                    // 回転軸を計算（上方向ベクトルと法線の外積）
-                    XMVECTOR rotationAxis = XMVector3Normalize(XMVector3Cross(upVec, normalVec));
-
-                    // 回転角を計算（上方向ベクトルと法線の間の角度）
-                    float rotationAngle = acosf(XMVectorGetX(XMVector3Dot(upVec, normalVec)));
-
-                    // クォータニオンを生成
-                    XMVECTOR quaternion = XMQuaternionRotationAxis(rotationAxis, rotationAngle);
-
-                    XMStoreFloat4(&rotation, quaternion);
-                }
-            }
-            else
-            {
-                rotation = XMFLOAT4(0, 0, 0, 1); // 回転なし
-            }
+            XMFLOAT4 initRotation;
+            if (!GetInitRotation(obj, initRotation, bestTriangle))
+                continue;
 
             XMFLOAT4 initialBillboardRot = XMFLOAT4(0, 0, 0, 1);
             if (obj->attributes.billboard)
             {
                 // ビルボードオブジェクトの場合、初期回転を保存
-                initialBillboardRot = rotation;
+                initialBillboardRot = initRotation;
             }
             else
             {
                 // ビルボードオブジェクトでない場合、ランダムな Y 軸回転を追加
                 float randomYAngle = GetRandFloat(0.0f, XM_2PI);
-                randomYAngle = XM_PI;
                 XMMATRIX randomYRotation = XMMatrixRotationY(randomYAngle);
 
-                XMMATRIX finalRotation = XMMatrixRotationQuaternion(XMLoadFloat4(&rotation)) * randomYRotation;
+                XMMATRIX finalRotation = XMMatrixRotationQuaternion(XMLoadFloat4(&initRotation)) * randomYRotation;
                 XMVECTOR quaternion = XMQuaternionRotationMatrix(finalRotation);
-                XMStoreFloat4(&rotation, quaternion);
+                XMStoreFloat4(&initRotation, quaternion);
             }
-           
-            float scl;
+
             // オブジェクトのスケール (ランダム化)
-            switch (type)
-            {
-            case EnvironmentObjectType::Grass:
-                scl = GetRandFloat(20, 40);   
-                break;
-            case EnvironmentObjectType::Bush:
-                scl = GetRandFloat(0.5, 1.0f);
-                break;
-            case EnvironmentObjectType::Flower_1:
-                scl = GetRandFloat(0.5, 1.0f);
-                break;
-            case EnvironmentObjectType::Shrubbery_1:
-                scl = GetRandFloat(0.1, 0.2f);
-                break;
-            default:
-                break;
-            }
+            float scl = GetRandomScale(type);
 
             // インスタンスデータを追加
             instanceDataArray.push_back(
                 InstanceData(
                     pos,                            // オブジェクトの位置
-                    rotation,                       // オブジェクトの回転 (法線方向に基づく)
+                    initRotation,                   // オブジェクトの回転 (法線方向に基づく)
                     initialBillboardRot,            // ビルボードオブジェクトの初期回転
                     scl,					        // オブジェクトのスケール
                     static_cast<float>(obj->type)   // オブジェクトの種類
                 ));
         }
-        
     }
 
+    SAFE_DELETE(octree);
+
+    if (!CreateInstanceBuffer(obj, instanceDataArray))
+        return false;
+
+    return true;
+
+}
+
+bool Environment::GenerateInstanceByParams(const InstanceParams& params, const SkinnedMeshModel* fieldModel)
+{
+    EnvironmentObject* obj = InitializeEnvironmentObj(params.type);
+    if (obj == nullptr)
+        return false;
+    obj->attributes.use = true;
+
+    SimpleArray<InstanceData> instanceDataArray;
+
+    const SimpleArray<Triangle*>& triangles = fieldModel->GetTriangles();
+    BOUNDING_BOX boundingBox = fieldModel->GetBoundingBox();
+    OctreeNode* octree = GenerateOctree(triangles, boundingBox);
+
+    UINT numInstance = params.transformArray.getSize();
+
+    for (UINT i = 0; i < numInstance; i++)
+    {
+        XMFLOAT3 pos =
+        {
+            params.transformArray[i].posX,
+            octree->boundary.maxPoint.y, // 高い位置からレイを下向きに投射
+            params.transformArray[i].posZ
+        };
+
+        BOUNDING_BOX instanceBoundingBox;
+        instanceBoundingBox.maxPoint = XMFLOAT3(pos.x + 0.1f, octree->boundary.maxPoint.y, pos.z + 0.1f);
+        instanceBoundingBox.minPoint = XMFLOAT3(pos.x - 0.1f, octree->boundary.minPoint.y, pos.z - 0.1f);
+
+        SimpleArray<Triangle*> nearbyTriangles;
+        octree->queryRange(instanceBoundingBox, nearbyTriangles);
+
+        // 八分木で取得した三角形の中から最も高いものを選択
+        const Triangle* bestTriangle = nullptr;
+        XMFLOAT3 rayDir = { 0.0f, -1.0f, 0.0f };
+        float maxHeight = -FLT_MAX;
+        for (UINT k = 0; k < nearbyTriangles.getSize(); ++k)
+        {
+            const Triangle* tri = nearbyTriangles[k];
+            float t = RayIntersectTriangle(pos, rayDir, tri);
+            if (t > 0 && (pos.y - t) > maxHeight)
+            {
+                maxHeight = pos.y - t;
+                bestTriangle = tri;
+            }
+        }
+        if (!bestTriangle) continue;
+
+        // オブジェクトの Y 座標を最高点に調整
+        pos.y = maxHeight;// +(instanceBoundingBox.maxPoint.y - instanceBoundingBox.minPoint.y);
+
+        XMFLOAT4 initRotation;
+        if (!GetInitRotation(obj, initRotation, bestTriangle))
+            continue;
+
+        XMFLOAT4 initialBillboardRot = XMFLOAT4(0, 0, 0, 1);
+        if (obj->attributes.billboard)
+        {
+            // ビルボードオブジェクトの場合、初期回転を保存
+            initialBillboardRot = initRotation;
+        }
+        else if (params.randomRotY)
+        {
+            // ビルボードオブジェクトでない場合、ランダムな Y 軸回転を追加
+            float randomYAngle = GetRandFloat(0.0f, XM_2PI);
+            XMMATRIX randomYRotation = XMMatrixRotationY(randomYAngle);
+
+            XMMATRIX finalRotation = XMMatrixRotationQuaternion(XMLoadFloat4(&initRotation)) * randomYRotation;
+            XMVECTOR quaternion = XMQuaternionRotationMatrix(finalRotation);
+            XMStoreFloat4(&initRotation, quaternion);
+        }
+        else
+        {
+            float rotationY = params.transformArray[i].rotY;
+            XMVECTOR quaternion = AddRotationToQuaternion(XMLoadFloat4(&initRotation), AXIS_Y, rotationY);
+            XMStoreFloat4(&initRotation, quaternion);
+        }
+
+        float scl; 
+        if (params.randomScl)
+            // オブジェクトのスケール (ランダム化)
+            scl = GetRandomScale(obj->type);
+        else
+            scl = params.transformArray[i].scl;
+
+        // インスタンスデータを追加
+        instanceDataArray.push_back(
+            InstanceData(
+                pos,                            // オブジェクトの位置
+                initRotation,                   // オブジェクトの回転 (法線方向に基づく)
+                initialBillboardRot,            // ビルボードオブジェクトの初期回転
+                scl,					        // オブジェクトのスケール
+                static_cast<float>(obj->type)   // オブジェクトの種類
+            ));
+    }
+
+    SAFE_DELETE(octree);
+
+    if (!CreateInstanceBuffer(obj, instanceDataArray))
+        return false;
+
+    return true;
+}
+
+bool Environment::GetInitRotation(EnvironmentObject* obj, XMFLOAT4& rotation, const Triangle* triangle)
+{
+    // 地形に適応されている場合、地形に合わせて回転
+    if (obj->attributes.adaptedToTerrain)
+    {
+        // 法線から回転クォータニオンを計算
+        XMVECTOR normalVec = XMLoadFloat3(&triangle->normal);
+
+        // デフォルトの上方向ベクトル (Y 軸)
+        XMVECTOR upVec = XMVectorSet(0, 1, 0, 0);
+
+        // 法線がすでに上方向を向いている場合、回転を適用しない
+        float dotProduct = XMVectorGetX(XMVector3Dot(upVec, normalVec));
+        float angle = acosf(dotProduct); // ラジアン単位の角度
+
+        // もし角度が最大許容値を超えた場合、生成しない
+        if (angle > obj->attributes.maxSlopeAngle)
+            return false;
+
+        // 法線がすでに上方向を向いている場合、回転を適用しない
+        if (XMVector3Equal(normalVec, upVec))
+        {
+            rotation = XMFLOAT4(0, 0, 0, 1);
+        }
+        else
+        {
+            // 回転軸を計算（上方向ベクトルと法線の外積）
+            XMVECTOR rotationAxis = XMVector3Normalize(XMVector3Cross(upVec, normalVec));
+
+            // 回転角を計算（上方向ベクトルと法線の間の角度）
+            float rotationAngle = acosf(XMVectorGetX(XMVector3Dot(upVec, normalVec)));
+
+            // クォータニオンを生成
+            XMVECTOR quaternion = XMQuaternionRotationAxis(rotationAxis, rotationAngle);
+
+            XMStoreFloat4(&rotation, XMVector4Normalize(quaternion));
+        }
+    }
+    else
+    {
+        rotation = XMFLOAT4(0, 0, 0, 1); // 回転なし
+    }
+
+    return true;
+}
+
+float Environment::GetRandomScale(EnvironmentObjectType type)
+{
+    float scl;
+
+    switch (type)
+    {
+    case EnvironmentObjectType::Grass_1:
+        scl = GetRandFloat(20, 40);
+        return scl;
+    case EnvironmentObjectType::Grass_2:
+        scl = GetRandFloat(0.1f, 0.2f);
+        return scl;
+    case EnvironmentObjectType::Clover_1:
+        scl = GetRandFloat(0.1f, 0.2f);
+        return scl;
+    case EnvironmentObjectType::Bush_1:
+        scl = GetRandFloat(0.5, 1.0f);
+        return scl;
+    case EnvironmentObjectType::Flower_1:
+        scl = GetRandFloat(0.1f, 0.2f);
+        return scl;
+    case EnvironmentObjectType::Shrubbery_1:
+        scl = GetRandFloat(0.1f, 0.2f);
+        return scl;
+    case EnvironmentObjectType::Tree_1:
+        scl = GetRandFloat(0.1f, 0.2f);
+        return scl;
+    default:
+        scl = 1.0f;
+        return scl;
+    }
+}
+
+bool Environment::CreateInstanceBuffer(EnvironmentObject* obj, const SimpleArray<InstanceData>& instanceDataArray)
+{
     obj->instanceCount = instanceDataArray.getSize();
     obj->instanceData = new InstanceData[obj->instanceCount];
     for (int i = 0; i < obj->instanceCount; i++)
@@ -767,5 +1010,38 @@ bool Environment::GenerateInstances(EnvironmentObjectType type, const SimpleArra
         return false;
 
     return true;
+}
 
+XMVECTOR Environment::AddRotationToQuaternion(const XMVECTOR& baseRotation, RotationAxis axis, float angle)
+{
+    // 元のクォータニオンを正規化
+    XMVECTOR normalizedBase = XMQuaternionNormalize(baseRotation);
+
+    // 回転軸ベクトルを決定
+    XMVECTOR axisVector;
+    switch (axis)
+    {
+    case AXIS_X:
+        axisVector = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+        break;
+    case AXIS_Y:
+        axisVector = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+        break;
+    case AXIS_Z:
+        axisVector = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+        break;
+    default:
+        // デフォルトはY軸
+        axisVector = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+        break;
+    }
+
+    // 回転軸と角度から追加の回転クォータニオンを作成
+    XMVECTOR additionalRotation = XMQuaternionRotationAxis(axisVector, angle);
+
+    // 回転を合成（順番に注意：先にbase、その後追加）
+    XMVECTOR result = XMQuaternionMultiply(additionalRotation, normalizedBase);
+
+    // 結果を正規化して返す
+    return XMQuaternionNormalize(result);
 }

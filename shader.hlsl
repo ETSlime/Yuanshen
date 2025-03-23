@@ -8,6 +8,12 @@
 #define SCREEN_WIDTH    1920
 #define SHADOWMAP_SIZE  SCREEN_WIDTH * 3.5
 
+struct WorldMatrixBuffer
+{
+    matrix world;
+    matrix invWorld;
+};
+
 // マテリアルバッファ
 struct MATERIAL
 {
@@ -18,7 +24,12 @@ struct MATERIAL
     float Shininess;
     int noTexSampling;
     int lightmapSampling;
-    float Dummy[2]; //16byte境界用
+    int normalMapSampling;
+    int bumpMapSampling;
+    int opacityMapSampling;
+    int reflectMapSampling;
+    int translucencyMapSampling;
+    //float Dummy[1]; //16byte境界用
 };
 
 // ライト用バッファ
@@ -83,7 +94,7 @@ struct PixelInputType
 // マトリクスバッファ
 cbuffer WorldBuffer : register( b0 )
 {
-	matrix World;
+    WorldMatrixBuffer WorldBuffer;
 }
 
 cbuffer ViewBuffer : register( b1 )
@@ -147,6 +158,8 @@ cbuffer ProgressBuffer : register(b13)
     float2 padding;
 }
 
+
+
 //=============================================================================
 // 頂点シェーダ
 //=============================================================================
@@ -154,24 +167,29 @@ void VertexShaderPolygon( in  float4 inPosition		: POSITION0,
 						  in  float4 inNormal		: NORMAL0,
 						  in  float4 inDiffuse		: COLOR0,
 						  in  float2 inTexCoord		: TEXCOORD0,
+                          in  float4 inTangent      : TANGENT,
 
 						  out float4 outPosition	: SV_POSITION,
 						  out float4 outNormal		: NORMAL0,
 						  out float2 outTexCoord	: TEXCOORD0,
 						  out float4 outDiffuse		: COLOR0,
 						  out float4 outWorldPos    : POSITION0,
-								out float4 outshadowCoord[LIGHT_MAX_NUM] : TEXCOORD1)
+                          out float4 outTangent     : TANGENT,
+						  out float4 outshadowCoord[LIGHT_MAX_NUM] : TEXCOORD1)
 {
 	matrix wvp;
-	wvp = mul(World, View);
+    wvp = mul(WorldBuffer.world, View);
 	wvp = mul(wvp, Projection);
 	outPosition = mul(inPosition, wvp);
 
-	outNormal = normalize(mul(float4(inNormal.xyz, 0.0f), World));
+    outNormal = float4(normalize(mul(inNormal.xyz, (float3x3) WorldBuffer.invWorld)), 0.0f); // w = 0
+    outTangent = float4(normalize(mul(inTangent.xyz, (float3x3) WorldBuffer.world)), 0.0f); // w = 0
+	//outNormal = normalize(mul(float4(inNormal.xyz, 0.0f), World));
+    //outTangent = normalize(mul(float4(inTangent.xyz, 0.0f), World));
 
 	outTexCoord = inTexCoord;
 
-	outWorldPos = mul(inPosition, World);
+    outWorldPos = mul(inPosition, WorldBuffer.world);
     for (int i = 0; i < LIGHT_MAX_NUM; ++i)
     {
         outshadowCoord[i] = mul(outWorldPos, ProjView.ProjView[i]);
@@ -197,7 +215,7 @@ PixelInputType SkinnedMeshVertexShaderPolygon(SkinnedMeshVertexInputType input)
     float4 worldPosition = mul(input.position, boneTransform);
     
     // Transform the vertex position into the homogeneous clip space
-    matrix wvp = mul(World, View); // Assume World[0] is used for non-skinned objects
+    matrix wvp = mul(WorldBuffer.world, View); // Assume World[0] is used for non-skinned objects
     wvp = mul(wvp, Projection);
     output.position = mul(worldPosition, wvp);
 
@@ -211,7 +229,7 @@ PixelInputType SkinnedMeshVertexShaderPolygon(SkinnedMeshVertexInputType input)
     output.color = input.color;
 
     // Compute shadow coordinates for multiple light sources
-    output.worldPos = mul(input.position, World);
+    output.worldPos = mul(input.position, WorldBuffer.world);
     for (int j = 0; j < LIGHT_MAX_NUM; ++j)
     {
         output.shadowCoord[j] = mul(output.worldPos, ProjView.ProjView[i]);
@@ -229,8 +247,13 @@ Texture2D g_ShadowMap[LIGHT_MAX_NUM] : register(t1);
 Texture2D g_TextureSmall : register(t7);
 Texture2D g_LightMap : register(t8);
 Texture2D g_NormalMap : register(t9);
+Texture2D g_BumpMap : register(t10);
+Texture2D g_OpacityMap : register(t11);
+Texture2D g_ReflectMap : register(t12);
+Texture2D g_TranslucencyMap : register(t13);
 SamplerState g_SamplerState : register(s0);
 SamplerComparisonState g_ShadowSampler : register(s1);
+SamplerState g_SamplerStateOpacity : register(s2);
 
 float ToonLighting(float NdotL)
 {
@@ -292,6 +315,24 @@ float PerlinNoise(float2 uv)
     return lerp(lerp(a, b, u.x), lerp(c, d, u.x), u.y);
 }
 
+float GetOpacity(float2 uv)
+{
+    return g_OpacityMap.Sample(g_SamplerStateOpacity, uv).r;
+}
+
+float3 GetBumpNormal(float2 uv, float3 normal, float3 tangent)
+{
+    float3 bumpNormal = g_BumpMap.Sample(g_SamplerState, uv).rgb;
+    
+    bumpNormal = normalize(bumpNormal * 2.0 - 1.0);
+
+    float3 bitangent = cross(normal, tangent);
+
+    float3x3 TBN = float3x3(tangent, bitangent, normal);
+    
+    return normalize(mul(bumpNormal, TBN));
+}
+
 //=============================================================================
 // ピクセルシェーダ
 //=============================================================================
@@ -300,7 +341,8 @@ void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
 						 in  float2 inTexCoord		: TEXCOORD0,
 						 in  float4 inDiffuse		: COLOR0,
 						 in  float4 inWorldPos      : POSITION0,
-						in float4 inShadowCoord[LIGHT_MAX_NUM] : TEXCOORD1,
+                         in  float4 inTangent       : TANGENT,
+						 in float4 inShadowCoord[LIGHT_MAX_NUM] : TEXCOORD1,
 
 						 out float4 outDiffuse		: SV_Target )
 {
@@ -317,6 +359,13 @@ void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
 	{
 		color = inDiffuse;
     }
+    
+    float opacity = 1.0;
+    if (Material.opacityMapSampling)
+    {
+        float opacity = GetOpacity(inTexCoord);
+        clip(opacity - 0.5);
+    }
 
 	if (Light.Enable == 0)
 	{
@@ -327,6 +376,7 @@ void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
 		float4 tempColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
 		float4 outColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
 
+
         for (int i = 0; i < LIGHT_MAX_NUM; i++)
 		{
 			float3 lightDir;
@@ -335,11 +385,22 @@ void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
 			if (Light.Flags[i].y == 1)
 			{
                 float4 ambient = color * Material.Diffuse * Light.Ambient[i];
+                
+                float3 normal = inNormal.xyz;
+                if (Material.bumpMapSampling)
+                    normal = GetBumpNormal(inTexCoord, inNormal.xyz, inTangent.xyz);
+                
+                //if (Material.reflectMapSampling)
+                //{
+                //    float3 reflectVector = reflect(-input.ViewDir, normal);
+                //    float3 reflectionColor = g_ReflectMap.Sample(g_SamplerState, reflectVector).rgb;
+                //}
+                
 				if (Light.Flags[i].x == 1)
 				{
 					lightDir = normalize(Light.Direction[i].xyz);
-                    light = saturate(dot(lightDir, inNormal.xyz));
-                    float backlightFactor = saturate(dot(-lightDir, inNormal.xyz));
+                        light = saturate(dot(lightDir, normal));
+                    float backlightFactor = saturate(dot(-lightDir, normal));
 
 					light = 0.5 - 0.5 * light;
 					tempColor = color * Material.Diffuse * light * Light.Diffuse[i];
@@ -347,8 +408,8 @@ void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
                 }
 				else if (Light.Flags[i].x == 2)
 				{
-					lightDir = normalize(Light.Position[i].xyz - inWorldPos.xyz);
-					light = dot(lightDir, inNormal.xyz);
+					lightDir = normalize(Light.Position[i].xyz - normal);
+					light = dot(lightDir, normal);
 
 					tempColor = color * Material.Diffuse * light * Light.Diffuse[i];
 
@@ -365,8 +426,6 @@ void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
                 if (Light.Flags[i].x == 1)
                 {
                     float2 shadowTexCoord = float2(inShadowCoord[i].x, -inShadowCoord[i].y) / inShadowCoord[i].w * 0.5f + 0.5f;
-                    //shadowTexCoord.xy = inShadowCoord.xy / inShadowCoord.w * 0.5f + 0.5f;
-                    //shadowTexCoord.y = 1.0f - shadowTexCoord.y;
                     float currentDepth = inShadowCoord[i].z / inShadowCoord[i].w;
                     currentDepth -= 0.005f;
       //              if (shadowTexCoord.x >= 0.0f && shadowTexCoord.y >= 0.0f &&
@@ -404,7 +463,10 @@ void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
 		}
 
 		color = outColor;
-		color.a = inDiffuse.a * Material.Diffuse.a;
+        if (Material.opacityMapSampling)
+            color.a = opacity;
+        else
+		    color.a = inDiffuse.a * Material.Diffuse.a;
 
     }
 

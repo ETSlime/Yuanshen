@@ -75,6 +75,9 @@ Lumine::Lumine()
 	storeWeapon = false;
 	instance.renderProgress.progress = 0.0f;
 
+	swordTrail = new SwordTrail(&weapon);
+	swordTrail->SetTrailType(SwordTrailType::Normal);
+	swordTrail->SetTrailFrames(5);
 	SetupAnimStateMachine();
 	InitAnimInfo();
 }
@@ -82,6 +85,7 @@ Lumine::Lumine()
 Lumine::~Lumine()
 {
 	SAFE_DELETE(stateMachine);
+	SAFE_DELETE(swordTrail);
 }
 
 void Lumine::AddAnimation(char* animPath, char* animName, AnimClipName clipName)
@@ -105,7 +109,6 @@ void Lumine::Update(void)
 		&& !GetKeyboardPress(DIK_A)
 		&& !GetKeyboardPress(DIK_D))
 		instance.attributes.isMoving = false;
-
 
 
 	if (instance.attributes.attackWindow2 == true
@@ -163,6 +166,9 @@ void Lumine::Update(void)
 	instance.pModel->UpdateBoneTransform(stateMachine->GetBoneMatrices());
 
 	UpdateWeapon();
+
+	if (instance.attributes.isAttacking || instance.attributes.isAttacking2 || instance.attributes.isAttacking3)
+		swordTrail->Update();
 }
 
 void Lumine::Draw(void)
@@ -224,8 +230,14 @@ void Lumine::Draw(void)
 	}
 	GameObject::Draw();
 
+}
 
-
+void Lumine::DrawEffect(void)
+{
+	if (instance.attributes.isAttacking ||
+		instance.attributes.isAttacking2 ||
+		instance.attributes.isAttacking3)
+		swordTrail->Draw();
 }
 
 AnimStateMachine* Lumine::GetStateMachine(void)
@@ -572,6 +584,8 @@ void Lumine::UpdateWeapon(void)
 
 	weapon.Update();
 	XMMATRIX weaponMtx;
+
+
 	if (!weaponOnBack)
 		weaponMtx = instance.pModel->GetWeaponTransformMtx();
 	else

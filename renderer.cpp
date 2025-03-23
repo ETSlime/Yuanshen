@@ -14,11 +14,16 @@
 //#define DEBUG_SHADER
 
 
-//*********************************************************
-// 構造体
-//*********************************************************
+Renderer::Renderer()
+{
+	for (int i = 0; i < LIGHT_MAX; i++)
+	{
+		g_ShadowDSV[i] = NULL;
+		g_ShadowMapSRV[i] = NULL;
+	}
 
-
+	g_RenderMode = RenderMode::OBJ;
+}
 
 ID3D11Device* Renderer::GetDevice( void )
 {
@@ -37,7 +42,7 @@ void Renderer::SetDepthEnable( BOOL Enable )
 	if (Enable)
 	{
 		g_ImmediateContext->OMSetDepthStencilState(g_DepthStateEnable, NULL);
-		GetDeviceContext()->OMSetRenderTargets(1, &g_RenderTargetView, g_SceneDepthStencilView);
+		g_ImmediateContext->OMSetRenderTargets(1, &g_RenderTargetView, g_SceneDepthStencilView);
 	}
 		
 	else
@@ -70,6 +75,9 @@ void Renderer::SetBlendState(BLEND_MODE bm)
 	case BLEND_MODE_SUBTRACT:
 		g_ImmediateContext->OMSetBlendState(g_BlendStateSubtract, blendFactor, 0xffffffff);
 		break;
+	case BLEND_MODE_SWORDTRAIL:
+		g_ImmediateContext->OMSetBlendState(g_BlendStateSwordTrail, blendFactor, 0xffffffff);
+		break;
 	}
 }
 
@@ -85,6 +93,28 @@ void Renderer::SetCullingMode(CULL_MODE cm)
 		break;
 	case CULL_MODE_BACK:
 		g_ImmediateContext->RSSetState(g_RasterStateCullCCW);
+		break;
+	}
+}
+
+void Renderer::SetRenderLayer(RenderLayer layer)
+{
+	switch (layer)
+	{
+	case RenderLayer::LAYER_0:
+		g_ImmediateContext->RSSetState(g_RasterizerLayer0);
+		break;
+	case RenderLayer::LAYER_1:
+		g_ImmediateContext->RSSetState(g_RasterizerLayer1);
+		break;
+	case RenderLayer::LAYER_2:
+		g_ImmediateContext->RSSetState(g_RasterizerLayer2);
+		break;
+	case RenderLayer::LAYER_3:
+		g_ImmediateContext->RSSetState(g_RasterizerLayer3);
+		break;
+	default:
+		g_ImmediateContext->RSSetState(g_RasterStateCullOff);
 		break;
 	}
 }
@@ -105,7 +135,7 @@ void Renderer::SetFillMode(D3D11_FILL_MODE mode)
 void Renderer::SetBoneMatrix(XMMATRIX matrices[BONE_MAX])
 {
 
-	GetDeviceContext()->UpdateSubresource(g_BoneMatrixBuffer, 0, NULL, matrices, 0, 0);
+	g_ImmediateContext->UpdateSubresource(g_BoneMatrixBuffer, 0, NULL, matrices, 0, 0);
 }
 
 void Renderer::SetAlphaTestEnable(BOOL flag)
@@ -175,44 +205,86 @@ void Renderer::SetWorldViewProjection2D( void )
 {
 	XMMATRIX world;
 	world = XMMatrixTranspose(XMMatrixIdentity());
-	GetDeviceContext()->UpdateSubresource(g_WorldBuffer, 0, NULL, &world, 0, 0);
+
+
+	XMMATRIX invWorld = XMMatrixTranspose(XMMatrixIdentity());
+
+	WorldMatrixBuffer worldBuffer;
+	worldBuffer.world = world;
+	worldBuffer.invWorld = invWorld;
+
+	g_ImmediateContext->UpdateSubresource(g_WorldBuffer, 0, NULL, &worldBuffer, 0, 0);
 
 	XMMATRIX view;
 	view = XMMatrixTranspose(XMMatrixIdentity());
-	GetDeviceContext()->UpdateSubresource(g_ViewBuffer, 0, NULL, &view, 0, 0);
+	g_ImmediateContext->UpdateSubresource(g_ViewBuffer, 0, NULL, &view, 0, 0);
 
 	XMMATRIX worldViewProjection;
 	worldViewProjection = XMMatrixOrthographicOffCenterLH(0.0f, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0f, 0.0f, 1.0f);
 	worldViewProjection = XMMatrixTranspose(worldViewProjection);
-	GetDeviceContext()->UpdateSubresource(g_ProjectionBuffer, 0, NULL, &worldViewProjection, 0, 0);
+	g_ImmediateContext->UpdateSubresource(g_ProjectionBuffer, 0, NULL, &worldViewProjection, 0, 0);
 }
 
 
-void Renderer::SetCurrentWorldMatrix( XMMATRIX *WorldMatrix )
+void Renderer::SetCurrentWorldMatrix(const XMMATRIX *WorldMatrix ) const
 {
-	XMMATRIX world;
+	XMMATRIX world, invWorld;
 	world = *WorldMatrix;
+
+	// 最適化のポイント
+// 1  もし World が単位行列 (Identity Matrix) ならば 逆転置行列も単位行列になる
+//     -  inverse(transpose(Identity)) = Identity なので、XMMatrixIdentity() をそのまま使える
+//     - **XMMatrixInverse() のコストをゼロにできる
+//     - **逆転置行列をそのまま返すだけで OK** なので、計算時間を大幅に削減できる
+//
+// 2  XMMatrixIsIdentity() の実行コストは非常に低い！**
+//     - XMMatrixIsIdentity() は **4 回の SIMD 比較 (XMVector4Equal) だけでチェックできる**
+//     - そのため、**逆行列 (XMMatrixInverse) のコストと比較すると、事前チェックの方が圧倒的に軽い**
+//
+// 3  非均一スケール (Non-uniform Scale) がある場合、逆転置行列は transpose(inverse(World3x3)) を計算する必要がある**
+//     - World にスケールが含まれていない場合、transpose(World3x3) だけでよい。
+//     - **スケールがある場合、逆行列計算が必要になるが、これはコストが高い処理なので、単位行列の事前チェックが有効**
+	if (XMMatrixIsIdentity(world))
+	{
+		invWorld = XMMatrixIdentity();
+	}
+	else
+	{
+		XMMATRIX world3x3 = XMMatrixSet(
+			WorldMatrix->r[0].m128_f32[0], WorldMatrix->r[0].m128_f32[1], WorldMatrix->r[0].m128_f32[2], 0.0f,
+			WorldMatrix->r[1].m128_f32[0], WorldMatrix->r[1].m128_f32[1], WorldMatrix->r[1].m128_f32[2], 0.0f,
+			WorldMatrix->r[2].m128_f32[0], WorldMatrix->r[2].m128_f32[1], WorldMatrix->r[2].m128_f32[2], 0.0f,
+			0.0f, 0.0f, 0.0f, 1.0f
+		);
+
+		invWorld = XMMatrixTranspose(XMMatrixInverse(nullptr, world3x3));
+	}
+
 	world = XMMatrixTranspose(world);
 
-	GetDeviceContext()->UpdateSubresource(g_WorldBuffer, 0, NULL, &world, 0, 0);
+	WorldMatrixBuffer buffer;
+	buffer.world = world;
+	buffer.invWorld = invWorld;
+
+	g_ImmediateContext->UpdateSubresource(g_WorldBuffer, 0, NULL, &buffer, 0, 0);
 }
 
-void Renderer::SetViewMatrix(XMMATRIX *ViewMatrix )
+void Renderer::SetViewMatrix(const XMMATRIX *ViewMatrix ) const
 {
 	XMMATRIX view;
 	view = *ViewMatrix;
 	view = XMMatrixTranspose(view);
 
-	GetDeviceContext()->UpdateSubresource(g_ViewBuffer, 0, NULL, &view, 0, 0);
+	g_ImmediateContext->UpdateSubresource(g_ViewBuffer, 0, NULL, &view, 0, 0);
 }
 
-void Renderer::SetProjectionMatrix( XMMATRIX *ProjectionMatrix )
+void Renderer::SetProjectionMatrix(const XMMATRIX *ProjectionMatrix ) const
 {
 	XMMATRIX projection;
 	projection = *ProjectionMatrix;
 	projection = XMMatrixTranspose(projection);
 
-	GetDeviceContext()->UpdateSubresource(g_ProjectionBuffer, 0, NULL, &projection, 0, 0);
+	g_ImmediateContext->UpdateSubresource(g_ProjectionBuffer, 0, NULL, &projection, 0, 0);
 }
 
 void Renderer::SetMaterial( MATERIAL material )
@@ -224,13 +296,18 @@ void Renderer::SetMaterial( MATERIAL material )
 	g_Material.Shininess = material.Shininess;
 	g_Material.noTexSampling = material.noTexSampling;
 	g_Material.lightMapSampling = material.lightMapSampling;
+	g_Material.normalMapSampling = material.normalMapSampling;
+	g_Material.bumpMapSampling = material.bumpMapSampling;
+	g_Material.opacityMapSampling = material.opacityMapSampling;
+	g_Material.reflectMapSampling = material.reflectMapSampling;
+	g_Material.translucencyMapSampling = material.translucencyMapSampling;
 
-	GetDeviceContext()->UpdateSubresource( g_MaterialBuffer, 0, NULL, &g_Material, 0, 0 );
+	g_ImmediateContext->UpdateSubresource( g_MaterialBuffer, 0, NULL, &g_Material, 0, 0 );
 }
 
 void Renderer::SetLightBuffer(void)
 {
-	GetDeviceContext()->UpdateSubresource(g_LightBuffer, 0, NULL, &g_Light, 0, 0);
+	g_ImmediateContext->UpdateSubresource(g_LightBuffer, 0, NULL, &g_Light, 0, 0);
 }
 
 void Renderer::SetLightEnable(BOOL flag)
@@ -259,12 +336,12 @@ void Renderer::SetLight(int index, LIGHT* pLight)
 void Renderer::SetLightProjView(LightViewProjBuffer *lightBuffer)
 {
 	lightBuffer->ProjView[4] = lightBuffer->ProjView[lightBuffer->LightIndex];
-	GetDeviceContext()->UpdateSubresource(g_LightProjViewBuffer, 0, NULL, lightBuffer, 0, 0);
+	g_ImmediateContext->UpdateSubresource(g_LightProjViewBuffer, 0, NULL, lightBuffer, 0, 0);
 }
 
 void Renderer::SetFogBuffer(void)
 {
-	GetDeviceContext()->UpdateSubresource(g_FogBuffer, 0, NULL, &g_Fog, 0, 0);
+	g_ImmediateContext->UpdateSubresource(g_FogBuffer, 0, NULL, &g_Fog, 0, 0);
 }
 
 void Renderer::SetFogEnable(BOOL flag)
@@ -286,13 +363,13 @@ void Renderer::SetFog(FOG* pFog)
 
 void Renderer::SetRenderProgress(RenderProgressBuffer renderProgress)
 {
-	GetDeviceContext()->UpdateSubresource(g_RenderProgressBuffer, 0, NULL, &renderProgress, 0, 0);
+	g_ImmediateContext->UpdateSubresource(g_RenderProgressBuffer, 0, NULL, &renderProgress, 0, 0);
 }
 
 void Renderer::SetFuchi(int flag)
 {
 	g_Fuchi.fuchi = flag;
-	GetDeviceContext()->UpdateSubresource(g_FuchiBuffer, 0, NULL, &g_Fuchi, 0, 0);
+	g_ImmediateContext->UpdateSubresource(g_FuchiBuffer, 0, NULL, &g_Fuchi, 0, 0);
 }
 
 
@@ -300,7 +377,7 @@ void Renderer::SetShaderCamera(XMFLOAT3 pos)
 {
 	XMFLOAT4 tmp = XMFLOAT4( pos.x, pos.y, pos.z, 0.0f );
 
-	GetDeviceContext()->UpdateSubresource(g_CameraPosBuffer, 0, NULL, &tmp, 0, 0);
+	g_ImmediateContext->UpdateSubresource(g_CameraPosBuffer, 0, NULL, &tmp, 0, 0);
 }
 
 void Renderer::SetRenderShadowMap(int lightIdx)
@@ -308,13 +385,13 @@ void Renderer::SetRenderShadowMap(int lightIdx)
 	g_RenderMode = RenderMode::OBJ_SHADOW;
 
 	ID3D11ShaderResourceView* nullSRV[1] = { nullptr };
-	GetDeviceContext()->PSSetShaderResources(1, 1, nullSRV);
+	g_ImmediateContext->PSSetShaderResources(1, 1, nullSRV);
 
-	GetDeviceContext()->OMSetRenderTargets(0, nullptr, g_ShadowDSV[lightIdx]);
+	g_ImmediateContext->OMSetRenderTargets(0, nullptr, g_ShadowDSV[lightIdx]);
 
 
-	GetDeviceContext()->VSSetShader(g_DepthVertexShader, nullptr, 0);
-	GetDeviceContext()->PSSetShader(nullptr, nullptr, 0);
+	g_ImmediateContext->VSSetShader(g_DepthVertexShader, nullptr, 0);
+	g_ImmediateContext->PSSetShader(nullptr, nullptr, 0);
 	
 	SetLightViewProjBuffer(lightIdx);
 
@@ -326,13 +403,13 @@ void Renderer::SetRenderSkinnedMeshShadowMap(int lightIdx)
 
 
 	ID3D11ShaderResourceView* nullSRV[1] = { nullptr };
-	GetDeviceContext()->PSSetShaderResources(1, 1, nullSRV);
+	g_ImmediateContext->PSSetShaderResources(1, 1, nullSRV);
 
-	GetDeviceContext()->OMSetRenderTargets(0, nullptr, g_ShadowDSV[lightIdx]);
+	g_ImmediateContext->OMSetRenderTargets(0, nullptr, g_ShadowDSV[lightIdx]);
 
 
-	GetDeviceContext()->VSSetShader(g_DepthSkinnedMeshVertexShader, nullptr, 0);
-	GetDeviceContext()->PSSetShader(nullptr, nullptr, 0);
+	g_ImmediateContext->VSSetShader(g_DepthSkinnedMeshVertexShader, nullptr, 0);
+	g_ImmediateContext->PSSetShader(nullptr, nullptr, 0);
 
 	SetLightViewProjBuffer(lightIdx);
 
@@ -344,9 +421,9 @@ void Renderer::SetRenderInstanceShadowMap(int lightIdx)
 
 
 	ID3D11ShaderResourceView* nullSRV[1] = { nullptr };
-	GetDeviceContext()->PSSetShaderResources(1, 1, nullSRV);
+	g_ImmediateContext->PSSetShaderResources(1, 1, nullSRV);
 
-	GetDeviceContext()->OMSetRenderTargets(0, nullptr, g_ShadowDSV[lightIdx]);
+	g_ImmediateContext->OMSetRenderTargets(0, nullptr, g_ShadowDSV[lightIdx]);
 
 	SetLightViewProjBuffer(lightIdx);
 
@@ -373,9 +450,23 @@ void Renderer::SetRenderInstance(void)
 	g_ImmediateContext->PSSetShaderResources(1, LIGHT_MAX, g_ShadowMapSRV);
 }
 
+void Renderer::SetRenderVFX(void)
+{
+	g_RenderMode = RenderMode::VFX;
+
+	XMMATRIX mtxWorld = XMMatrixIdentity();
+	SetCurrentWorldMatrix(&mtxWorld);
+
+	SetCullingMode(CULL_MODE_NONE);
+
+	g_ImmediateContext->VSSetShader(g_VFXVertexShader, NULL, 0);
+	g_ImmediateContext->PSSetShader(g_VFXPixelShader, NULL, 0);
+}
+
 void Renderer::SetRenderUI(void)
 {
 	g_RenderMode = RenderMode::UI;
+
 	g_ImmediateContext->VSSetShader(g_VertexShader, NULL, 0);
 	g_ImmediateContext->PSSetShader(g_PixelShader, NULL, 0);
 }
@@ -390,12 +481,16 @@ void Renderer::SetSkinnedMeshInputLayout(void)
 	g_ImmediateContext->IASetInputLayout(g_SkinnedMeshVertexLayout);
 }
 
+void Renderer::SetVFXInputLayout(void)
+{
+	g_ImmediateContext->IASetInputLayout(g_VFXVertexLayout);
+}
+
 void Renderer::SetRenderObject(void)
 {
 	g_RenderMode = RenderMode::OBJ;
 
 	ResetRenderTarget();
-
 
 	g_ImmediateContext->VSSetShader(g_VertexShader, NULL, 0);
 	g_ImmediateContext->PSSetShader(g_PixelShader, NULL, 0);
@@ -406,12 +501,12 @@ void Renderer::SetRenderObject(void)
 
 void Renderer::ResetRenderTarget(void)
 {
-	GetDeviceContext()->OMSetRenderTargets(1, &g_RenderTargetView, g_SceneDepthStencilView);
+	g_ImmediateContext->OMSetRenderTargets(1, &g_RenderTargetView, g_SceneDepthStencilView);
 }
 
 void Renderer::ClearShadowDSV(int lightIdx)
 {
-	GetDeviceContext()->ClearDepthStencilView(g_ShadowDSV[lightIdx], D3D11_CLEAR_DEPTH, 1.0f, 0);
+	g_ImmediateContext->ClearDepthStencilView(g_ShadowDSV[lightIdx], D3D11_CLEAR_DEPTH, 1.0f, 0);
 }
 
 void Renderer::SetMainPassViewport(void)
@@ -499,7 +594,7 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 
 
 
-	for (int i = 0; i < LIGHT_MAX; i++)
+	for (UINT i = 0; i < LIGHT_MAX; i++)
 	{
 		//ステンシル用テクスチャー作成
 		ID3D11Texture2D* depthTexture = NULL;
@@ -560,7 +655,6 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	D3D11_RASTERIZER_DESC rd; 
 	ZeroMemory( &rd, sizeof( rd ) );
 	rd.FillMode = D3D11_FILL_SOLID;
-	//rd.FillMode = D3D11_FILL_WIREFRAME;
 	rd.CullMode = D3D11_CULL_NONE; 
 	rd.DepthClipEnable = TRUE; 
 	rd.MultisampleEnable = FALSE; 
@@ -575,6 +669,28 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	// カリングモード設定（CCW）
 	SetCullingMode(CULL_MODE_BACK);
 
+	ZeroMemory(&rd, sizeof(rd));
+
+	rd.FillMode = D3D11_FILL_SOLID;
+	rd.CullMode = D3D11_CULL_NONE;
+	rd.DepthClipEnable = TRUE;
+	rd.MultisampleEnable = FALSE;
+
+	// Layer 0
+	rd.DepthBias = DEPTHBIAS_LAYER_0;
+	g_D3DDevice->CreateRasterizerState(&rd, &g_RasterizerLayer0);
+
+	// Layer 1
+	rd.DepthBias = DEPTHBIAS_LAYER_1;
+	g_D3DDevice->CreateRasterizerState(&rd, &g_RasterizerLayer1);
+
+	// Layer 2
+	rd.DepthBias = DEPTHBIAS_LAYER_2;
+	g_D3DDevice->CreateRasterizerState(&rd, &g_RasterizerLayer2);
+
+	// Layer 3
+	rd.DepthBias = DEPTHBIAS_LAYER_3;
+	g_D3DDevice->CreateRasterizerState(&rd, &g_RasterizerLayer3);
 
 
 	// ブレンドステートの作成
@@ -619,10 +735,25 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 	g_D3DDevice->CreateBlendState(&blendDesc, &g_BlendStateSubtract);
 
+	ZeroMemory(&blendDesc, sizeof(blendDesc));
+
+	blendDesc.AlphaToCoverageEnable = TRUE;  // アルファ テスト カバレッジを有効にする
+	blendDesc.IndependentBlendEnable = FALSE;
+
+	blendDesc.RenderTarget[0].BlendEnable = TRUE;
+	blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+
+	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+
+	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+	g_D3DDevice->CreateBlendState(&blendDesc, &g_BlendStateSwordTrail);
+
 	// アルファブレンド設定
 	SetBlendState(BLEND_MODE_ALPHABLEND);
-
-
 
 
 	// 深度ステンシルステート作成
@@ -647,6 +778,8 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	// サンプラーステート設定
 	D3D11_SAMPLER_DESC samplerDesc;
 	ZeroMemory( &samplerDesc, sizeof( samplerDesc ) );
+
+	// general sampler
 	samplerDesc.Filter = D3D11_FILTER_ANISOTROPIC;
 	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
 	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
@@ -657,19 +790,12 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	samplerDesc.MinLOD = 0;
 	samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
 
-	//{
-	//	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-	//	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-	//	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-	//	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-
-	//}
-
 	ID3D11SamplerState* samplerState = NULL;
 	g_D3DDevice->CreateSamplerState( &samplerDesc, &samplerState );
 
 	g_ImmediateContext->PSSetSamplers( 0, 1, &samplerState );
 
+	// shadow map sampler
 	samplerDesc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
 	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
 	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
@@ -682,11 +808,29 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	samplerDesc.MinLOD = 0;
 	samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
 
-	ID3D11SamplerState* samplerState2 = NULL;
-	g_D3DDevice->CreateSamplerState(&samplerDesc, &samplerState2);
+	ID3D11SamplerState* samplerStateShadow = NULL;
+	g_D3DDevice->CreateSamplerState(&samplerDesc, &samplerStateShadow);
 
-	g_ImmediateContext->PSSetSamplers(1, 1, &samplerState2);
+	g_ImmediateContext->PSSetSamplers(1, 1, &samplerStateShadow);
 
+
+	ZeroMemory(&samplerDesc, sizeof(samplerDesc));
+
+	// opacity map sampler
+	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.MipLODBias = 0;
+	samplerDesc.MaxAnisotropy = 1;
+	samplerDesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+	samplerDesc.MinLOD = 0;
+	samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
+
+	ID3D11SamplerState* samplerStateOpacity = NULL;
+	g_D3DDevice->CreateSamplerState(&samplerDesc, &samplerStateOpacity);
+
+	g_ImmediateContext->PSSetSamplers(2, 1, &samplerStateOpacity);
 
 	// 頂点シェーダコンパイル・生成
 	ID3DBlob* pErrorBlob2;
@@ -745,7 +889,8 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,		0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,		0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT,	0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,			0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,			0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TANGENT",  0, DXGI_FORMAT_R32G32B32_FLOAT,  0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
 	};
 	UINT numElements = ARRAYSIZE( layout );
 
@@ -800,10 +945,42 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 
 	pPSBlob->Release();
 
+	ID3DBlob* pErrorBlobVFX = NULL;
+	ID3DBlob* pVSBlobVFX = NULL, *pPSBlobVFX = NULL;
+
+	hr = D3DX11CompileFromFile("VFX.hlsl", NULL, NULL, "VS", "vs_4_0", 0, 0, NULL, &pVSBlobVFX, &pErrorBlobVFX, NULL);
+	if (FAILED(hr))
+	{
+		MessageBox(NULL, (char*)pErrorBlobVFX->GetBufferPointer(), "VS", MB_OK | MB_ICONERROR);
+	}
+
+	g_D3DDevice->CreateVertexShader(pVSBlobVFX->GetBufferPointer(), pVSBlobVFX->GetBufferSize(), NULL, &g_VFXVertexShader);
+
+	hr = D3DX11CompileFromFile("VFX.hlsl", NULL, NULL, "PS", "ps_4_0", shFlag, 0, NULL, &pPSBlobVFX, &pErrorBlobVFX, NULL);
+	if (FAILED(hr))
+	{
+		MessageBox(NULL, (char*)pErrorBlobVFX->GetBufferPointer(), "PS", MB_OK | MB_ICONERROR);
+	}
+
+	g_D3DDevice->CreatePixelShader(pPSBlobVFX->GetBufferPointer(), pPSBlobVFX->GetBufferSize(), NULL, &g_VFXPixelShader);
+
+	D3D11_INPUT_ELEMENT_DESC VFXLayout[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 20, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+	};
+	numElements = ARRAYSIZE(VFXLayout);
+
+	g_D3DDevice->CreateInputLayout(VFXLayout,
+		numElements,
+		pVSBlobVFX->GetBufferPointer(),
+		pVSBlobVFX->GetBufferSize(),
+		&g_VFXVertexLayout);
 
 	// 定数バッファ生成
 	D3D11_BUFFER_DESC hBufferDesc;
-	hBufferDesc.ByteWidth = sizeof(XMMATRIX);
+	hBufferDesc.ByteWidth = sizeof(WorldMatrixBuffer);
 	hBufferDesc.Usage = D3D11_USAGE_DEFAULT;
 	hBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	hBufferDesc.CPUAccessFlags = 0;
@@ -914,24 +1091,48 @@ void Renderer::Uninit(void)
 	if (g_RasterStateCullOff)	g_RasterStateCullOff->Release();
 	if (g_RasterStateCullCW)	g_RasterStateCullCW->Release();
 	if (g_RasterStateCullCCW)	g_RasterStateCullCCW->Release();
+	if (g_RasterizerLayer0)		g_RasterizerLayer0->Release();
+	if (g_RasterizerLayer1)		g_RasterizerLayer1->Release();
+	if (g_RasterizerLayer2)		g_RasterizerLayer2->Release();
+	if (g_RasterizerLayer3)		g_RasterizerLayer3->Release();
 
-	if (g_WorldBuffer)			g_WorldBuffer->Release();
-	if (g_ViewBuffer)			g_ViewBuffer->Release();
-	if (g_ProjectionBuffer)		g_ProjectionBuffer->Release();
-	if (g_MaterialBuffer)		g_MaterialBuffer->Release();
-	if (g_LightBuffer)			g_LightBuffer->Release();
-	if (g_FogBuffer)			g_FogBuffer->Release();
+	if (g_WorldBuffer)				g_WorldBuffer->Release();
+	if (g_ViewBuffer)				g_ViewBuffer->Release();
+	if (g_ProjectionBuffer)			g_ProjectionBuffer->Release();
+	if (g_MaterialBuffer)			g_MaterialBuffer->Release();
+	if (g_LightBuffer)				g_LightBuffer->Release();
+	if (g_FogBuffer)				g_FogBuffer->Release();
+	if (g_FuchiBuffer)				g_FuchiBuffer->Release();
+	if (g_CameraPosBuffer)			g_CameraPosBuffer->Release();
+	if (g_LightProjViewBuffer)		g_LightProjViewBuffer->Release();
+	if (g_BoneMatrixBuffer)			g_BoneMatrixBuffer->Release();
+	if (g_LightModeBuffer)			g_LightModeBuffer->Release();
+	if (g_RenderProgressBuffer)		g_RenderProgressBuffer->Release();
+
 
 	if (g_VertexLayout)			g_VertexLayout->Release();
 	if (g_VertexShader)			g_VertexShader->Release();
 	if (g_DepthVertexShader)	g_DepthVertexShader->Release();
 	if (g_PixelShader)			g_PixelShader->Release();
 
+	if (g_SkinnedMeshVertexLayout)			g_SkinnedMeshVertexLayout->Release();
+	if (g_SkinnedMeshVertexShader)			g_SkinnedMeshVertexShader->Release();
+	if (g_SkinnedMeshPixelShader)			g_SkinnedMeshPixelShader->Release();
+	if (g_DepthSkinnedMeshVertexShader)		g_DepthSkinnedMeshVertexShader->Release();
+
+	if (g_VFXVertexShader)			g_VFXVertexShader->Release();
+	if (g_VFXPixelShader)			g_VFXPixelShader->Release();
+	if (g_VFXVertexLayout)			g_VFXVertexLayout->Release();
+
 	if (g_ImmediateContext)		g_ImmediateContext->ClearState();
 	if (g_RenderTargetView)		g_RenderTargetView->Release();
 	if (g_SwapChain)			g_SwapChain->Release();
 	if (g_ImmediateContext)		g_ImmediateContext->Release();
 	if (g_D3DDevice)			g_D3DDevice->Release();
+
+	for (int i = 0; i < LIGHT_MAX; i++)
+		if (g_ShadowDSV[i])	g_ShadowDSV[i]->Release();
+	if (g_SceneDepthStencilView) g_SceneDepthStencilView->Release();
 }
 
 

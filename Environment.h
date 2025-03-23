@@ -11,33 +11,54 @@
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
-#define GRASS_MODEL_PATH    "data/MODEL/Environment/Grass_1.obj"
-#define GRASS_TEX_PATH      "data/MODEL/Environment/Grass.png"
-#define BUSH_MODEL_PATH    "data/MODEL/Environment/bush.obj"
-#define BUSH_TEX_PATH      "data/MODEL/Environment/branch-01.png"
-#define FLOWER1_MODEL_PATH    "data/MODEL/Environment/Flower_1.obj"
-#define FLOWER1_TEX_PATH      "data/MODEL/Environment/Flower_1.png"
-#define SHRUBBERY_1_MODEL_PATH    "data/MODEL/Environment/Shrubbery_1.obj"
-#define SHRUBBERY_1_TEX_PATH      "data/MODEL/Environment/Shrubbery_1.png"
+#define GRASS_1_MODEL_PATH          "data/MODEL/Environment/Grass_1.obj"
+#define GRASS_1_TEX_PATH            "data/MODEL/Environment/Grass_1.png"
+#define GRASS_2_MODEL_PATH          "data/MODEL/Environment/Grass_2.obj"
+#define GRASS_2_TEX_PATH            "data/MODEL/Environment/Grass_2.png"
+#define CLOVER_1_MODEL_PATH         "data/MODEL/Environment/Clover_1.obj"
+#define CLOVER_1_TEX_PATH           "data/MODEL/Environment/Clover_1.png"
+#define BUSH_1_MODEL_PATH            "data/MODEL/Environment/Bush/Bush_1.obj"
+#define BUSH_2_MODEL_PATH            "data/MODEL/Environment/Bush/Bush_2.obj"
+#define FLOWER_1_MODEL_PATH         "data/MODEL/Environment/Flower_1.obj"
+#define FLOWER_1_TEX_PATH           "data/MODEL/Environment/Flower_1.png"
+#define SHRUBBERY_1_MODEL_PATH      "data/MODEL/Environment/Shrubbery_1.obj"
+#define SHRUBBERY_1_TEX_PATH        "data/MODEL/Environment/Shrubbery_1.png"
+#define SHRUBBERY_1_MODEL_PATH      "data/MODEL/Environment/Shrubbery_1.obj"
+#define SHRUBBERY_1_TEX_PATH        "data/MODEL/Environment/Shrubbery_1.png"
+#define TREE_1_MODEL_PATH           "data/MODEL/Environment/Tree.obj"
+#define TREE_1_TEX_PATH             "data/MODEL/Environment/branch-01.png"
+
+#define GRASS_MAX_SLOPE_ANGLE           (XM_PI * 0.33f)
+#define CLOVER_MAX_SLOPE_ANGLE          (XM_PI * 0.33f)
+#define BUSH_MAX_SLOPE_ANGLE            (XM_PI * 0.33f)
+#define FLOWER_MAX_SLOPE_ANGLE          (XM_PI * 0.33f)
+#define SHRUBBERY_MAX_SLOPE_ANGLE       (XM_PI * 0.33f)
+#define TREE_MAX_SLOPE_ANGLE            (XM_PI * 0.33f)
 //*****************************************************************************
 // 構造体定義
 //*****************************************************************************
 
+
 enum class EnvironmentObjectType 
 {
-    Grass,
-    Bush,
+    Grass_1,
+    Grass_2,
+    Bush_1,
+    Bush_2,
     Flower_1,
     Shrubbery_1,
     Clover_1,
-    Clover_2,
-    Clover_3,
-    Clover_4,
-    Clover_5,
-    Tree,
+    Tree_1,
     Rock,
     FallenTree,
     Other
+};
+
+enum RotationAxis
+{
+    AXIS_X,
+    AXIS_Y,
+    AXIS_Z
 };
 
 struct InstanceVertex
@@ -46,6 +67,7 @@ struct InstanceVertex
     XMFLOAT3 Normal;     // 法線
     XMFLOAT2 TexCoord;   // テクスチャ座標
     float Weight;        // 風の影響度 (重み)
+    XMFLOAT3 Tangent;    // 切線（法線マップ用）
 };
 
 struct InstanceData
@@ -88,27 +110,29 @@ struct EnvironmentObjAttributes
     bool collision;
     bool adaptedToTerrain;
     bool billboard;
+    float maxSlopeAngle;
 };
 
 struct EnvironmentObject
 {
     EnvironmentObjectType type;
     EnvironmentObjAttributes attributes;
-	GameObject<ModelInstance>* model;
+	GameObject<ModelInstance>* model = nullptr;
 	Transform transform;
 
-    char* modelPath;
-    char* texturePath;
+    char* modelPath = nullptr;
+    char* texturePath = nullptr;
     int indexCount;
     int instanceCount;
+    bool externTexPath = false;
 
-    ID3D11ShaderResourceView* diffuseTextureSRV;
-    ID3D11Buffer* vertexBuffer;
-    ID3D11Buffer* indexBuffer;
-    ID3D11Buffer* instanceBuffer;
-    InstanceData* instanceData;
-    ID3D11VertexShader* vertexShader;
-    ID3D11PixelShader* pixelShader;
+    ID3D11ShaderResourceView* externDiffuseTextureSRV = nullptr;
+    ID3D11Buffer* vertexBuffer = nullptr;
+    ID3D11Buffer* indexBuffer = nullptr;
+    ID3D11Buffer* instanceBuffer = nullptr;
+    InstanceData* instanceData = nullptr;
+    ID3D11VertexShader* vertexShader = nullptr;
+    ID3D11PixelShader* pixelShader = nullptr;
 
     ~EnvironmentObject()
 	{
@@ -120,7 +144,7 @@ struct EnvironmentObject
         SafeRelease(&vertexBuffer);
         SafeRelease(&indexBuffer);
         SafeRelease(&instanceBuffer);
-        SafeRelease(&diffuseTextureSRV);
+        SafeRelease(&externDiffuseTextureSRV);
 	}
 };
 
@@ -134,6 +158,40 @@ struct EnvironmentConfig
 
 };
 
+struct InstanceTransformInfo
+{
+    float posX;
+    float posZ;
+    float rotY;
+    float scl;
+
+    InstanceTransformInfo()
+    {
+        posX = 0.0f;
+        posZ = 0.0f;
+        rotY = 0.0f;
+        scl = 1.0f;
+    }
+
+    InstanceTransformInfo(float posX, float posZ, float rotY, float scl)
+    {
+        this->posX = posX;
+        this->posZ = posZ;
+        this->scl = scl;
+        this->rotY = rotY;
+    }
+};
+
+struct InstanceParams
+{
+    EnvironmentObjectType type;
+
+    SimpleArray<InstanceTransformInfo> transformArray;
+
+    bool randomScl = false;
+    bool randomRotY = false;
+};
+
 class Environment
 {
 public:
@@ -143,14 +201,19 @@ public:
 
     void Update(void);
     void Draw(void);
-    bool GenerateInstances(EnvironmentObjectType type, const SimpleArray<Triangle*>& triangles, BOUNDING_BOX boundingBox, int clusterCount = 45);
+    bool GenerateRandomInstances(EnvironmentObjectType type, const SkinnedMeshModel* fieldModel, int clusterCount = 45);
+    bool GenerateInstanceByParams(const InstanceParams& params, const SkinnedMeshModel* fieldModel);
 
 private:
 
     bool Initialize(void);
-    EnvironmentObject* InitializeEnvironmentObj(EnvironmentObjectType type);
-
     void RenderEnvironmentObj(EnvironmentObject* obj);
+    EnvironmentObject* InitializeEnvironmentObj(EnvironmentObjectType type);
+    bool GetInitRotation(EnvironmentObject* obj, XMFLOAT4& rotation, const Triangle* triangle);
+    float GetRandomScale(EnvironmentObjectType type);
+    bool CreateInstanceBuffer(EnvironmentObject* obj, const SimpleArray<InstanceData>& instanceDataArray);
+    // 指定した軸を中心に角度（ラジアン）だけ回転を追加する
+    XMVECTOR AddRotationToQuaternion(const XMVECTOR& baseRotation, RotationAxis axis, float angle);
 
     // 動的風向き計算
     XMFLOAT3 CalculateDynamicWindDirection(float time);

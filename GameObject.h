@@ -158,6 +158,7 @@ public:
 		AnimClipName clipName = AnimClipName::ANIM_NONE);
 	virtual void Update();
 	virtual void Draw();
+	virtual void DrawEffect() {};
 	void DrawModelEditor();
 	void UpdateModelEditor();
 
@@ -167,10 +168,11 @@ public:
 	inline void SetTransform(Transform transform) { instance.transform = transform; }
 	inline void SetWorldMatrix(XMMATRIX mtxWorld) { instance.transform.mtxWorld = mtxWorld; }
 	inline Transform GetTransform() { return instance.transform; }
-	inline XMMATRIX	GetWorldMatrix() { return instance.transform.mtxWorld; }
+	inline XMMATRIX	GetWorldMatrix() const { return instance.transform.mtxWorld; }
 	inline const T* GetInstance() const { return &instance; }
 	inline Model* GetModel() { return instance.pModel; }
 	inline SkinnedMeshModel* GetSkinnedMeshModel() { return instance.pModel; }
+	inline const SkinnedMeshModel* GetSkinnedMeshModelConst() const { return instance.pModel; }
 	inline XMFLOAT4* GetDiffuse() { return instance.diffuse; }
 	inline bool GetUse() { return instance.use; }
 	inline void SetUse(bool use) { instance.use = use; }

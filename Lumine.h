@@ -6,6 +6,7 @@
 //
 //=============================================================================
 #include "GameObject.h"
+#include "SwordTrail.h"
 
 class Lumine : public GameObject<SkinnedMeshModelInstance>, public ISkinnedMeshModelChar
 {
@@ -17,6 +18,7 @@ public:
 
 	void Update(void) override;
 	void Draw(void) override;
+	void DrawEffect(void) override;
 
 	void SetupAnimStateMachine(void);
 	void InitAnimInfo(void) override;
@@ -55,6 +57,8 @@ private:
 
 	void FaceToNearestEnemy(void);
 	void UpdateWeapon(void);
+
+	SwordTrail* swordTrail;
 
 	GameObject<SkinnedMeshModelInstance> weapon;
 	AnimStateMachine* stateMachine;

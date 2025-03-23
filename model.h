@@ -15,6 +15,16 @@
 //*****************************************************************************
 #define MODEL_MAX_MATERIAL		(16)		// １モデルのMaxマテリアル数
 
+enum TextureType
+{
+	Diffuse,
+	Normal,
+	Bump,
+	Opacity,
+	Reflect,
+	Translucency
+};
+
 //*****************************************************************************
 // 構造体定義
 //*****************************************************************************
@@ -24,9 +34,14 @@ class Model;
 // マテリアル構造体
 struct MODEL_MATERIAL
 {
-	char						Name[256];
+	char						Name[256] = {};
 	MATERIAL					MaterialData;
-	char						TextureName[256];
+	char						DiffuseTextureName[256] = {};
+	char						NormalTextureName[256] = {};
+	char						BumpTextureName[256] = {};
+	char						OpacityTextureName[256] = {};
+	char						ReflectTextureName[256] = {};
+	char						TranslucencyTextureName[256] = {};
 };
 
 // 描画サブセット構造体
@@ -35,11 +50,21 @@ struct SUBSET
 	unsigned int	StartIndex;
 	unsigned int	IndexNum;
 	MODEL_MATERIAL	Material;
-	ID3D11ShaderResourceView* Texture;
+	ID3D11ShaderResourceView* diffuseTexture;
+	ID3D11ShaderResourceView* normalTexture;
+	ID3D11ShaderResourceView* bumpTexture;
+	ID3D11ShaderResourceView* opacityTexture;
+	ID3D11ShaderResourceView* reflectTexture;
+	ID3D11ShaderResourceView* translucencyTexture;
 
 	SUBSET()
 	{
-		Texture = nullptr;
+		diffuseTexture = nullptr;
+		normalTexture = nullptr;
+		bumpTexture = nullptr;
+		opacityTexture = nullptr;
+		reflectTexture = nullptr;
+		translucencyTexture = nullptr;
 		Material = MODEL_MATERIAL();
 		StartIndex = 0;
 		IndexNum = 0;
@@ -47,8 +72,12 @@ struct SUBSET
 
 	~SUBSET()
 	{
-		if (Texture)
-			Texture->Release();
+		SafeRelease(&diffuseTexture);
+		SafeRelease(&normalTexture);
+		SafeRelease(&bumpTexture);
+		SafeRelease(&opacityTexture);
+		SafeRelease(&reflectTexture);
+		SafeRelease(&translucencyTexture);
 	}
 };
 
@@ -117,6 +146,7 @@ public:
 private:
 	void LoadObj(char* FileName, MODEL_DATA* Model);
 	void LoadMaterial(char* FileName, MODEL_MATERIAL** MaterialArray, unsigned int* MaterialNum);
+	void LoadTextureName(char*FileName, FILE* fp, MODEL_MATERIAL* Material, int mc, TextureType type);
 	void CreateBoundingBoxVertex();
 
 	static HashMap<char*, MODEL_POOL, CharPtrHash, CharPtrEquals> modelHashMap;
@@ -128,6 +158,7 @@ private:
 	unsigned int	SubsetNum;
 
 	MODEL_DATA*		modelData;
+	bool			loadTangent = false;
 
 	BOUNDING_BOX	boundingBox;
 	ID3D11Buffer* BBVertexBuffer;

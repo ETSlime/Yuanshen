@@ -2,6 +2,12 @@
 // 定数バッファ
 //*****************************************************************************
 
+struct WorldMatrixBuffer
+{
+    matrix world;
+    matrix invWorld;
+};
+
 struct LightViewProjBuffer
 {
     matrix ViewProj[5];
@@ -12,7 +18,7 @@ struct LightViewProjBuffer
 // マトリクスバッファ
 cbuffer WorldBuffer : register(b0)
 {
-    matrix World;
+    WorldMatrixBuffer WorldBuffer;
 }
 
 cbuffer ViewBuffer : register(b1)
@@ -47,6 +53,7 @@ struct VS_INPUT
     float3 Normal : NORMAL; // 法線
     float2 TexCoord : TEXCOORD; // テクスチャ座標
     float Weight : TEXCOORD1; // 風影響重み
+    float3 Tangent : TANGENT;
 
     float3 OffsetPosition : POSITION1; // インスタンス位置オフセット
     float4 Rotation : TEXCOORD2; // クォータニオンでの回転
@@ -69,6 +76,11 @@ struct VS_OUTPUT
 //*****************************************************************************
 Texture2D DiffuseTexture : register(t0);
 Texture2D NoiseTexture : register(t7); // ノイズテクスチャ (風アニメーション用)
+Texture2D g_NormalMap : register(t9);
+Texture2D g_BumpMap : register(t10);
+Texture2D g_OpacityMap : register(t11);
+Texture2D g_ReflectMap : register(t12);
+Texture2D g_TranslucencyMap : register(t13);
 Texture2D ShadowMap : register(t2);
 SamplerState SampleType : register(s0); // サンプラーステート
 SamplerComparisonState ShadowSampler : register(s1);
@@ -78,7 +90,7 @@ SamplerComparisonState ShadowSampler : register(s1);
 VS_OUTPUT VS(VS_INPUT input)
 {
     matrix WorldViewProjection;
-    WorldViewProjection = mul(World, View);
+    WorldViewProjection = mul(WorldBuffer.world, View);
     WorldViewProjection = mul(WorldViewProjection, Projection);
     
     VS_OUTPUT output;
@@ -120,12 +132,6 @@ VS_OUTPUT VS(VS_INPUT input)
     return output;
 }
 
-
-//*****************************************************************************
-// グローバル変数
-//*****************************************************************************
-
-
 //=============================================================================
 // ピクセルシェーダ
 //=============================================================================
@@ -157,9 +163,9 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
 // シャドウデプスパス (HLSL)
 //----------------------------------
 
-//*****************************************************************************
-// 定数バッファ
-//*****************************************************************************
+//=============================================================================
+// 頂点シェーダ
+//=============================================================================
 VS_OUTPUT VSShadow(VS_INPUT input)
 {
     VS_OUTPUT output;
@@ -171,6 +177,3 @@ VS_OUTPUT VSShadow(VS_INPUT input)
     output.Position = mul(float4((input.Position * input.Scale + input.OffsetPosition), 1.f), lightViewProj.ViewProj[0]);
     return output;
 }
-//=============================================================================
-// 頂点シェーダ
-//=============================================================================

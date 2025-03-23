@@ -61,7 +61,7 @@ Ground::Ground()
 	worldBB.minPoint = WORLD_MIN;
 	CollisionManager::get_instance().InitOctree(worldBB);
 
-	town = new Town();
+	//town = new Town();
 
 	XMMATRIX worldMatrix;
 
@@ -77,22 +77,43 @@ Ground::Ground()
 	fieldGO->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
 	skinnedMeshGroundGO.push_back(fieldGO);
 
-	GameObject<SkinnedMeshModelInstance>* bonfireGO = new GameObject<SkinnedMeshModelInstance>();
-	bonfireGO->Instantiate(MODEL_ENVIRONMENT_PATH, MODEL_BONFIRE_NAME);
-	bonfireGO->SetScale(XMFLOAT3(BONFIRE_SIZE, BONFIRE_SIZE, BONFIRE_SIZE));
-	bonfireGO->SetPosition(XMFLOAT3(12582.0f, -2374.0f, -19485.0f));
-	bonfireGO->Update();
-	bonfireGO->SetCastShadow(true);
-	worldMatrix = bonfireGO->GetWorldMatrix();
-	BOUNDING_BOX boundingBox = bonfireGO->GetCollider().bbox;
-	bonfireGO->GetSkinnedMeshModel()->BuildTrianglesByBoundingBox(boundingBox);
-	bonfireGO->GetSkinnedMeshModel()->BuildOctree();
-	bonfireGO->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
-	skinnedMeshGroundGO.push_back(bonfireGO);
+	//GameObject<SkinnedMeshModelInstance>* bonfireGO = new GameObject<SkinnedMeshModelInstance>();
+	//bonfireGO->Instantiate(MODEL_ENVIRONMENT_PATH, MODEL_BONFIRE_NAME);
+	//bonfireGO->SetScale(XMFLOAT3(BONFIRE_SIZE, BONFIRE_SIZE, BONFIRE_SIZE));
+	//bonfireGO->SetPosition(XMFLOAT3(12582.0f, -2374.0f, -19485.0f));
+	//bonfireGO->Update();
+	//bonfireGO->SetCastShadow(true);
+	//worldMatrix = bonfireGO->GetWorldMatrix();
+	//BOUNDING_BOX boundingBox = bonfireGO->GetCollider().bbox;
+	//bonfireGO->GetSkinnedMeshModel()->BuildTrianglesByBoundingBox(boundingBox);
+	//bonfireGO->GetSkinnedMeshModel()->BuildOctree();
+	//bonfireGO->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
+	//skinnedMeshGroundGO.push_back(bonfireGO);
 
+	//GameObject<ModelInstance>* banyanGO = new GameObject<ModelInstance>();
+	//banyanGO->Instantiate(MODEL_BANYAN_PATH);
+	//banyanGO->SetPosition(XMFLOAT3(-12280.0f, -2254.0f, -4650.0f));
+	//banyanGO->SetScale(XMFLOAT3(50.0f, 50.0f, 50.0f));
+	//groundGO.push_back(banyanGO);
+
+	//GameObject<ModelInstance>* banyanGO = new GameObject<ModelInstance>();
+	//banyanGO->Instantiate("data/MODEL/Environment/Bush/Bush_2.obj");
+	//banyanGO->SetPosition(XMFLOAT3(12582.0f, -2374.0f, -19485.0f));
+	//banyanGO->SetScale(XMFLOAT3(1.0f, 1.0f, 1.0f));
+	//groundGO.push_back(banyanGO);
+
+	InstanceParams params;
+	params.type = EnvironmentObjectType::Bush_2;
+	params.transformArray.push_back(InstanceTransformInfo(
+		12582.0f,
+		-19485.0f,
+		0.0f,
+		1.0f
+	));
 
 	environment = new Environment();
-	environment->GenerateInstances(EnvironmentObjectType::Shrubbery_1, fieldGO->GetSkinnedMeshModel()->GetTriangles(), fieldGO->GetSkinnedMeshModel()->GetBoundingBox(), 15);
+	environment->GenerateInstanceByParams(params, fieldGO->GetSkinnedMeshModel());
+	//environment->GenerateRandomInstances(EnvironmentObjectType::Shrubbery_1, fieldGO->GetSkinnedMeshModel(), 15);
 }
 
 //=============================================================================

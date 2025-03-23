@@ -61,15 +61,6 @@ Model::Model(char *FileName)
 		CreateBoundingBoxVertex();
 	}
 
-	char* filename = "data/MODEL/neko.jpg";
-	ID3D11ShaderResourceView* srv = nullptr;
-	D3DX11CreateShaderResourceViewFromFile(renderer.GetDevice(),
-		filename,
-		NULL,
-		NULL,
-		&srv,
-		NULL);
-
 	// インデックスバッファ生成
 	{
 		D3D11_BUFFER_DESC bd;
@@ -95,11 +86,64 @@ Model::Model(char *FileName)
 
 
 			D3DX11CreateShaderResourceViewFromFile(renderer.GetDevice(),
-				this->SubsetArray[i].Material.TextureName,
-													NULL,
-													NULL,
-													&this->SubsetArray[i].Texture,
-													NULL );
+				this->SubsetArray[i].Material.DiffuseTextureName,
+				NULL,
+				NULL,
+				&this->SubsetArray[i].diffuseTexture,
+				NULL);
+
+			if (this->SubsetArray[i].diffuseTexture == NULL)
+				this->SubsetArray[i].Material.MaterialData.noTexSampling = 1;
+
+			D3DX11CreateShaderResourceViewFromFile(renderer.GetDevice(),
+				this->SubsetArray[i].Material.NormalTextureName,
+				NULL,
+				NULL,
+				&this->SubsetArray[i].normalTexture,
+				NULL);
+
+			if (this->SubsetArray[i].normalTexture == NULL)
+				this->SubsetArray[i].Material.MaterialData.normalMapSampling = 0;
+
+			D3DX11CreateShaderResourceViewFromFile(renderer.GetDevice(),
+				this->SubsetArray[i].Material.BumpTextureName,
+				NULL,
+				NULL,
+				&this->SubsetArray[i].bumpTexture,
+				NULL);
+
+			if (this->SubsetArray[i].bumpTexture == NULL)
+				this->SubsetArray[i].Material.MaterialData.bumpMapSampling = 0;
+
+			D3DX11CreateShaderResourceViewFromFile(renderer.GetDevice(),
+				this->SubsetArray[i].Material.OpacityTextureName,
+				NULL,
+				NULL,
+				&this->SubsetArray[i].opacityTexture,
+				NULL);
+
+			if (this->SubsetArray[i].opacityTexture == NULL)
+				this->SubsetArray[i].Material.MaterialData.opacityMapSampling = 0;
+
+			D3DX11CreateShaderResourceViewFromFile(renderer.GetDevice(),
+				this->SubsetArray[i].Material.ReflectTextureName,
+				NULL,
+				NULL,
+				&this->SubsetArray[i].reflectTexture,
+				NULL);
+
+			if (this->SubsetArray[i].reflectTexture == NULL)
+				this->SubsetArray[i].Material.MaterialData.reflectMapSampling = 0;
+
+			D3DX11CreateShaderResourceViewFromFile(renderer.GetDevice(),
+				this->SubsetArray[i].Material.TranslucencyTextureName,
+				NULL,
+				NULL,
+				&this->SubsetArray[i].translucencyTexture,
+				NULL);
+
+			if (this->SubsetArray[i].translucencyTexture == NULL)
+				this->SubsetArray[i].Material.MaterialData.translucencyMapSampling = 0;
 		}
 	}
 
@@ -147,7 +191,27 @@ void Model::DrawModel()
 		// テクスチャ設定
 		if (this->SubsetArray[i].Material.MaterialData.noTexSampling == 0)
 		{
-			renderer.GetDeviceContext()->PSSetShaderResources(0, 1, &this->SubsetArray[i].Texture);
+			renderer.GetDeviceContext()->PSSetShaderResources(0, 1, &this->SubsetArray[i].diffuseTexture);
+		}
+		if (this->SubsetArray[i].Material.MaterialData.normalMapSampling == 1)
+		{
+			renderer.GetDeviceContext()->PSSetShaderResources(9, 1, &this->SubsetArray[i].normalTexture);
+		}
+		if (this->SubsetArray[i].Material.MaterialData.bumpMapSampling == 1)
+		{
+			renderer.GetDeviceContext()->PSSetShaderResources(10, 1, &this->SubsetArray[i].bumpTexture);
+		}
+		if (this->SubsetArray[i].Material.MaterialData.opacityMapSampling == 1)
+		{
+			renderer.GetDeviceContext()->PSSetShaderResources(11, 1, &this->SubsetArray[i].opacityTexture);
+		}
+		if (this->SubsetArray[i].Material.MaterialData.reflectMapSampling == 1)
+		{
+			renderer.GetDeviceContext()->PSSetShaderResources(12, 1, &this->SubsetArray[i].reflectTexture);
+		}
+		if (this->SubsetArray[i].Material.MaterialData.translucencyMapSampling == 1)
+		{
+			renderer.GetDeviceContext()->PSSetShaderResources(13, 1, &this->SubsetArray[i].translucencyTexture);
 		}
 
 		// ポリゴン描画
@@ -388,7 +452,12 @@ void Model::LoadObj( char *FileName, MODEL_DATA* Model )
 				{
 					this->SubsetArray[ sc ].Material.MaterialData = materialArray[i].MaterialData;
 					this->SubsetArray[sc].Material.MaterialData.LoadMaterial = TRUE;
-					strcpy(this->SubsetArray[ sc ].Material.TextureName, materialArray[i].TextureName );
+					strcpy(this->SubsetArray[ sc ].Material.DiffuseTextureName, materialArray[i].DiffuseTextureName);
+					strcpy(this->SubsetArray[sc].Material.NormalTextureName, materialArray[i].NormalTextureName);
+					strcpy(this->SubsetArray[sc].Material.BumpTextureName, materialArray[i].BumpTextureName);
+					strcpy(this->SubsetArray[sc].Material.OpacityTextureName, materialArray[i].OpacityTextureName);
+					strcpy(this->SubsetArray[sc].Material.ReflectTextureName, materialArray[i].ReflectTextureName);
+					strcpy(this->SubsetArray[sc].Material.TranslucencyTextureName, materialArray[i].TranslucencyTextureName);
 					strcpy(this->SubsetArray[ sc ].Material.Name, materialArray[i].Name );
 
 					break;
@@ -440,6 +509,34 @@ void Model::LoadObj( char *FileName, MODEL_DATA* Model )
 		}
 	}
 
+	if (loadTangent == false)
+	{
+		for (int i = 0; i < indexNum; i += 3)
+		{
+			VERTEX_3D v0 = Model->VertexArray[Model->IndexArray[i]];
+			VERTEX_3D v1 = Model->VertexArray[Model->IndexArray[i + 1]];
+			VERTEX_3D v2 = Model->VertexArray[Model->IndexArray[i + 2]];
+
+			XMVECTOR edge1 = DirectX::XMLoadFloat3(&v1.Position) - DirectX::XMLoadFloat3(&v0.Position);
+			XMVECTOR edge2 = DirectX::XMLoadFloat3(&v2.Position) - DirectX::XMLoadFloat3(&v0.Position);
+
+			float deltaU1 = v1.TexCoord.x - v0.TexCoord.x;
+			float deltaV1 = v1.TexCoord.y - v0.TexCoord.y;
+			float deltaU2 = v2.TexCoord.x - v0.TexCoord.x;
+			float deltaV2 = v2.TexCoord.y - v0.TexCoord.y;
+
+			float f = 1.0f / (deltaU1 * deltaV2 - deltaU2 * deltaV1);
+			XMVECTOR tangent = f * (deltaV2 * edge1 - deltaV1 * edge2);
+
+			XMStoreFloat3(&v0.Tangent, tangent);
+			XMStoreFloat3(&v1.Tangent, tangent);
+			XMStoreFloat3(&v2.Tangent, tangent);
+
+			Model->VertexArray[Model->IndexArray[i]] = v0;
+			Model->VertexArray[Model->IndexArray[i + 1]] = v1;
+			Model->VertexArray[Model->IndexArray[i + 2]] = v2;
+		}
+	}
 
 	if( sc != 0 )
 		this->SubsetArray[ sc - 1 ].IndexNum = ic - this->SubsetArray[ sc - 1 ].StartIndex;
@@ -513,7 +610,11 @@ void Model::LoadMaterial( char *FileName, MODEL_MATERIAL **MaterialArray, unsign
 			//マテリアル名
 			mc++;
 			fscanf( file, "%s", materialArray[ mc ].Name );
-			strcpy( materialArray[ mc ].TextureName, "" );
+			strcpy( materialArray[ mc ].DiffuseTextureName, "" );
+			strcpy( materialArray[ mc ].NormalTextureName, "" );
+			strcpy( materialArray[ mc ].OpacityTextureName, "" );
+			strcpy(materialArray[mc].ReflectTextureName, "");
+			strcpy(materialArray[mc].TranslucencyTextureName, "");
 			materialArray[mc].MaterialData.noTexSampling = 1;
 		}
 		else if( strcmp( str, "Ka" ) == 0 )
@@ -559,31 +660,27 @@ void Model::LoadMaterial( char *FileName, MODEL_MATERIAL **MaterialArray, unsign
 		}
 		else if( strcmp( str, "map_Kd" ) == 0 )
 		{
-			//テクスチャ
-			fscanf( file, "%s", str );
-
-			char path[256];
-		//	strcpy( path, "data/model/" );
-
-			//----------------------------------- フォルダー対応
-			strcpy(path, FileName);
-			char* adr = path;
-			char* ans = adr;
-			while (1)
-			{
-				adr = strstr(adr, "/");
-				if (adr == NULL) break;
-				else ans = adr;
-				adr++;
-			}
-			if (path != ans) ans++;
-			*ans = 0;
-			//-----------------------------------
-
-			strcat( path, str );
-
-			strcat( materialArray[ mc ].TextureName, path );
-			materialArray[mc].MaterialData.noTexSampling = 0;
+			LoadTextureName(FileName, file, materialArray, mc, TextureType::Diffuse);
+		}
+		else if( strcmp( str, "norm" ) == 0)
+		{
+			LoadTextureName(FileName, file, materialArray, mc, TextureType::Normal);
+		}
+		else if( strcmp( str, "map_d" ) == 0 )
+		{
+			LoadTextureName(FileName, file, materialArray, mc, TextureType::Opacity);
+		}
+		else if (strcmp(str, "map_refl") == 0 || strcmp(str, "map_Reflect") == 0)
+		{
+			LoadTextureName(FileName, file, materialArray, mc, TextureType::Reflect);
+		}
+		else if (strcmp(str, "map_Bump") == 0)
+		{
+			LoadTextureName(FileName, file, materialArray, mc, TextureType::Bump);
+		}
+		else if (strcmp(str, "map_Translucency") == 0)
+		{
+			LoadTextureName(FileName, file, materialArray, mc, TextureType::Translucency);
 		}
 	}
 
@@ -592,6 +689,62 @@ void Model::LoadMaterial( char *FileName, MODEL_MATERIAL **MaterialArray, unsign
 	*MaterialNum = materialNum;
 
 	fclose(file);
+}
+
+void Model::LoadTextureName(char* FileName, FILE* file, MODEL_MATERIAL* Material, int mc, TextureType type)
+{
+	char str[256];
+
+	//テクスチャ
+	fscanf(file, "%s", str);
+
+	char path[256];
+	//	strcpy( path, "data/model/" );
+
+		//----------------------------------- フォルダー対応
+	strcpy(path, FileName);
+	char* adr = path;
+	char* ans = adr;
+	while (1)
+	{
+		adr = strstr(adr, "/");
+		if (adr == NULL) break;
+		else ans = adr;
+		adr++;
+	}
+	if (path != ans) ans++;
+	*ans = 0;
+	//-----------------------------------
+
+	strcat(path, str);
+
+	switch (type)
+	{
+	case TextureType::Diffuse:
+		strcpy(Material[mc].DiffuseTextureName, path);
+		Material[mc].MaterialData.noTexSampling = 0;
+		break;
+	case TextureType::Normal:
+		strcpy(Material[mc].NormalTextureName, path);
+		Material[mc].MaterialData.normalMapSampling = 1;
+		break;
+	case TextureType::Bump:
+		strcpy(Material[mc].BumpTextureName, path);
+		Material[mc].MaterialData.bumpMapSampling = 1;
+		break;
+	case TextureType::Opacity:
+		strcpy(Material[mc].OpacityTextureName, path);
+		Material[mc].MaterialData.opacityMapSampling = 1;
+		break;
+	case TextureType::Reflect:
+		strcpy(Material[mc].ReflectTextureName, path);
+		Material[mc].MaterialData.reflectMapSampling = 1;
+		break;
+	case TextureType::Translucency:
+		strcpy(Material[mc].TranslucencyTextureName, path);
+		Material[mc].MaterialData.translucencyMapSampling = 1;
+		break;
+	}
 }
 
 

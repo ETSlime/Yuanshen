@@ -207,6 +207,11 @@ void Player::Draw(void)
 	playerGO->Draw();
 }
 
+void Player::DrawEffect(void)
+{
+	playerGO->DrawEffect();
+}
+
 void Player::HandlePlayerMove(Transform& transform)
 {
 	float deltaDir = attributes.targetDir - attributes.dir;

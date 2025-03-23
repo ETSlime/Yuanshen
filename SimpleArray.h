@@ -123,6 +123,17 @@ public:
         capacity = newCapacity;
     }
 
+    void erase(UINT index) 
+    {
+        if (index >= size) return;
+
+        for (UINT i = index; i < size - 1; i++) 
+        {
+            array[i] = std::move(array[i + 1]);
+        }
+        size--;
+    }
+
     void shrink_to_fit()
     {
         if (size == 0)

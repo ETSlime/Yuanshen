@@ -14,6 +14,10 @@
 #define BONE_MAX			(512)
 #define MAX_BONE_INDICES	(4)
 #define SHADOWMAP_SIZE		(SCREEN_WIDTH * 3.5f)
+#define DEPTHBIAS_LAYER_0	(-25)
+#define DEPTHBIAS_LAYER_1	(-50)
+#define DEPTHBIAS_LAYER_2	(-100)
+#define DEPTHBIAS_LAYER_3	(-200)
 //*********************************************************
 enum LIGHT_TYPE
 {
@@ -30,6 +34,7 @@ enum BLEND_MODE
 	BLEND_MODE_ALPHABLEND,	//αブレンド
 	BLEND_MODE_ADD,			//加算ブレンド
 	BLEND_MODE_SUBTRACT,	//減算ブレンド
+	BLEND_MODE_SWORDTRAIL,
 
 	BLEDD_MODE_NUM
 };
@@ -52,6 +57,16 @@ enum class RenderMode
 	INSTANCE,
 	INSTANCE_SHADOW,
 	UI,
+	VFX,
+};
+
+enum class RenderLayer
+{
+	DEFAULT,
+	LAYER_0,
+	LAYER_1,
+	LAYER_2,
+	LAYER_3,
 };
 
 //*********************************************************
@@ -65,19 +80,22 @@ struct VERTEX_3D
     XMFLOAT3	Normal;
     XMFLOAT4	Diffuse;
     XMFLOAT2	TexCoord;
+	XMFLOAT3	Tangent;
 
 	VERTEX_3D()
 	{
 		Position = XMFLOAT3(0.0f, 0.0f, 0.0f);
 		Normal = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		Tangent = XMFLOAT3(0.0f, 0.0f, 0.0f);
 		Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 		TexCoord = XMFLOAT2(0.0f, 0.0f);
 	}
 
-	VERTEX_3D(XMFLOAT3 pos, XMFLOAT3 norm, XMFLOAT4 dif, XMFLOAT2 tex)
+	VERTEX_3D(XMFLOAT3 pos, XMFLOAT3 norm, XMFLOAT3 tangent, XMFLOAT4 dif, XMFLOAT2 tex)
 	{
 		Position = pos;
 		Normal = norm;
+		Tangent = tangent;
 		Diffuse = dif;
 		TexCoord = tex;
 	}
@@ -129,6 +147,19 @@ struct SKINNED_VERTEX_3D
 	}
 };
 
+struct VFXVertex
+{
+	XMFLOAT3 position;
+	XMFLOAT2 uv;
+	XMFLOAT4 color;
+};
+
+struct WorldMatrixBuffer
+{
+	XMMATRIX world;
+	XMMATRIX invWorld;
+};
+
 // マテリアル構造体
 struct MATERIAL
 {
@@ -138,13 +169,23 @@ struct MATERIAL
 	XMFLOAT4	Emission;
 	float		Shininess;
 	int			noTexSampling;
+	int			normalMapSampling;
+	int			bumpMapSampling;
+	int			opacityMapSampling;
 	int			lightMapSampling;
+	int			reflectMapSampling;
+	int			translucencyMapSampling;
 	BOOL		LoadMaterial;
 
 	MATERIAL()
 	{
 		noTexSampling = 1;
 		lightMapSampling = 0;
+		normalMapSampling = 0;
+		bumpMapSampling = 0;
+		opacityMapSampling = 0;
+		reflectMapSampling = 0;
+		translucencyMapSampling = 0;
 		LoadMaterial = FALSE;
 		Ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 		Diffuse = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
@@ -169,7 +210,8 @@ struct LIGHT
 };
 
 // フォグ構造体
-struct FOG {
+struct FOG 
+{
 	float		FogStart;	// フォグの開始距離
 	float		FogEnd;		// フォグの最大距離
 	XMFLOAT4	FogColor;	// フォグの色
@@ -192,7 +234,12 @@ struct MATERIAL_CBUFFER
 	float		Shininess;
 	int			noTexSampling;
 	int			lightMapSampling;
-	float		Dummy[1];				// 16byte境界用
+	int			normalMapSampling;
+	int			bumpMapSampling;
+	int			opacityMapSampling;
+	int			reflectMapSampling;
+	int			translucencyMapSampling;
+	//float		Dummy[1];				// 16byte境界用
 };
 
 // ライト用フラグ構造体
@@ -251,6 +298,7 @@ struct RenderProgressBuffer
 	int isRandomFade;
 	XMFLOAT2 padding;
 };
+
 //*****************************************************************************
 // プロトタイプ宣言
 //*****************************************************************************
@@ -258,6 +306,9 @@ struct RenderProgressBuffer
 class Renderer : public SingletonBase<Renderer>
 {
 public:
+
+	Renderer();
+
 	HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow);
 	void Uninit(void);
 
@@ -273,9 +324,9 @@ public:
 	void SetAlphaTestEnable(BOOL flag);
 
 	void SetWorldViewProjection2D(void);
-	void SetCurrentWorldMatrix(XMMATRIX* WorldMatrix);
-	void SetViewMatrix(XMMATRIX* ViewMatrix);
-	void SetProjectionMatrix(XMMATRIX* ProjectionMatrix);
+	void SetCurrentWorldMatrix(const XMMATRIX* WorldMatrix) const;
+	void SetViewMatrix(const XMMATRIX* ViewMatrix) const;
+	void SetProjectionMatrix(const XMMATRIX* ProjectionMatrix) const;
 
 	void SetMaterial(MATERIAL material);
 
@@ -295,16 +346,18 @@ public:
 	void SetFillMode(D3D11_FILL_MODE mode);
 	void SetBoneMatrix(XMMATRIX matrices[BONE_MAX]);
 	void SetClearColor(float* color4);
-
+	void SetRenderLayer(RenderLayer layer);
 	void SetRenderShadowMap(int lightIdx);
 	void SetRenderSkinnedMeshShadowMap(int lightIdx);
 	void SetRenderInstanceShadowMap(int lightIdx);
 	void SetRenderObject(void);
 	void SetRenderSkinnedMeshModel(void);
 	void SetRenderInstance(void);
+	void SetRenderVFX(void);
 	void SetRenderUI(void);
 	void SetModelInputLayout(void);
 	void SetSkinnedMeshInputLayout(void);
+	void SetVFXInputLayout(void);
 	void ResetRenderTarget(void);
 	void SetLightModeBuffer(int mode);
 	void ClearShadowDSV(int lightIdx);
@@ -332,14 +385,20 @@ private:
 	ID3D11DepthStencilView* g_ShadowDSV[LIGHT_MAX];
 	ID3D11DepthStencilView* g_SceneDepthStencilView = NULL;
 
-	ID3D11VertexShader* g_VertexShader = NULL;
-	ID3D11VertexShader* g_SkinnedMeshVertexShader = NULL;
-	ID3D11VertexShader* g_DepthVertexShader = NULL;
-	ID3D11VertexShader* g_DepthSkinnedMeshVertexShader = NULL;
-	ID3D11PixelShader* g_PixelShader = NULL;
-	ID3D11PixelShader* g_SkinnedMeshPixelShader = NULL;
 	ID3D11InputLayout* g_VertexLayout = NULL;
+	ID3D11VertexShader* g_VertexShader = NULL;
+	ID3D11VertexShader* g_DepthVertexShader = NULL;
+	ID3D11PixelShader* g_PixelShader = NULL;
+
 	ID3D11InputLayout* g_SkinnedMeshVertexLayout = NULL;
+	ID3D11VertexShader* g_SkinnedMeshVertexShader = NULL;
+	ID3D11PixelShader* g_SkinnedMeshPixelShader = NULL;
+	ID3D11VertexShader* g_DepthSkinnedMeshVertexShader = NULL;
+
+	ID3D11VertexShader* g_VFXVertexShader = NULL;
+	ID3D11PixelShader* g_VFXPixelShader = NULL;
+	ID3D11InputLayout* g_VFXVertexLayout = NULL;
+
 	ID3D11Buffer* g_WorldBuffer = NULL;
 	ID3D11Buffer* g_ViewBuffer = NULL;
 	ID3D11Buffer* g_ProjectionBuffer = NULL;
@@ -362,12 +421,17 @@ private:
 	ID3D11BlendState* g_BlendStateAlphaBlend = NULL;
 	ID3D11BlendState* g_BlendStateAdd = NULL;
 	ID3D11BlendState* g_BlendStateSubtract = NULL;
+	ID3D11BlendState* g_BlendStateSwordTrail = NULL;
 	BLEND_MODE				g_BlendStateParam;
 
 
 	ID3D11RasterizerState* g_RasterStateCullOff;
 	ID3D11RasterizerState* g_RasterStateCullCW;
 	ID3D11RasterizerState* g_RasterStateCullCCW;
+	ID3D11RasterizerState* g_RasterizerLayer0;
+	ID3D11RasterizerState* g_RasterizerLayer1;
+	ID3D11RasterizerState* g_RasterizerLayer2;
+	ID3D11RasterizerState* g_RasterizerLayer3;
 
 
 	MATERIAL_CBUFFER	g_Material;

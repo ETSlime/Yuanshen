@@ -168,6 +168,7 @@
     <ClInclude Include="SkinnedMeshModel.h" />
     <ClInclude Include="Skybox.h" />
     <ClInclude Include="sprite.h" />
+    <ClInclude Include="SwordTrail.h" />
     <ClInclude Include="TextureMgr.h" />
     <ClInclude Include="Timer.h" />
     <ClInclude Include="Town.h" />
@@ -200,6 +201,7 @@
     <ClCompile Include="SkinnedMeshModel.cpp" />
     <ClCompile Include="Skybox.cpp" />
     <ClCompile Include="sprite.cpp" />
+    <ClCompile Include="SwordTrail.cpp" />
     <ClCompile Include="TextureMgr.cpp" />
     <ClCompile Include="Town.cpp" />
   </ItemGroup>

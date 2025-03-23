@@ -190,8 +190,12 @@ void Enemy::Update(void)
 	if (instance.use == true)		// このエネミーが使われている？
 	{								// Yes
 
+
+
 		if (!UpdateAliveState())
 			return;
+
+		UpdateHPGauge();
 
 		GameObject::Update();
 
@@ -318,52 +322,28 @@ void Enemy::Draw(void)
 	GameObject::Draw();
 }
 
-void Enemy::DrawUI(void)
+void Enemy::DrawUI(EnemyUIType type)
 {
-	if (HPGauge.bUse)
-		DrawHPGauge();
+	switch (type)
+	{
+	case EnemyUIType::HPGauge:
+		if (HPGauge.bUse)
+			DrawHPGauge();
+		break;
+	case EnemyUIType::HPGaugeCover:
+		if (HPGauge.bUse)
+			DrawHPGaugeCover();
+		break;
+	default:
+		break;
+	}
 }
 
 void Enemy::DrawHPGauge(void)
 {
-	XMMATRIX mtxTranslate, mtxWorld, mtxView;
-	Camera& cam = Camera::get_instance();
+	XMMATRIX mtxWorld;
 
 	float ratio = enemyAttr.HP / enemyAttr.maxHP;
-
-	// プリミティブトポロジ設定
-	Renderer::get_instance().GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-
-	// 頂点バッファ設定
-	UINT stride = sizeof(VERTEX_3D);
-	UINT offset = 0;
-	Renderer::get_instance().GetDeviceContext()->IASetVertexBuffers(0, 1, &HPGaugeVertexBuffer, &stride, &offset);
-
-	// ビューマトリックスを取得
-	mtxView = XMLoadFloat4x4(&cam.GeViewMtx());
-
-	// 正方行列（直交行列）を転置行列させて逆行列を作ってる版(速い)
-	XMMATRIX billboardRotation = XMMatrixIdentity();
-	billboardRotation.r[0] = XMVectorSet(mtxView.r[0].m128_f32[0], mtxView.r[1].m128_f32[0], mtxView.r[2].m128_f32[0], 0.0f);
-	billboardRotation.r[1] = XMVectorSet(mtxView.r[0].m128_f32[1], mtxView.r[1].m128_f32[1], mtxView.r[2].m128_f32[1], 0.0f);
-	billboardRotation.r[2] = XMVectorSet(mtxView.r[0].m128_f32[2], mtxView.r[1].m128_f32[2], mtxView.r[2].m128_f32[2], 0.0f);
-
-	mtxTranslate = XMMatrixTranslation(HPGauge.pos.x, HPGauge.pos.y, HPGauge.pos.z);
-	mtxWorld = XMMatrixMultiply(billboardRotation, mtxTranslate);
-
-	// ワールドマトリックスの設定
-	Renderer::get_instance().SetCurrentWorldMatrix(&mtxWorld);
-
-	// マテリアル設定
-	HPGauge.material.Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.3f);
-	Renderer::get_instance().SetMaterial(HPGauge.material);
-
-	// テクスチャ設定
-	Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &HPGaugeCoverTex);
-
-	// ポリゴンの描画
-	Renderer::get_instance().GetDeviceContext()->Draw(4, 0);
-
 
 	// 血条のワールド座標を計算
 	XMMATRIX worldPosition = XMMatrixTranslation(HPGauge.pos.x, HPGauge.pos.y, HPGauge.pos.z);
@@ -379,7 +359,7 @@ void Enemy::DrawHPGauge(void)
 	// 左端を固定するための補正移動
 	mtxWorld = XMMatrixMultiply(mtxWorld, moveBack);
 	// ビルボードの回転を適用
-	mtxWorld = XMMatrixMultiply(mtxWorld, billboardRotation);
+	mtxWorld = XMMatrixMultiply(mtxWorld, HPGauge.rot);
 	// 最終的なワールド座標に移動
 	mtxWorld = XMMatrixMultiply(mtxWorld, worldPosition);
 
@@ -389,6 +369,11 @@ void Enemy::DrawHPGauge(void)
 	HPGauge.material.Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	Renderer::get_instance().SetMaterial(HPGauge.material);
 
+	// プリミティブトポロジ設定
+	Renderer::get_instance().GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+	UINT stride = sizeof(VERTEX_3D);
+	UINT offset = 0;
 	Renderer::get_instance().GetDeviceContext()->IASetVertexBuffers(0, 1, &HPGaugeVertexBuffer, &stride, &offset);
 
 	Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &HPGaugeTex);
@@ -397,6 +382,35 @@ void Enemy::DrawHPGauge(void)
 	Renderer::get_instance().GetDeviceContext()->Draw(4, 0);
 
 
+}
+
+void Enemy::DrawHPGaugeCover(void)
+{
+	XMMATRIX mtxTranslate, mtxWorld;
+
+	mtxTranslate = XMMatrixTranslation(HPGauge.pos.x, HPGauge.pos.y, HPGauge.pos.z);
+	mtxWorld = XMMatrixMultiply(HPGauge.rot, mtxTranslate);
+
+	// ワールドマトリックスの設定
+	Renderer::get_instance().SetCurrentWorldMatrix(&mtxWorld);
+
+	// マテリアル設定
+	HPGauge.material.Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.3f);
+	Renderer::get_instance().SetMaterial(HPGauge.material);
+
+	// プリミティブトポロジ設定
+	Renderer::get_instance().GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+	// 頂点バッファ設定
+	UINT stride = sizeof(VERTEX_3D);
+	UINT offset = 0;
+	Renderer::get_instance().GetDeviceContext()->IASetVertexBuffers(0, 1, &HPGaugeVertexBuffer, &stride, &offset);
+
+	// テクスチャ設定
+	Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &HPGaugeCoverTex);
+
+	// ポリゴンの描画
+	Renderer::get_instance().GetDeviceContext()->Draw(4, 0);
 }
 
 void Enemy::InitHPGauge(void)
@@ -412,6 +426,22 @@ void Enemy::InitHPGauge(void)
 	MakeVertexHPGauge(HPGauge.fWidth, HPGauge.fHeight);
 
 	HPGauge.bUse = true;
+}
+
+void Enemy::UpdateHPGauge(void)
+{
+	Camera& cam = Camera::get_instance();
+
+	// ビューマトリックスを取得
+	XMMATRIX mtxView = XMLoadFloat4x4(&cam.GeViewMtx());
+
+	// 正方行列（直交行列）を転置行列させて逆行列を作ってる版(速い)
+	XMMATRIX billboardRotation = XMMatrixIdentity();
+	billboardRotation.r[0] = XMVectorSet(mtxView.r[0].m128_f32[0], mtxView.r[1].m128_f32[0], mtxView.r[2].m128_f32[0], 0.0f);
+	billboardRotation.r[1] = XMVectorSet(mtxView.r[0].m128_f32[1], mtxView.r[1].m128_f32[1], mtxView.r[2].m128_f32[1], 0.0f);
+	billboardRotation.r[2] = XMVectorSet(mtxView.r[0].m128_f32[2], mtxView.r[1].m128_f32[2], mtxView.r[2].m128_f32[2], 0.0f);
+	
+	HPGauge.rot = billboardRotation;
 }
 
 void Enemy::Initialize(void)

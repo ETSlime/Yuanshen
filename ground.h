@@ -13,13 +13,13 @@
 // マクロ定義
 //*****************************************************************************
 // 読み込むモデル名
+#define MODEL_BANYAN_PATH			"data/MODEL/Environment/Banyan/Big_Banyan_121.obj"
 #define	MODEL_ENVIRONMENT_PATH		"data/MODEL/Environment/"
 #define	MODEL_TOWN_PATH				"data/MODEL/Environment/Knight"
 #define	MODEL_FIELD					"data/MODEL/Environment/Land.obj"
 #define	MODEL_TREE_NAME				"Tree.fbx"
 #define	MODEL_FIELD_NAME			"Land.fbx"
 #define	MODEL_BONFIRE_NAME			"bonfire.fbx"
-#define	MODEL_TOWN_NAME				"kt.fbx"
 
 #define WORLD_MAX			(XMFLOAT3(200000.0f, 200000.0f, 200000.0f))
 #define WORLD_MIN			(XMFLOAT3(-200000.0f, -200000.0f, -200000.0f))

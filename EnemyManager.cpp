@@ -33,7 +33,7 @@ void EnemyManager::Init(const Player* player)
 	//}
 
 
-	SpawnEnemy(EnemyType::Hilichurl, trans, EnemyState::HILI_DANCE);
+	//SpawnEnemy(EnemyType::Hilichurl, trans, EnemyState::HILI_DANCE);
 
 	//trans.pos = XMFLOAT3(12759.5f, -2384.0f, -19177.56f);
 	//SpawnEnemy(EnemyType::Hilichurl, trans, EnemyState::HILI_DANCE);
@@ -104,7 +104,7 @@ void EnemyManager::Draw(void)
 	renderer.SetCullingMode(CULL_MODE_BACK);
 }
 
-void EnemyManager::DrawUI(void)
+void EnemyManager::DrawUI(EnemyUIType type)
 {
 	Node<Enemy*>* cur = enemyList.getHead();
 	while (cur != nullptr)
@@ -114,7 +114,7 @@ void EnemyManager::DrawUI(void)
 			renderer.SetRenderProgress(cur->data->GetInstance()->renderProgress);
 
 		if (!cur->data->GetEnemyAttribute().isDead)
-			cur->data->DrawUI();
+			cur->data->DrawUI(type);
 
 		if (cur->data->GetInstance()->renderProgress.progress < 1.0f)
 		{
