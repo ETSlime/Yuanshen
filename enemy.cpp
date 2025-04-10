@@ -5,12 +5,12 @@
 //
 //=============================================================================
 #include "main.h"
-#include "renderer.h"
+#include "Renderer.h"
 #include "model.h"
 #include "input.h"
 #include "debugproc.h"
 #include "Enemy.h"
-#include "camera.h"
+#include "Camera.h"
 #include "MapEditor.h"
 #include "score.h"
 #include "Hilichurl.h"
@@ -433,7 +433,7 @@ void Enemy::UpdateHPGauge(void)
 	Camera& cam = Camera::get_instance();
 
 	// ビューマトリックスを取得
-	XMMATRIX mtxView = XMLoadFloat4x4(&cam.GeViewMtx());
+	XMMATRIX mtxView = XMLoadFloat4x4(&cam.GetViewMatrix());
 
 	// 正方行列（直交行列）を転置行列させて逆行列を作ってる版(速い)
 	XMMATRIX billboardRotation = XMMatrixIdentity();

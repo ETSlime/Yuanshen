@@ -73,6 +73,22 @@ public:
         size++;
     }
 
+    void push_back(T&& item) {
+        if (size >= capacity) {
+            int newCapacity = (capacity == 0) ? 4 : capacity * 2;
+            T* newArray = new T[newCapacity];
+            for (UINT i = 0; i < size; ++i) {
+                newArray[i] = std::move(array[i]);
+            }
+            delete[] array;
+            array = newArray;
+            capacity = newCapacity;
+        }
+        array[size] = std::move(item);
+        size++;
+    }
+
+
     const T& front() const
     {
         if (size == 0) 
@@ -98,11 +114,19 @@ public:
         //size = 0;
         //capacity = 0;
 
-        for (UINT i = 0; i < size; i++)
+        if (!std::is_trivially_destructible<T>::value)
         {
-            array[i].~T();
+            for (UINT i = 0; i < size; i++)
+            {
+                array[i].~T();
+            }
         }
+
         size = 0;
+    }
+
+    bool empty() const {
+        return size == 0;
     }
 
     UINT getSize() const {
@@ -121,6 +145,30 @@ public:
         delete[] array;
         array = newArray;
         capacity = newCapacity;
+    }
+
+    void reserve(UINT newCapacity, bool forceShrink = false)
+    {
+        if (!forceShrink && newCapacity <= capacity) return;
+
+        T* newArray = new T[newCapacity];
+        for (UINT i = 0; i < size; ++i)
+        {
+            newArray[i] = array[i];
+        }
+        delete[] array;
+        array = newArray;
+        capacity = newCapacity;
+    }
+
+    int find_index(const T& value) const
+    {
+        for (UINT i = 0; i < size; ++i)
+        {
+            if (array[i] == value)
+                return i;
+        }
+        return -1;
     }
 
     void erase(UINT index) 
@@ -155,6 +203,12 @@ public:
         }
     }
 
+    T* begin() { return array; }
+    T* end() { return array + size; }
+    T* data() { return array; }
+
+    const T* begin() const { return array; }
+    const T* end() const { return array + size; }
 
     T& operator[](UINT index) {
         return array[index];

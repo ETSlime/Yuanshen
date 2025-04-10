@@ -511,7 +511,7 @@ void Model::LoadObj( char *FileName, MODEL_DATA* Model )
 
 	if (loadTangent == false)
 	{
-		for (int i = 0; i < indexNum; i += 3)
+		for (unsigned int i = 0; i < indexNum; i += 3)
 		{
 			VERTEX_3D v0 = Model->VertexArray[Model->IndexArray[i]];
 			VERTEX_3D v1 = Model->VertexArray[Model->IndexArray[i + 1]];
@@ -888,6 +888,37 @@ void Model::CreateBoundingBoxVertex()
 	vertex[23].TexCoord = XMFLOAT2(1.0f, 1.0f);
 
 	renderer.GetDeviceContext()->Unmap(this->BBVertexBuffer, 0);
+}
+
+void Model::BuildMeshParts(void)
+{
+	m_meshParts.clear();
+
+	ID3D11Buffer* sharedVB = VertexBuffer;
+	ID3D11Buffer* sharedIB = IndexBuffer;
+
+	for (unsigned int i = 0; i < SubsetNum; i++)
+	{
+		StaticMeshPart part = {};
+		part.VertexBuffer = sharedVB;
+		part.IndexBuffer = sharedIB;
+		part.IndexNum = SubsetArray[i].IndexNum;
+		part.StartIndex = SubsetArray[i].StartIndex;
+
+		m_meshParts.push_back(part);
+	}
+}
+
+const SimpleArray<StaticMeshPart>& Model::GetMeshParts(void) const
+{
+	if (m_meshParts.empty())
+	{
+		// const_castを使っているのは、constメンバ関数内で非constメンバ関数を呼ぶため
+		// ただし、const_castはあまり好ましくないので、注意して使うこと
+		// ここでは、const_castを使わないとコンパイルエラーになるので、やむを得ず使用している
+		const_cast<Model*>(this)->BuildMeshParts();
+	}
+	return m_meshParts;
 }
 
 Model* Model::StoreModel(char* modelPath)

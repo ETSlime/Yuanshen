@@ -33,7 +33,7 @@ void EnemyManager::Init(const Player* player)
 	//}
 
 
-	//SpawnEnemy(EnemyType::Hilichurl, trans, EnemyState::HILI_DANCE);
+	SpawnEnemy(EnemyType::Hilichurl, trans, EnemyState::HILI_DANCE);
 
 	//trans.pos = XMFLOAT3(12759.5f, -2384.0f, -19177.56f);
 	//SpawnEnemy(EnemyType::Hilichurl, trans, EnemyState::HILI_DANCE);

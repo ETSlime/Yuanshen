@@ -4,15 +4,14 @@
 // Author : 
 //
 //=============================================================================
-#include <random>
 #include "main.h"
-#include "renderer.h"
+#include "Renderer.h"
 #include "input.h"
-#include "camera.h"
+#include "Camera.h"
 #include "debugproc.h"
-#include "model.h"
+#include "Model.h"
 #include "EnemyManager.h"
-#include "light.h"
+#include "LightManager.h"
 #include "Ground.h"
 #include "sprite.h"
 #include "score.h"
@@ -24,6 +23,10 @@
 #include "CollisionManager.h"
 #include "Skybox.h"
 #include "Timer.h"
+#include "ShaderManager.h"
+#include "ShadowMapRenderer.h"
+#include "Scene.h"
+#include "UIManager.h"
 
 //*****************************************************************************
 // マクロ定義
@@ -39,6 +42,8 @@ HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow);
 void Uninit(void);
 void Update(void);
 void Draw(void);
+void RenderShadowPass(void);
+void RenderMainPass(void);
 
 //*****************************************************************************
 // グローバル変数:
@@ -55,11 +60,14 @@ CollisionManager& collisionManager = CollisionManager::get_instance();
 Renderer& renderer = Renderer::get_instance();
 Timer& timer = Timer::get_instance();
 Camera& camera = Camera::get_instance();
+LightManager& lightManager = LightManager::get_instance();
+ShaderManager& shaderManager = ShaderManager::get_instance();
+ShadowMapRenderer& shadowMapRenderer = ShadowMapRenderer::get_instance();
+Scene& scene = Scene::get_instance();
+UIManager& uiManager = UIManager::get_instance();
 Ground* ground = nullptr;
 Player* player = nullptr;
 Skybox* skybox = nullptr;
-//TextureMgr& mTexMgr = TextureMgr::get_instance();
-//FBXLoader& fbxLoader = FBXLoader::get_instance();
 
 #ifdef _DEBUG
 int		g_CountFPS;							// FPSカウンタ
@@ -67,6 +75,7 @@ char	g_DebugStr[2048] = WINDOW_NAME;		// デバッグ文字表示用
 
 #endif
 
+MODE g_Mode = MODE::GAME;					// 起動時の画面を設定
 
 //=============================================================================
 // メイン関数
@@ -249,6 +258,13 @@ HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	// レンダラーの初期化
 	renderer.Init(hInstance, hWnd, bWindow);
 
+	shaderManager.Init(renderer.GetDevice());
+	renderer.SetShadersets();
+
+	shadowMapRenderer.Init(CSM_SHADOW_MAP_SIZE, CSM_CASCADE_COUNT);
+
+	uiManager.Init();
+
 	// カメラの初期化
 	camera.Init();
 
@@ -257,9 +273,6 @@ HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 
 	// プレイヤーの初期化
 	player = new Player();
-
-	// ライトの初期化
-	InitLight(player);
 
 	// エネミーの初期化
 	enemyManager.Init(player);
@@ -276,7 +289,7 @@ HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	skybox = new Skybox();
 
 	// ライトを有効化
-	renderer.SetLightEnable(TRUE);
+	lightManager.SetLightEnable(TRUE);
 
 	// 背面ポリゴンをカリング
 	renderer.SetCullingMode(CULL_MODE_BACK);
@@ -304,7 +317,7 @@ void Uninit(void)
 	UninitScore();
 
 	// レンダラーの終了処理
-	Renderer::get_instance().Uninit();
+	renderer.Uninit();
 
 	UninitOffScreenRender();
 
@@ -324,8 +337,6 @@ void Update(void)
 	// カメラ更新
 	camera.Update();
 
-	UpdateLight();
-
 	skybox->Update();
 
 	// プレイヤーの更新処理
@@ -339,6 +350,11 @@ void Update(void)
 	//mapEditor.Update();
 
 	collisionManager.Update();
+
+	lightManager.Update();
+
+	// UIの更新処理
+	uiManager.Update();
 }
 
 //=============================================================================
@@ -349,53 +365,111 @@ void Draw(void)
 	// バックバッファクリア
 	renderer.Clear();
 
-	//skybox->Draw(XMLoadFloat4x4(&camera->mtxView), XMLoadFloat4x4(&camera->mtxProjection));
-
-	for (int lightIdx = 2; lightIdx >= 0; lightIdx--)
+	// モードによって処理を分ける
+	switch (g_Mode)
 	{
-		LIGHT* light = GetLightData(lightIdx);
-		if (light->Enable == FALSE) continue;
+	case MODE::TITLE:		// タイトル画面の描画
+		break;
+	case MODE::GAME:		// ゲーム画面の描画
+		break;
+	default:
+		break;
+	}
+
+	// スカイボックスの描画
+	//skybox->Draw(XMLoadFloat4x4(&camera.GetViewMatrix()), XMLoadFloat4x4(&camera.GetProjMatrix()));
+
+	// シャドウマップの描画
+	//RenderShadowPass();
+
+	const DoubleLinkedList<Light*>& lightList = lightManager.GetLightList();
+	int lightIdx = 0;
+	for (const auto& light : lightList)
+	{
+		if (light->GetLightData().Enable == FALSE) continue;
+		if (lightIdx >= LIGHT_MAX) continue;
 
 		renderer.ClearShadowDSV(lightIdx);
+		lightIdx++;
 	}
 
 	renderer.SetShadowPassViewport();
 
 	// obj model shadow map
 	renderer.SetModelInputLayout();
-	for (int i = 2; i >= 0; i--)
+	lightIdx = 0;
+	for (const auto& light : lightList)
 	{
-		LIGHT* light = GetLightData(i);
-		if (light->Enable == FALSE) continue;
+		if (light->GetLightData().Enable == FALSE) continue;
+		if (lightIdx >= LIGHT_MAX) continue;
 
-		renderer.SetRenderShadowMap(i);
-
+		renderer.SetRenderShadowMap(lightIdx);
 		ground->Draw();
+
+		lightIdx++;
 	}
 
 	// skinned mesh model shadow map
 	renderer.SetSkinnedMeshInputLayout();
-	for (int i = 2; i >= 0; i--)
+	lightIdx = 0;
+	for (const auto& light : lightList)
 	{
-		LIGHT* light = GetLightData(i);
-		if (light->Enable == FALSE) continue;
+		if (light->GetLightData().Enable == FALSE) continue;
+		if (lightIdx >= LIGHT_MAX) continue;
 
-		renderer.SetRenderSkinnedMeshShadowMap(i);
+		renderer.SetRenderSkinnedMeshShadowMap(lightIdx);
 		player->Draw();
 		enemyManager.Draw();
 		ground->Draw();
+
+		lightIdx++;
 	}
 
 	// instance shadow map
-	for (int i = 2; i >= 0; i--)
+	lightIdx = 0;
+	for (const auto& light : lightList)
 	{
-		LIGHT* light = GetLightData(i);
-		if (light->Enable == FALSE) continue;
+		if (light->GetLightData().Enable == FALSE) continue;
+		if (lightIdx >= LIGHT_MAX) continue;
 
-		renderer.SetRenderInstanceShadowMap(i);
+		renderer.SetRenderInstanceShadowMap(lightIdx);
 		ground->Draw();
+
+		lightIdx++;
 	}
 
+	RenderMainPass();
+
+#ifdef _DEBUG
+	// デバッグ表示
+	DrawDebugProc();
+#endif
+
+	// バックバッファ、フロントバッファ入れ替え
+	renderer.Present();
+}
+
+void RenderShadowPass(void)
+{
+	const auto& lightList = lightManager.GetLightList();
+	const auto& sceneObjects = scene.GetAllRenderableObjects();
+
+	int lightIdx = 0;
+	for (const auto& light : lightList)
+	{
+		if (!light->GetLightData().Enable || lightIdx >= LIGHT_MAX) continue;
+
+		if (light->GetType() == LIGHT_TYPE::DIRECTIONAL)
+		{
+			shadowMapRenderer.RenderCSMForLight(static_cast<DirectionalLight*>(light), sceneObjects);
+		}
+
+		lightIdx++;
+	}
+}
+
+void RenderMainPass(void)
+{
 	// メインパスのビューポートを設定
 	renderer.SetMainPassViewport();
 
@@ -403,7 +477,7 @@ void Draw(void)
 	renderer.SetModelInputLayout();
 	renderer.SetRenderObject();
 	ground->Draw();
-	
+
 
 	// skinned mesh model rendering
 	renderer.SetSkinnedMeshInputLayout();
@@ -426,18 +500,19 @@ void Draw(void)
 	renderer.SetModelInputLayout();
 	renderer.SetRenderUI();
 	// ライティングを無効
-	renderer.SetLightEnable(FALSE);
+	lightManager.SetLightEnable(FALSE);
 	//mapEditor.Draw();
 	renderer.SetRenderLayer(RenderLayer::LAYER_1);
 	enemyManager.DrawUI(EnemyUIType::HPGauge);
 	renderer.SetRenderLayer(RenderLayer::DEFAULT);
 	enemyManager.DrawUI(EnemyUIType::HPGaugeCover);
-	//// 深度テストを無効に
-	//renderer.SetDepthEnable(FALSE);
-	//// 深度テストを有効に
-	//renderer.SetDepthEnable(TRUE);
+	// 深度テストを無効に
+	renderer.SetDepthEnable(FALSE);
+	uiManager.Draw();
+	// 深度テストを有効に
+	renderer.SetDepthEnable(TRUE);
 	// ライティングを有効に
-	renderer.SetLightEnable(TRUE);
+	lightManager.SetLightEnable(TRUE);
 
 
 	//SetOffScreenRender();
@@ -446,14 +521,6 @@ void Draw(void)
 	//SetLightEnable(FALSE);
 	//DrawOffScreenRender();
 	//SetLightEnable(FALSE);
-
-#ifdef _DEBUG
-	// デバッグ表示
-	DrawDebugProc();
-#endif
-
-	// バックバッファ、フロントバッファ入れ替え
-	renderer.Present();
 }
 
 bool GetWindowActive(void)

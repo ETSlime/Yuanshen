@@ -5,7 +5,7 @@
 //
 //=============================================================================
 #include "Town.h"
-
+#include "ShadowMeshCollector.hpp"
 
 // ì«Ç›çûÇﬁÉÇÉfÉãñº
 #define	MODEL_ENVIRONMENT_PATH		"data/MODEL/Environment/"

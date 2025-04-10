@@ -162,6 +162,13 @@ struct ModelData
 	ID3D11ShaderResourceView* emissiveTexture;
 };
 
+struct SkinnedMeshPart
+{
+	ID3D11Buffer* VertexBuffer = nullptr;
+	ID3D11Buffer* IndexBuffer = nullptr;
+	UINT IndexNum = 0;
+};
+
 class SkinnedMeshModel
 {
 public:
@@ -204,6 +211,7 @@ public:
 	XMMATRIX GetWeaponTransformMtx(void);
 	XMMATRIX GetBodyTransformMtx(void);
 	XMMATRIX GetBoneFinalTransform(UINT boneIdx = 0);
+	const XMMATRIX* GetFinalBoneMatrices(void);
 
 	UINT weaponTransformIdx;
 
@@ -211,6 +219,8 @@ public:
 		ModelType modelType, AnimClipName clipName);
 	static SkinnedMeshModelPool* GetModel(char* modelFullPath);
 	static void RemoveModel(char* modelPath);
+
+	const SimpleArray<SkinnedMeshPart>& GetMeshParts() const;
 
 private:
 
@@ -233,6 +243,8 @@ private:
 	void DrawBoundingBox(ModelData* modelData);
 	void CreateBoundingBoxVertex(SKINNED_MESH_BOUNDING_BOX* boundingBox) const;
 
+	void BuildMeshParts(void);
+
 	char modelPath[MODEL_PATH_LENGTH];
 	char modelName[MODEL_NAME_LENGTH];
 
@@ -254,6 +266,10 @@ private:
 
 	BOUNDING_BOX boundingBox;
 	BindPose bindPose;
+
+	XMMATRIX m_transposedBoneMatrices[BONE_MAX];
+
+	mutable SimpleArray<SkinnedMeshPart> m_meshParts;
 
 	ID3D11ShaderResourceView* bodyDiffuseTexture = nullptr;
 	ID3D11ShaderResourceView* bodyLightMapTexture = nullptr;

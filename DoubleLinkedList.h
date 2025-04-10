@@ -14,6 +14,7 @@ public:
 template<typename T>
 class DoubleLinkedList 
 {
+
 private:
     Node<T>* head;
     Node<T>* tail;
@@ -27,9 +28,17 @@ public:
         clear();
     }
 
+    DoubleLinkedList(const DoubleLinkedList&) = delete;
+    DoubleLinkedList& operator=(const DoubleLinkedList&) = delete;
+
     Node<T>* getHead() const 
     {
         return head;
+    }
+
+    Node<T>* getBack() const
+    {
+        return tail;
     }
 
     void push_back(const T& item) 
@@ -121,6 +130,20 @@ public:
         }
     }
 
+    void remove(const T* ptrToData)
+    {
+        Node<T>* current = head;
+        while (current != nullptr)
+        {
+            if (&(current->data) == ptrToData)
+            {
+                remove(current);
+                return;
+            }
+            current = current->next;
+        }
+    }
+
     void clear() 
     {
         Node<T>* current = head;
@@ -138,4 +161,73 @@ public:
     {
         return size;
     }
+
+    class Iterator
+    {
+    private:
+        Node<T>* current;
+    public:
+        Iterator(Node<T>* node) : current(node) {}
+
+        T& operator*() const { return current->data; }
+        T* operator->() const { return &(current->data); }
+
+        Iterator& operator++()
+        {
+            if (current) current = current->next;
+            return *this;
+        }
+
+        Iterator operator++(int)
+        {
+            Iterator temp = *this;
+            ++(*this);
+            return temp;
+        }
+
+        Iterator& operator--()
+        {
+            if (current) current = current->prev;
+            return *this;
+        }
+
+        Iterator operator--(int)
+        {
+            Iterator temp = *this;
+            --(*this);
+            return temp;
+        }
+
+        bool operator==(const Iterator& other) const
+        {
+            return current == other.current;
+        }
+
+        bool operator!=(const Iterator& other) const
+        {
+            return current != other.current;
+        }
+
+        Node<T>* getNode() const { return current; }
+    };
+
+    Iterator begin() { return Iterator(head); }
+    Iterator end() { return Iterator(nullptr); }
+
+    Iterator begin() const { return Iterator(head); }
+    Iterator end() const { return Iterator(nullptr); }
+
+    Iterator erase(Iterator pos)
+    {
+        Node<T>* node = pos.getNode();
+        if (node == nullptr) return end();
+
+        Iterator next(node->next);
+        remove(node);
+        return next;
+    }
+
+    // range-based for
+    using iterator = Iterator;
+    using const_iterator = Iterator;
 };

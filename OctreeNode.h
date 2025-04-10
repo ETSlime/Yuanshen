@@ -7,94 +7,10 @@
 #pragma once
 #include "main.h"
 #include "SimpleArray.h"
+#include "AABBUtils.h"
 //*****************************************************************************
 // 構造体定義
 //*****************************************************************************
-struct SKINNED_MESH_BOUNDING_BOX
-{
-    XMFLOAT3 minPoint;
-    XMFLOAT3 maxPoint;
-    XMFLOAT3 baseMinPoint;
-    XMFLOAT3 baseMaxPoint;
-    ID3D11Buffer* BBVertexBuffer;
-    int	boneIdx;
-
-    SKINNED_MESH_BOUNDING_BOX()
-    {
-        minPoint = XMFLOAT3(0.0f, 0.0f, 0.0f);
-        maxPoint = XMFLOAT3(0.0f, 0.0f, 0.0f);
-        baseMinPoint = XMFLOAT3(0.0f, 0.0f, 0.0f);
-        baseMaxPoint = XMFLOAT3(0.0f, 0.0f, 0.0f);
-        BBVertexBuffer = nullptr;
-        boneIdx = 0;
-    }
-
-    SKINNED_MESH_BOUNDING_BOX(const XMFLOAT3& min, const XMFLOAT3& max)
-    {
-        minPoint = min;
-        maxPoint = max;
-        baseMinPoint = min;
-        baseMaxPoint = max;
-        BBVertexBuffer = nullptr;
-        boneIdx = 0;
-    }
-
-
-    ~SKINNED_MESH_BOUNDING_BOX()
-    {
-        SafeRelease(&BBVertexBuffer);
-    }
-
-    // 指定した点がこの AABB 内に含まれるか判定する関数
-    bool contains(const XMFLOAT3& point) const
-    {
-        return (point.x >= minPoint.x && point.x <= maxPoint.x &&
-            point.y >= minPoint.y && point.y <= maxPoint.y &&
-            point.z >= minPoint.z && point.z <= maxPoint.z);
-    }
-
-    // 他の AABB と交差するかどうか判定する関数
-    bool intersects(const SKINNED_MESH_BOUNDING_BOX& other) const
-    {
-        return (minPoint.x <= other.maxPoint.x && maxPoint.x >= other.minPoint.x &&
-            minPoint.y <= other.maxPoint.y && maxPoint.y >= other.minPoint.y &&
-            minPoint.z <= other.maxPoint.z && maxPoint.z >= other.minPoint.z);
-    }
-};
-
-struct BOUNDING_BOX
-{
-    XMFLOAT3 minPoint;
-    XMFLOAT3 maxPoint;
-
-    BOUNDING_BOX()
-    {
-        minPoint = XMFLOAT3(0.0f, 0.0f, 0.0f);
-        maxPoint = XMFLOAT3(0.0f, 0.0f, 0.0f);
-    }
-
-    BOUNDING_BOX(const XMFLOAT3& min, const XMFLOAT3& max)
-    {
-        minPoint = min;
-        maxPoint = max;
-    }
-
-    // 指定した点がこの AABB 内に含まれるか判定する関数
-    bool contains(const XMFLOAT3& point) const
-    {
-        return (point.x >= minPoint.x && point.x <= maxPoint.x &&
-            point.y >= minPoint.y && point.y <= maxPoint.y &&
-            point.z >= minPoint.z && point.z <= maxPoint.z);
-    }
-
-    // 他の AABB と交差するかどうか判定する関数
-    bool intersects(const BOUNDING_BOX& other) const
-    {
-        return (minPoint.x <= other.maxPoint.x && maxPoint.x >= other.minPoint.x &&
-            minPoint.y <= other.maxPoint.y && maxPoint.y >= other.minPoint.y &&
-            minPoint.z <= other.maxPoint.z && maxPoint.z >= other.minPoint.z);
-    }
-};
 
 struct Triangle
 {

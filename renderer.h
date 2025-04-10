@@ -1,12 +1,13 @@
 //=============================================================================
 //
-// レンダリング処理 [renderer.h]
+// レンダリング処理 [Renderer.h]
 // Author : 
 //
 //=============================================================================
 #pragma once
 #include "main.h"
 #include "SingletonBase.h"
+#include "ShaderManager.h"
 //*********************************************************
 // マクロ定義
 //*********************************************************
@@ -19,14 +20,6 @@
 #define DEPTHBIAS_LAYER_2	(-100)
 #define DEPTHBIAS_LAYER_3	(-200)
 //*********************************************************
-enum LIGHT_TYPE
-{
-	LIGHT_TYPE_NONE,		//ライト無し
-	LIGHT_TYPE_DIRECTIONAL,	//ディレクショナルライト
-	LIGHT_TYPE_POINT,		//ポイントライト
-
-	LIGHT_TYPE_NUM
-};
 
 enum BLEND_MODE
 {
@@ -72,6 +65,8 @@ enum class RenderLayer
 //*********************************************************
 // 構造体
 //*********************************************************
+
+
 
 // 頂点構造体
 struct VERTEX_3D
@@ -196,7 +191,7 @@ struct MATERIAL
 };
 
 // ライト構造体
-struct LIGHT 
+struct LightData
 {
 	XMFLOAT3	Direction;	// ライトの方向
 	XMFLOAT3	Position;	// ライトの位置
@@ -259,10 +254,9 @@ struct LIGHT_CBUFFER
 	XMFLOAT4	Ambient[LIGHT_MAX];		// 環境光の色
 	XMFLOAT4	Attenuation[LIGHT_MAX];	// 減衰率
 	LIGHTFLAGS	Flags[LIGHT_MAX];		// ライト種別
+	XMFLOAT4X4 	LightViewProj[LIGHT_MAX];
 	int			Enable;					// ライティング有効・無効フラグ
 	int			Dummy[3];				// 16byte境界用
-
-	XMFLOAT4X4	LightViewProj;
 };
 
 // フォグ用定数バッファ構造体
@@ -299,10 +293,40 @@ struct RenderProgressBuffer
 	XMFLOAT2 padding;
 };
 
+struct MeshRenderData 
+{
+	ID3D11Buffer* vertexBuffer;
+	ID3D11Buffer* indexBuffer;
+	UINT stride;
+	UINT indexCount;
+	DXGI_FORMAT indexFormat;
+	XMMATRIX worldMatrix;
+
+	ID3D11ShaderResourceView* opacityMapSRV = nullptr;
+	bool enableAlphaTest = false;
+};
+
+struct StaticRenderData : public MeshRenderData
+{
+	UINT startIndexLocation = 0;
+};
+
+struct SkinnedRenderData : public MeshRenderData
+{
+	const XMMATRIX* pBoneMatrices = nullptr;
+};
+
+struct InstancedRenderData : public MeshRenderData
+{
+	ID3D11Buffer* instanceBuffer = nullptr;
+	UINT instanceCount = 0;
+	UINT startIndexLocation = 0;
+};
+
+
 //*****************************************************************************
 // プロトタイプ宣言
 //*****************************************************************************
-
 class Renderer : public SingletonBase<Renderer>
 {
 public:
@@ -330,8 +354,8 @@ public:
 
 	void SetMaterial(MATERIAL material);
 
-	void SetLightEnable(BOOL flag);
-	void SetLight(int index, LIGHT* light);
+	//void SetLightEnable(BOOL flag);
+	//void SetLight(int index, LightData* light);
 	void SetLightProjView(LightViewProjBuffer* lightBuffer);
 
 	void SetFogEnable(BOOL flag);
@@ -360,10 +384,12 @@ public:
 	void SetVFXInputLayout(void);
 	void ResetRenderTarget(void);
 	void SetLightModeBuffer(int mode);
+	void SetLightBuffer(const LIGHT_CBUFFER& lightBuffer);
 	void ClearShadowDSV(int lightIdx);
 
 	void SetMainPassViewport(void);
 	void SetShadowPassViewport(void);
+	void SetShadersets(void);
 
 	RenderMode GetRenderMode(void);
 	void SetRenderMode(RenderMode mode);
@@ -371,7 +397,6 @@ public:
 
 private:
 
-	void SetLightBuffer(void);
 	void SetFogBuffer(void);
 
 	D3D_FEATURE_LEVEL       g_FeatureLevel = D3D_FEATURE_LEVEL_11_0;
@@ -433,6 +458,11 @@ private:
 	ID3D11RasterizerState* g_RasterizerLayer2;
 	ID3D11RasterizerState* g_RasterizerLayer3;
 
+	ShaderManager& m_ShaderManager = ShaderManager::get_instance();
+	ShaderSet m_StaticModelShaderSet;
+	ShaderSet m_SkinnedModelShaderSet;
+	ShaderSet m_InstanceModelShaderSet;
+	ShaderSet m_VFXShaderSet;
 
 	MATERIAL_CBUFFER	g_Material;
 	LIGHT_CBUFFER	g_Light;

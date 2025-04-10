@@ -32,6 +32,14 @@ struct MATERIAL
     //float Dummy[1]; //16byte境界用
 };
 
+struct LightFlags
+{
+    int Type;
+    int OnOff;
+    int Dummy1;
+    int Dummy2;
+};
+
 // ライト用バッファ
 struct LIGHT
 {
@@ -40,10 +48,10 @@ struct LIGHT
     float4 Diffuse[LIGHT_MAX_NUM];
     float4 Ambient[LIGHT_MAX_NUM];
     float4 Attenuation[LIGHT_MAX_NUM];
-    int4 Flags[LIGHT_MAX_NUM];
+    LightFlags Flags[LIGHT_MAX_NUM];
+    matrix LightViewProj[LIGHT_MAX_NUM];
     int Enable;
-    int Dummy[3]; //16byte境界用
-    float4x4 LightViewProj;
+    int3 Dummy; //16byte境界用
 };
 
 struct FOG
@@ -69,7 +77,7 @@ struct MODE
 
 struct SkinnedMeshVertexInputType
 {
-    float4 position : POSITION;
+    float3 position : POSITION;
     float3 normal : NORMAL;
     float3 tangent : TANGENT;
     float3 bitangent : BITANGENT;
@@ -82,9 +90,9 @@ struct SkinnedMeshVertexInputType
 struct PixelInputType
 {
     float4 position : SV_POSITION;
-    float4 normal : NORMAL;
-    float4 tangent : TANGENT;
-    float4 bitangent : BITANGENT;
+    float3 normal : NORMAL;
+    float3 tangent : TANGENT;
+    float3 bitangent : BITANGENT;
     float2 texcoord : TEXCOORD;
     float4 color : COLOR;
     float4 worldPos : POSITION;
@@ -135,10 +143,10 @@ cbuffer CameraPosBuffer : register(b7)
     float4 CameraPos;
 }
 
-cbuffer ProjViewBuffer : register(b8)
-{
-    LightViewProjBuffer ProjView;
-}
+//cbuffer ProjViewBuffer : register(b8)
+//{
+//    LightViewProjBuffer ProjView;
+//}
 
 cbuffer ModeBuffer : register(b10)
 {
@@ -163,36 +171,36 @@ cbuffer ProgressBuffer : register(b13)
 //=============================================================================
 // 頂点シェーダ
 //=============================================================================
-void VertexShaderPolygon( in  float4 inPosition		: POSITION0,
-						  in  float4 inNormal		: NORMAL0,
+void VertexShaderPolygon( in  float3 inPosition		: POSITION0,
+						  in  float3 inNormal		: NORMAL0,
 						  in  float4 inDiffuse		: COLOR0,
 						  in  float2 inTexCoord		: TEXCOORD0,
-                          in  float4 inTangent      : TANGENT,
+                          in  float3 inTangent      : TANGENT,
 
 						  out float4 outPosition	: SV_POSITION,
-						  out float4 outNormal		: NORMAL0,
+						  out float3 outNormal		: NORMAL0,
 						  out float2 outTexCoord	: TEXCOORD0,
 						  out float4 outDiffuse		: COLOR0,
 						  out float4 outWorldPos    : POSITION0,
-                          out float4 outTangent     : TANGENT,
+                          out float3 outTangent     : TANGENT,
 						  out float4 outshadowCoord[LIGHT_MAX_NUM] : TEXCOORD1)
 {
 	matrix wvp;
     wvp = mul(WorldBuffer.world, View);
 	wvp = mul(wvp, Projection);
-	outPosition = mul(inPosition, wvp);
+    outPosition = mul(float4(inPosition, 1.0f), wvp);
 
-    outNormal = float4(normalize(mul(inNormal.xyz, (float3x3) WorldBuffer.invWorld)), 0.0f); // w = 0
-    outTangent = float4(normalize(mul(inTangent.xyz, (float3x3) WorldBuffer.world)), 0.0f); // w = 0
+    outNormal = float4(normalize(mul(inNormal, (float3x3) WorldBuffer.invWorld)), 0.0f); // w = 0
+    outTangent = float4(normalize(mul(inTangent, (float3x3) WorldBuffer.world)), 0.0f); // w = 0
 	//outNormal = normalize(mul(float4(inNormal.xyz, 0.0f), World));
     //outTangent = normalize(mul(float4(inTangent.xyz, 0.0f), World));
 
 	outTexCoord = inTexCoord;
 
-    outWorldPos = mul(inPosition, WorldBuffer.world);
+    outWorldPos = mul(float4(inPosition, 1.0f), WorldBuffer.world);
     for (int i = 0; i < LIGHT_MAX_NUM; ++i)
     {
-        outshadowCoord[i] = mul(outWorldPos, ProjView.ProjView[i]);
+        outshadowCoord[i] = mul(outWorldPos, Light.LightViewProj[i]);
     }
 
 	outDiffuse = inDiffuse;
@@ -212,7 +220,7 @@ PixelInputType SkinnedMeshVertexShaderPolygon(SkinnedMeshVertexInputType input)
     }
 	
     // Calculate the final world position for the vertex
-    float4 worldPosition = mul(input.position, boneTransform);
+    float4 worldPosition = mul(float4(input.position, 1.0f), boneTransform);
     
     // Transform the vertex position into the homogeneous clip space
     matrix wvp = mul(WorldBuffer.world, View); // Assume World[0] is used for non-skinned objects
@@ -229,10 +237,10 @@ PixelInputType SkinnedMeshVertexShaderPolygon(SkinnedMeshVertexInputType input)
     output.color = input.color;
 
     // Compute shadow coordinates for multiple light sources
-    output.worldPos = mul(input.position, WorldBuffer.world);
+    output.worldPos = mul(float4(input.position, 1.0f), WorldBuffer.world);
     for (int j = 0; j < LIGHT_MAX_NUM; ++j)
     {
-        output.shadowCoord[j] = mul(output.worldPos, ProjView.ProjView[i]);
+        output.shadowCoord[j] = mul(output.worldPos, Light.LightViewProj[j]);
     }
 
     return output;
@@ -337,11 +345,11 @@ float3 GetBumpNormal(float2 uv, float3 normal, float3 tangent)
 // ピクセルシェーダ
 //=============================================================================
 void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
-						 in  float4 inNormal		: NORMAL0,
+						 in  float3 inNormal		: NORMAL0,
 						 in  float2 inTexCoord		: TEXCOORD0,
 						 in  float4 inDiffuse		: COLOR0,
 						 in  float4 inWorldPos      : POSITION0,
-                         in  float4 inTangent       : TANGENT,
+                         in  float3 inTangent       : TANGENT,
 						 in float4 inShadowCoord[LIGHT_MAX_NUM] : TEXCOORD1,
 
 						 out float4 outDiffuse		: SV_Target )
@@ -381,14 +389,14 @@ void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
 		{
 			float3 lightDir;
 			float light;
-
-			if (Light.Flags[i].y == 1)
+            tempColor = float4(1.0f, 0.0f, 0.0f, 1.0f);
+			if (Light.Flags[i].OnOff == 1)
 			{
                 float4 ambient = color * Material.Diffuse * Light.Ambient[i];
                 
-                float3 normal = inNormal.xyz;
+                float3 normal = inNormal;
                 if (Material.bumpMapSampling)
-                    normal = GetBumpNormal(inTexCoord, inNormal.xyz, inTangent.xyz);
+                    normal = GetBumpNormal(inTexCoord, inNormal, inTangent);
                 
                 //if (Material.reflectMapSampling)
                 //{
@@ -396,7 +404,7 @@ void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
                 //    float3 reflectionColor = g_ReflectMap.Sample(g_SamplerState, reflectVector).rgb;
                 //}
                 
-				if (Light.Flags[i].x == 1)
+				if (Light.Flags[i].Type == 1)
 				{
 					lightDir = normalize(Light.Direction[i].xyz);
                         light = saturate(dot(lightDir, normal));
@@ -405,8 +413,9 @@ void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
 					light = 0.5 - 0.5 * light;
 					tempColor = color * Material.Diffuse * light * Light.Diffuse[i];
                     //tempColor += color * Material.Diffuse * backlightFactor * Light.Diffuse[i];
+                    //tempColor = float4(1.0f, 0.0f, 0.0f, 1.0f);
                 }
-				else if (Light.Flags[i].x == 2)
+                else if (Light.Flags[i].Type == 2)
 				{
 					lightDir = normalize(Light.Position[i].xyz - normal);
 					light = dot(lightDir, normal);
@@ -423,7 +432,7 @@ void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
 					tempColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
 				}
                 float shadowFactor = 1.0f;
-                if (Light.Flags[i].x == 1)
+                if (Light.Flags[i].Type == 1)
                 {
                     float2 shadowTexCoord = float2(inShadowCoord[i].x, -inShadowCoord[i].y) / inShadowCoord[i].w * 0.5f + 0.5f;
                     float currentDepth = inShadowCoord[i].z / inShadowCoord[i].w;
@@ -557,7 +566,7 @@ void SkinnedMeshPixelShader(PixelInputType input,
     tangentNormal = tangentNormal * 2.0 - 1.0;
 
     // Construct TBN matrix
-    float3x3 TBN = float3x3(input.tangent.xyz, input.bitangent.xyz, input.normal.xyz);
+    float3x3 TBN = float3x3(input.tangent, input.bitangent, input.normal);
 
     // Transform the normal from tangent space to world space
     float3 worldNormal = normalize(mul(TBN, tangentNormal));
@@ -580,13 +589,13 @@ void SkinnedMeshPixelShader(PixelInputType input,
             float3 lightDir;
             float light;
 
-            if (Light.Flags[i].y == 1)
+            if (Light.Flags[i].OnOff == 1)
             {
                 lightDir = normalize(Light.Direction[i].xyz);
                 lightColor = Light.Diffuse[i];
                 
                 float4 ambient = color * Material.Diffuse * Light.Ambient[i];
-                if (Light.Flags[i].x == 1)
+                if (Light.Flags[i].Type == 1)
                 {
                     
                     if (md.mode == 0 || md.mode == 2)
@@ -605,18 +614,18 @@ void SkinnedMeshPixelShader(PixelInputType input,
                     else
                     {
                         lightDir = normalize(Light.Direction[i].xyz);
-                        light = saturate(dot(lightDir, input.normal.xyz));
-                        float backlightFactor = saturate(dot(-lightDir, input.normal.xyz));
+                        light = saturate(dot(lightDir, input.normal));
+                        float backlightFactor = saturate(dot(-lightDir, input.normal));
 
                         light = 0.5 - 0.5 * light;
                         tempColor = color * Material.Diffuse * light * Light.Diffuse[i];
                     }
                     
                 }
-                else if (Light.Flags[i].x == 2)
+                else if (Light.Flags[i].Type == 2)
                 {
                     lightDir = normalize(Light.Position[i].xyz - input.worldPos.xyz);
-                    light = dot(lightDir, input.normal.xyz);
+                    light = dot(lightDir, input.normal);
 
                     tempColor = color * Material.Diffuse * light * Light.Diffuse[i];
 
@@ -630,7 +639,7 @@ void SkinnedMeshPixelShader(PixelInputType input,
                     tempColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
                 }
                 float shadowFactor = 1.0f;
-                if (Light.Flags[i].x == 1)
+                if (Light.Flags[i].Type == 1)
                 {
                     float2 shadowTexCoord = float2(input.shadowCoord[i].x, -input.shadowCoord[i].y) / input.shadowCoord[i].w * 0.5f + 0.5f;
 

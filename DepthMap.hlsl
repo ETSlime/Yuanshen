@@ -3,6 +3,7 @@
 //*****************************************************************************
 // 定数バッファ
 //*****************************************************************************
+#define LIGHT_MAX_NUM   5
 
 struct WorldMatrixBuffer
 {
@@ -35,6 +36,28 @@ struct LightViewProjBuffer
     int padding[3];
 };
 
+struct LightFlags
+{
+    int Type;
+    int OnOff;
+    int Dummy1;
+    int Dummy2;
+};
+
+// ライト用バッファ
+struct LIGHT
+{
+    float4 Direction[LIGHT_MAX_NUM];
+    float4 Position[LIGHT_MAX_NUM];
+    float4 Diffuse[LIGHT_MAX_NUM];
+    float4 Ambient[LIGHT_MAX_NUM];
+    float4 Attenuation[LIGHT_MAX_NUM];
+    LightFlags Flags[LIGHT_MAX_NUM];
+    matrix LightViewProj[LIGHT_MAX_NUM];
+    int Enable;
+    int3 Dummy; //16byte境界用
+};
+
 // マトリクスバッファ
 cbuffer WorldBuffer : register(b0)
 {
@@ -56,10 +79,15 @@ cbuffer MaterialBuffer : register(b3)
     MATERIAL Material;
 }
 
-cbuffer ProjViewBuffer : register(b8)
+cbuffer LightBuffer : register(b4)
 {
-    LightViewProjBuffer lightBuffer;
+    LIGHT Light;
 }
+
+//cbuffer ProjViewBuffer : register(b8)
+//{
+//    LightViewProjBuffer lightBuffer;
+//}
 
 cbuffer BoneTransformBuffer : register(b11)
 {
@@ -68,7 +96,7 @@ cbuffer BoneTransformBuffer : register(b11)
 
 struct SkinnedMeshVertexInputType
 {
-    float4 position : POSITION;
+    float3 position : POSITION;
     float3 normal : NORMAL;
     float3 tangent : TANGENT;
     float3 bitangent : BITANGENT;
@@ -105,15 +133,15 @@ float GetOpacity(float2 uv)
 //=============================================================================
 // 頂点シェーダ
 //=============================================================================
-void VS(in float4 inPosition : POSITION0,
+void VS(in float3 inPosition : POSITION0,
 						  in float4 inNormal : NORMAL0,
 						  in float4 inDiffuse : COLOR0,
 						  in float2 inTexCoord : TEXCOORD0,
 
 						  out float4 outPosition : SV_POSITION)
 {    
-    float4 worldPosition = mul(inPosition, WorldBuffer.world);
-    outPosition = mul(worldPosition, lightBuffer.ProjView[0]);
+    float4 worldPosition = mul(float4(inPosition, 1.0f), WorldBuffer.world);
+    outPosition = mul(worldPosition, Light.LightViewProj[0]);
 }
 
 void SkinnedMeshVertexShaderPolygon(SkinnedMeshVertexInputType input,
@@ -137,14 +165,18 @@ void SkinnedMeshVertexShaderPolygon(SkinnedMeshVertexInputType input,
     }
 
     // Transform the vertex position from model space to world space
-    float4 worldPosition = mul(input.position, boneTransform);
+    float4 worldPosition = mul(float4(input.position, 1.0f), boneTransform);
     worldPosition = mul(worldPosition, WorldBuffer.world); // Apply world transformation
 
     // Calculate shadow map coordinates for each light source
-    outPosition = mul(worldPosition, lightBuffer.ProjView[0]);
+    outPosition = mul(worldPosition, Light.LightViewProj[0]);
 }
 
 
 //=============================================================================
 // ピクセルシェーダ
 //=============================================================================
+float DummyPS() : SV_Depth
+{
+    return 1.0f;
+}

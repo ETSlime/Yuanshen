@@ -1,6 +1,6 @@
 ﻿//=============================================================================
 //
-// カメラ処理 [camera.cpp]
+// カメラ処理 [Camera.cpp]
 // Author : 
 //
 //=============================================================================
@@ -55,6 +55,9 @@ void Camera::Init(void)
 	pos.x = at.x - sinf(rot.y) * len;
 	pos.z = at.z - cosf(rot.y) * len;
 	pos.y = at.y + sinf(rot.x) * len;
+
+	nearZ = VIEW_NEAR_Z;
+	farZ = VIEW_FAR_Z;
 
 	// ビューポートタイプの初期化
 	SetViewPort(g_ViewPortType);
@@ -357,7 +360,7 @@ void Camera::SetCamera(void)
 
 	// プロジェクションマトリックス設定
 	XMMATRIX mtxProjection;
-	mtxProjection = XMMatrixPerspectiveFovLH(VIEW_ANGLE, VIEW_ASPECT, VIEW_NEAR_Z, VIEW_FAR_Z);
+	mtxProjection = XMMatrixPerspectiveFovLH(VIEW_ANGLE, VIEW_ASPECT, nearZ, farZ);
 
 	renderer.SetProjectionMatrix(&mtxProjection);
 	XMStoreFloat4x4(&this->mtxProjection, mtxProjection);

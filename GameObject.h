@@ -6,11 +6,13 @@
 // Author : 
 //
 //=============================================================================
-#include "renderer.h"
+#include "Renderer.h"
 #include "model.h"
 #include "SkinnedMeshModel.h"
 #include "CollisionManager.h"
 #include "Timer.h"
+#include "ShadowMeshCollector.h"
+#include "Scene.h"
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
@@ -144,11 +146,29 @@ struct ModelInstance
 	int				editorIdx;
 
 	RenderProgressBuffer renderProgress;
+
+	// インスタンス化されたモデルかどうか
+	bool			isInstanced = false;
+	ID3D11Buffer*	instanceBuffer = nullptr;
+	UINT			instanceCount = 0;
 };
 
+// 非テンプレート基底クラス
+class IGameObject
+{
+public:
+	virtual ~IGameObject() = default;
 
-template<typename T>
-class GameObject
+	virtual bool GetUse() const = 0;
+	virtual bool GetCastShadow() const = 0;
+	virtual BOUNDING_BOX GetBoundingBoxWorld() const = 0;
+	virtual const XMMATRIX& GetWorldMatrix() const = 0;
+
+	virtual void CollectShadowMesh(ShadowMeshCollector& collector) const = 0;
+};
+
+template<typename TModel>
+class GameObject : public IGameObject
 {
 public:
 	GameObject();
@@ -162,21 +182,28 @@ public:
 	void DrawModelEditor();
 	void UpdateModelEditor();
 
+	void CollectShadowMesh(ShadowMeshCollector& collector) const override
+	{
+		collector.Collect(instance);
+	}
+
 	inline void SetPosition(XMFLOAT3 pos) { instance.transform.pos = pos; }
 	inline void SetRotation(XMFLOAT3 rot) { instance.transform.rot = rot; }
 	inline void SetScale(XMFLOAT3 scl) { instance.transform.scl = scl; }
 	inline void SetTransform(Transform transform) { instance.transform = transform; }
 	inline void SetWorldMatrix(XMMATRIX mtxWorld) { instance.transform.mtxWorld = mtxWorld; }
 	inline Transform GetTransform() { return instance.transform; }
-	inline XMMATRIX	GetWorldMatrix() const { return instance.transform.mtxWorld; }
-	inline const T* GetInstance() const { return &instance; }
+	inline const Transform* GetTransformP() { return &instance.transform; } // bind
+	inline const XMMATRIX& GetWorldMatrix() const override { return instance.transform.mtxWorld; }
+	inline const TModel* GetInstance() const { return &instance; }
+	inline const TModel& GetInstanceRef() const { return instance; }
 	inline Model* GetModel() { return instance.pModel; }
 	inline SkinnedMeshModel* GetSkinnedMeshModel() { return instance.pModel; }
 	inline const SkinnedMeshModel* GetSkinnedMeshModelConst() const { return instance.pModel; }
 	inline XMFLOAT4* GetDiffuse() { return instance.diffuse; }
-	inline bool GetUse() { return instance.use; }
+	inline bool GetUse() const override { return instance.use; }
 	inline void SetUse(bool use) { instance.use = use; }
-	inline bool GetCastShadow() { return instance.castShadow; }
+	inline bool GetCastShadow() const override { return instance.castShadow; }
 	inline void SetCastShadow(bool shadow) { instance.castShadow = shadow; }
 	inline BOOL GetIsModelSelected() { return instance.isSelected; }
 	inline BOOL GetIsCursorIn() { return instance.isCursorIn; }
@@ -191,6 +218,7 @@ public:
 	inline void SetColliderEnable(bool enable) { instance.collider.enable = enable; }
 	inline void SetColliderBoundingBox(BOUNDING_BOX boundingBox) { instance.collider.bbox = boundingBox; }
 	inline const Collider& GetCollider(void) { return instance.collider; }
+	inline BOUNDING_BOX GetBoundingBoxWorld(void) const override { return instance.collider.bbox; }
 	inline void SetGrounded(bool grounded) { instance.attributes.isGrounded = grounded; }
 	inline void SetMoveBlock(bool blocked) { instance.attributes.isMoveBlocked = blocked; }
 	inline void SetIsHit(bool isHit) { instance.attributes.isHit1 = isHit; }
@@ -216,7 +244,7 @@ public:
 	Timer& timer = Timer::get_instance();
 
 protected:
-	T instance;
+	TModel instance;
 };
 
 class ISkinnedMeshModelChar
@@ -266,6 +294,8 @@ GameObject<T>::GameObject()
 	instance.castShadow = true;
 	instance.renderProgress.progress = 0.0f;
 	instance.renderProgress.isRandomFade = TRUE;
+
+	Scene::get_instance().RegisterGameObject(this);
 }
 
 template <typename T>
@@ -285,6 +315,8 @@ GameObject<T>::~GameObject()
 			}
 		}
 	}
+
+	Scene::get_instance().UnregisterGameObject(this);
 }
 
 template <>

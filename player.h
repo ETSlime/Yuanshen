@@ -10,7 +10,7 @@
 #include "Lumine.h"
 #include "Hilichurl.h"
 #include "Mitachurl.h"
-
+#include "LightManager.h"
 //*****************************************************************************
 // ƒ}ƒNƒ’è‹`
 //*****************************************************************************
@@ -62,5 +62,9 @@ private:
 	Mitachurl* mitachurl;
 
 	GameObject<SkinnedMeshModelInstance>* playerGO;
+
+	Light* light;
+
 	Renderer& renderer = Renderer::get_instance();
+	LightManager& lightMgr = LightManager::get_instance();
 };

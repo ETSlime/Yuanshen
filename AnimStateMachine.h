@@ -8,7 +8,7 @@
 //=============================================================================
 
 #include "FBXLoader.h"
-#include "renderer.h"
+#include "Renderer.h"
 #include "HashMap.h"
 //*****************************************************************************
 // マクロ定義
@@ -64,6 +64,9 @@ enum class AnimPlayMode
 class SkinnedMeshModel;
 class ISkinnedMeshModelChar;
 
+//*****************************************************************************
+// 構造体定義
+//*****************************************************************************
 struct AnimationPhase 
 {
     float startMoveFraction; // 移動開始時間 (0~1)

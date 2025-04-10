@@ -1,13 +1,18 @@
 //=============================================================================
 //
-// レンダリング処理 [renderer.cpp]
+// レンダリング処理 [Renderer.cpp]
 // Author : 
 //
 //=============================================================================
 #include "main.h"
-#include "renderer.h"
-#include "light.h"
+#include "Renderer.h"
+#include "LightManager.h"
 #include "sprite.h"
+#include "ShaderManager.h"
+
+//*****************************************************************************
+// マクロ定義
+//*****************************************************************************
 //デバッグ用画面テキスト出力を有効にする
 #define DEBUG_DISP_TEXTOUT
 //シェーダーデバッグ設定を有効にする
@@ -134,7 +139,6 @@ void Renderer::SetFillMode(D3D11_FILL_MODE mode)
 
 void Renderer::SetBoneMatrix(XMMATRIX matrices[BONE_MAX])
 {
-
 	g_ImmediateContext->UpdateSubresource(g_BoneMatrixBuffer, 0, NULL, matrices, 0, 0);
 }
 
@@ -305,33 +309,33 @@ void Renderer::SetMaterial( MATERIAL material )
 	g_ImmediateContext->UpdateSubresource( g_MaterialBuffer, 0, NULL, &g_Material, 0, 0 );
 }
 
-void Renderer::SetLightBuffer(void)
+void Renderer::SetLightBuffer(const LIGHT_CBUFFER& lightBuffer)
 {
-	g_ImmediateContext->UpdateSubresource(g_LightBuffer, 0, NULL, &g_Light, 0, 0);
+	g_ImmediateContext->UpdateSubresource(g_LightBuffer, 0, NULL, &lightBuffer, 0, 0);
 }
 
-void Renderer::SetLightEnable(BOOL flag)
-{
-	// フラグを更新する
-	g_Light.Enable = flag;
+//void Renderer::SetLightEnable(BOOL flag)
+//{
+//	// フラグを更新する
+//	//g_Light.Enable = flag;
+//	LightManager::get_instance().SetLightEnable(flag);
+//	//SetLightBuffer();
+//}
 
-	SetLightBuffer();
-}
-
-void Renderer::SetLight(int index, LIGHT* pLight)
-{
-	g_Light.Position[index] = XMFLOAT4(pLight->Position.x, pLight->Position.y, pLight->Position.z, 0.0f);
-	g_Light.Direction[index] = XMFLOAT4(pLight->Direction.x, pLight->Direction.y, pLight->Direction.z, 0.0f);
-	g_Light.Diffuse[index] = pLight->Diffuse;
-	g_Light.Ambient[index] = pLight->Ambient;
-	g_Light.Flags[index].Type = pLight->Type;
-	g_Light.Flags[index].OnOff = pLight->Enable;
-	g_Light.Attenuation[index].x = pLight->Attenuation;
-
-	//g_Light.LightViewProj = pLight->LightViewProj;
-
-	SetLightBuffer();
-}
+//void Renderer::SetLight(int index, LightData* pLight)
+//{
+//	g_Light.Position[index] = XMFLOAT4(pLight->Position.x, pLight->Position.y, pLight->Position.z, 0.0f);
+//	g_Light.Direction[index] = XMFLOAT4(pLight->Direction.x, pLight->Direction.y, pLight->Direction.z, 0.0f);
+//	g_Light.Diffuse[index] = pLight->Diffuse;
+//	g_Light.Ambient[index] = pLight->Ambient;
+//	g_Light.Flags[index].Type = pLight->Type;
+//	g_Light.Flags[index].OnOff = pLight->Enable;
+//	g_Light.Attenuation[index].x = pLight->Attenuation;
+//
+//	//g_Light.LightViewProj = pLight->LightViewProj;
+//
+//	SetLightBuffer();
+//}
 
 void Renderer::SetLightProjView(LightViewProjBuffer *lightBuffer)
 {
@@ -393,7 +397,7 @@ void Renderer::SetRenderShadowMap(int lightIdx)
 	g_ImmediateContext->VSSetShader(g_DepthVertexShader, nullptr, 0);
 	g_ImmediateContext->PSSetShader(nullptr, nullptr, 0);
 	
-	SetLightViewProjBuffer(lightIdx);
+	//SetLightViewProjBuffer(lightIdx);
 
 }
 
@@ -411,7 +415,7 @@ void Renderer::SetRenderSkinnedMeshShadowMap(int lightIdx)
 	g_ImmediateContext->VSSetShader(g_DepthSkinnedMeshVertexShader, nullptr, 0);
 	g_ImmediateContext->PSSetShader(nullptr, nullptr, 0);
 
-	SetLightViewProjBuffer(lightIdx);
+	//SetLightViewProjBuffer(lightIdx);
 
 }
 
@@ -425,7 +429,7 @@ void Renderer::SetRenderInstanceShadowMap(int lightIdx)
 
 	g_ImmediateContext->OMSetRenderTargets(0, nullptr, g_ShadowDSV[lightIdx]);
 
-	SetLightViewProjBuffer(lightIdx);
+	//SetLightViewProjBuffer(lightIdx);
 
 }
 
@@ -435,8 +439,10 @@ void Renderer::SetRenderSkinnedMeshModel(void)
 
 	ResetRenderTarget();
 
-	g_ImmediateContext->VSSetShader(g_SkinnedMeshVertexShader, nullptr, 0);
-	g_ImmediateContext->PSSetShader(g_SkinnedMeshPixelShader, nullptr, 0);
+	//g_ImmediateContext->VSSetShader(g_SkinnedMeshVertexShader, nullptr, 0);
+	g_ImmediateContext->VSSetShader(m_SkinnedModelShaderSet.vs, nullptr, 0);
+	//g_ImmediateContext->PSSetShader(g_SkinnedMeshPixelShader, nullptr, 0);
+	g_ImmediateContext->PSSetShader(m_SkinnedModelShaderSet.ps, nullptr, 0);
 	g_ImmediateContext->VSSetConstantBuffers(11, 1, &g_BoneMatrixBuffer);
 	g_ImmediateContext->PSSetConstantBuffers(11, 1, &g_BoneMatrixBuffer);
 
@@ -459,8 +465,8 @@ void Renderer::SetRenderVFX(void)
 
 	SetCullingMode(CULL_MODE_NONE);
 
-	g_ImmediateContext->VSSetShader(g_VFXVertexShader, NULL, 0);
-	g_ImmediateContext->PSSetShader(g_VFXPixelShader, NULL, 0);
+	g_ImmediateContext->VSSetShader(m_VFXShaderSet.vs, NULL, 0);
+	g_ImmediateContext->PSSetShader(m_VFXShaderSet.ps, NULL, 0);
 }
 
 void Renderer::SetRenderUI(void)
@@ -473,17 +479,21 @@ void Renderer::SetRenderUI(void)
 
 void Renderer::SetModelInputLayout(void)
 {
-	g_ImmediateContext->IASetInputLayout(g_VertexLayout);
+	//g_ImmediateContext->IASetInputLayout(g_VertexLayout);
+
+	g_ImmediateContext->IASetInputLayout(m_ShaderManager.GetInputLayout(VertexLayoutID::Static));
 }
 
 void Renderer::SetSkinnedMeshInputLayout(void)
 {
-	g_ImmediateContext->IASetInputLayout(g_SkinnedMeshVertexLayout);
+	//g_ImmediateContext->IASetInputLayout(g_SkinnedMeshVertexLayout);
+	g_ImmediateContext->IASetInputLayout(m_ShaderManager.GetInputLayout(VertexLayoutID::Skinned));
 }
 
 void Renderer::SetVFXInputLayout(void)
 {
-	g_ImmediateContext->IASetInputLayout(g_VFXVertexLayout);
+	//g_ImmediateContext->IASetInputLayout(g_VFXVertexLayout);
+	g_ImmediateContext->IASetInputLayout(m_ShaderManager.GetInputLayout(VertexLayoutID::VFX));
 }
 
 void Renderer::SetRenderObject(void)
@@ -492,8 +502,8 @@ void Renderer::SetRenderObject(void)
 
 	ResetRenderTarget();
 
-	g_ImmediateContext->VSSetShader(g_VertexShader, NULL, 0);
-	g_ImmediateContext->PSSetShader(g_PixelShader, NULL, 0);
+	g_ImmediateContext->VSSetShader(m_StaticModelShaderSet.vs, NULL, 0);
+	g_ImmediateContext->PSSetShader(m_StaticModelShaderSet.ps, NULL, 0);
 	g_ImmediateContext->PSSetShaderResources(1, LIGHT_MAX, g_ShadowMapSRV);
 }
 
@@ -532,6 +542,14 @@ void Renderer::SetShadowPassViewport(void)
 	shadowVP.TopLeftX = 0;
 	shadowVP.TopLeftY = 0;
 	g_ImmediateContext->RSSetViewports(1, &shadowVP);
+}
+
+void Renderer::SetShadersets(void)
+{
+	m_StaticModelShaderSet = m_ShaderManager.GetShaderSet(ShaderSetID::StaticModel);
+	m_SkinnedModelShaderSet = m_ShaderManager.GetShaderSet(ShaderSetID::SkinnedModel);
+	m_InstanceModelShaderSet = m_ShaderManager.GetShaderSet(ShaderSetID::Instanced_Tree);
+	m_VFXShaderSet = m_ShaderManager.GetShaderSet(ShaderSetID::VFX);
 }
 
 //=============================================================================
@@ -600,8 +618,8 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 		ID3D11Texture2D* depthTexture = NULL;
 		D3D11_TEXTURE2D_DESC td;
 		ZeroMemory(&td, sizeof(td));
-		td.Width = SHADOWMAP_SIZE;
-		td.Height = SHADOWMAP_SIZE;
+		td.Width = static_cast<UINT>(SHADOWMAP_SIZE);
+		td.Height = static_cast<UINT>(SHADOWMAP_SIZE);
 		td.MipLevels = 1;
 		td.ArraySize = 1;
 		td.Format = DXGI_FORMAT_R32_TYPELESS;
@@ -1050,19 +1068,19 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	g_ImmediateContext->PSSetConstantBuffers(13, 1, &g_RenderProgressBuffer);
 
 	// 入力レイアウト設定
-	g_ImmediateContext->IASetInputLayout( g_VertexLayout );
+	g_ImmediateContext->IASetInputLayout(m_ShaderManager.GetInputLayout(VertexLayoutID::Static));
 
 	// シェーダ設定
 	g_ImmediateContext->VSSetShader( g_VertexShader, NULL, 0 );
 	g_ImmediateContext->PSSetShader( g_PixelShader, NULL, 0 );
 
-	//ライト初期化
-	ZeroMemory(&g_Light, sizeof(LIGHT_CBUFFER));
-	g_Light.Direction[0] = XMFLOAT4(1.0f, -1.0f, 1.0f, 0.0f);
-	g_Light.Diffuse[0] = XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f);
-	g_Light.Ambient[0] = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-	g_Light.Flags[0].Type = LIGHT_TYPE_DIRECTIONAL;
-	SetLightBuffer();
+	////ライト初期化
+	//ZeroMemory(&g_Light, sizeof(LIGHT_CBUFFER));
+	//g_Light.Direction[0] = XMFLOAT4(1.0f, -1.0f, 1.0f, 0.0f);
+	//g_Light.Diffuse[0] = XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f);
+	//g_Light.Ambient[0] = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+	//g_Light.Flags[0].Type = LIGHT_TYPE_DIRECTIONAL;
+	//SetLightBuffer();
 
 
 	//マテリアル初期化

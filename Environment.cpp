@@ -7,6 +7,7 @@
 #include "Environment.h"
 #include "camera.h"
 #include "TextureMgr.h"
+#include "ShadowMeshCollector.hpp"
 
 Environment::Environment() : 
     m_device(Renderer::get_instance().GetDevice()), 
@@ -250,7 +251,7 @@ void Environment::Update(void)
         if (obj->attributes.billboard)
         {
             Camera& camera = Camera::get_instance();
-            XMMATRIX mtxView = XMLoadFloat4x4(&camera.GeViewMtx());
+            XMMATRIX mtxView = XMLoadFloat4x4(&camera.GetViewMatrix());
 
             // 正方行列（直交行列）を転置行列させて逆行列を作ってる版(速い)
             XMMATRIX billboardRotation = XMMatrixIdentity();

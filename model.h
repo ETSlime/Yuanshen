@@ -1,13 +1,13 @@
 //=============================================================================
 //
-// ÉÇÉfÉãÇÃèàóù [model.h]
+// ÉÇÉfÉãÇÃèàóù [Model.h]
 // Author :
 //
 //=============================================================================
 #pragma once
 
 #include "main.h"
-#include "renderer.h"
+#include "Renderer.h"
 #include "HashMap.h"
 #include "OctreeNode.h"
 //*****************************************************************************
@@ -118,6 +118,15 @@ struct MODEL_POOL
 	void AddRef() { count++; }
 };
 
+struct StaticMeshPart
+{
+	ID3D11Buffer* VertexBuffer = nullptr;
+	ID3D11Buffer* IndexBuffer = nullptr;
+	UINT IndexNum = 0;
+	UINT StartIndex = 0;
+};
+
+
 class Model
 {
 public:
@@ -137,7 +146,9 @@ public:
 	const MODEL_DATA* GetModelData(void) { return modelData; }
 	const SUBSET* GetSubset(void) { return SubsetArray; }
 	unsigned int GetSubNum(void) { return SubsetNum; }
-	BOUNDING_BOX GetBoundingBox() { return boundingBox; }
+	BOUNDING_BOX GetBoundingBox(void) { return boundingBox; }
+
+	const SimpleArray<StaticMeshPart>& GetMeshParts(void) const;
 
 	static Model* StoreModel(char* modelPath);
 	static MODEL_POOL* GetModel(char* modelPath);
@@ -147,8 +158,10 @@ private:
 	void LoadObj(char* FileName, MODEL_DATA* Model);
 	void LoadMaterial(char* FileName, MODEL_MATERIAL** MaterialArray, unsigned int* MaterialNum);
 	void LoadTextureName(char*FileName, FILE* fp, MODEL_MATERIAL* Material, int mc, TextureType type);
-	void CreateBoundingBoxVertex();
+	void CreateBoundingBoxVertex(void);
+	void BuildMeshParts(void);
 
+	mutable SimpleArray<StaticMeshPart> m_meshParts;
 	static HashMap<char*, MODEL_POOL, CharPtrHash, CharPtrEquals> modelHashMap;
 
 	ID3D11Buffer*	VertexBuffer;

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "main.h"
-#include "renderer.h"
+#include "Renderer.h"
 #include "HashMap.h"
 #include "SingletonBase.h"
 

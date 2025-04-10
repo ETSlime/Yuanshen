@@ -135,22 +135,27 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="AABBUtils.h" />
     <ClInclude Include="AnimStateMachine.h" />
     <ClInclude Include="BehaviorTree.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="CascadedShadowMap.h" />
     <ClInclude Include="CollisionManager.h" />
+    <ClInclude Include="DebugBoundingBoxRenderer.h" />
     <ClInclude Include="debugproc.h" />
     <ClInclude Include="DoubleLinkedList.h" />
     <ClInclude Include="Enemy.h" />
     <ClInclude Include="EnemyManager.h" />
     <ClInclude Include="GameObject.h" />
     <ClInclude Include="Environment.h" />
+    <ClInclude Include="GameSystem.h" />
     <ClInclude Include="Ground.h" />
     <ClInclude Include="HashMap.h" />
     <ClInclude Include="Hilichurl.h" />
     <ClInclude Include="input.h" />
     <ClInclude Include="Klee.h" />
-    <ClInclude Include="light.h" />
+    <ClInclude Include="Light.h" />
+    <ClInclude Include="LightManager.h" />
     <ClInclude Include="Lumine.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="FBXLoader.h" />
@@ -158,9 +163,17 @@
     <ClInclude Include="Model.h" />
     <ClInclude Include="OctreeNode.h" />
     <ClInclude Include="offScreenRender.h" />
+    <ClInclude Include="PauseModal.h" />
     <ClInclude Include="Player.h" />
+    <ClInclude Include="Scene.h" />
+    <ClInclude Include="ShaderLoader.h" />
+    <ClInclude Include="ShaderManager.h" />
+    <ClInclude Include="ShaderReloader.h" />
+    <ClInclude Include="ShadowMapRenderer.h" />
+    <ClInclude Include="ShadowMeshCollector.h" />
+    <ClInclude Include="ShadowMeshCollector.hpp" />
     <ClInclude Include="Sigewinne.h" />
-    <ClInclude Include="renderer.h" />
+    <ClInclude Include="Renderer.h" />
     <ClInclude Include="score.h" />
     <ClInclude Include="SimpleArray.h" />
     <ClInclude Include="SimpleQueue.h" />
@@ -172,31 +185,43 @@
     <ClInclude Include="TextureMgr.h" />
     <ClInclude Include="Timer.h" />
     <ClInclude Include="Town.h" />
+    <ClInclude Include="UIElement.h" />
+    <ClInclude Include="UIManager.h" />
+    <ClInclude Include="UIOverlayRenderer.h" />
+    <ClInclude Include="UISpriteRenderer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AABBUtils.cpp" />
     <ClCompile Include="AnimStateMachine.cpp" />
     <ClCompile Include="Camera.cpp" />
-    <ClCompile Include="collision.cpp" />
+    <ClCompile Include="CascadedShadowMap.cpp" />
     <ClCompile Include="CollisionManager.cpp" />
+    <ClCompile Include="DebugBoundingBoxRenderer.cpp" />
     <ClCompile Include="debugproc.cpp" />
     <ClCompile Include="Enemy.cpp" />
     <ClCompile Include="EnemyManager.cpp" />
     <ClCompile Include="FBXLoader.cpp" />
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="Environment.cpp" />
+    <ClCompile Include="GameSystem.cpp" />
     <ClCompile Include="Ground.cpp" />
     <ClCompile Include="Hilichurl.cpp" />
     <ClCompile Include="input.cpp" />
     <ClCompile Include="Klee.cpp" />
-    <ClCompile Include="light.cpp" />
+    <ClCompile Include="Light.cpp" />
+    <ClCompile Include="LightManager.cpp" />
     <ClCompile Include="Lumine.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Mitachurl.cpp" />
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="offScreenRender.cpp" />
     <ClCompile Include="Player.cpp" />
-    <ClCompile Include="renderer.cpp" />
+    <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="score.cpp" />
+    <ClCompile Include="ShaderLoader.cpp" />
+    <ClCompile Include="ShaderManager.cpp" />
+    <ClCompile Include="ShaderReloader.cpp" />
+    <ClCompile Include="ShadowMapRenderer.cpp" />
     <ClCompile Include="Sigewinne.cpp" />
     <ClCompile Include="SkinnedMeshModel.cpp" />
     <ClCompile Include="Skybox.cpp" />
@@ -204,6 +229,9 @@
     <ClCompile Include="SwordTrail.cpp" />
     <ClCompile Include="TextureMgr.cpp" />
     <ClCompile Include="Town.cpp" />
+    <ClCompile Include="UIManager.cpp" />
+    <ClCompile Include="UIOverlayRenderer.cpp" />
+    <ClCompile Include="UISpriteRenderer.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

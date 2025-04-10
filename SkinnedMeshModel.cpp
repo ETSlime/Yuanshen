@@ -85,8 +85,8 @@ void SkinnedMeshModel::DrawModel()
             for (int i = 0; i < size; i++)
             {
                 boneMatrices[i] = XMMatrixTranspose(XMLoadFloat4x4(&boneTransformData.mBoneFinalTransforms[i]));
-                XMMATRIX dbg = boneMatrices[i];
-                dbg = boneMatrices[i];
+                //XMMATRIX dbg = boneMatrices[i];
+                //dbg = boneMatrices[i];
             }
             Renderer::get_instance().SetBoneMatrix(boneMatrices);
         }
@@ -613,6 +613,17 @@ XMMATRIX SkinnedMeshModel::GetBoneFinalTransform(UINT boneIdx)
     return XMMatrixIdentity();
 }
 
+const XMMATRIX* SkinnedMeshModel::GetFinalBoneMatrices(void)
+{
+    UINT size = boneTransformData.mBoneFinalTransforms.getSize();
+    for (UINT i = 0; i < size; i++) 
+    {
+        m_transposedBoneMatrices[i] =
+            XMMatrixTranspose(XMLoadFloat4x4(&boneTransformData.mBoneFinalTransforms[i]));
+    }
+    return m_transposedBoneMatrices;
+}
+
 SkinnedMeshModel::SkinnedMeshModel()
 {
     armatureNode = nullptr;
@@ -715,6 +726,15 @@ SkinnedMeshModelPool* SkinnedMeshModel::GetModel(char* modelFullPath)
 void SkinnedMeshModel::RemoveModel(char* modelPath)
 {
     modelHashMap.remove(modelPath);
+}
+
+const SimpleArray<SkinnedMeshPart>& SkinnedMeshModel::GetMeshParts() const
+{
+    if (m_meshParts.empty())
+    {
+        const_cast<SkinnedMeshModel*>(this)->BuildMeshParts();
+    }
+    return m_meshParts;
 }
 
 void SkinnedMeshModel::UpdateLimbGlobalTransform(FbxNode* node, FbxNode* deformNode, 
@@ -1673,4 +1693,17 @@ void SkinnedMeshModel::CreateBoundingBoxVertex(SKINNED_MESH_BOUNDING_BOX* boundi
     vertex[23].TexCoord = XMFLOAT2(1.0f, 1.0f);
 
     Renderer::get_instance().GetDeviceContext()->Unmap(boundingBox->BBVertexBuffer, 0);
+}
+
+void SkinnedMeshModel::BuildMeshParts(void)
+{
+    m_meshParts.clear();
+    for (const auto& it : meshDataMap)
+    {
+        SkinnedMeshPart part = {};
+        part.VertexBuffer = it.value->VertexBuffer;
+        part.IndexBuffer = it.value->IndexBuffer;
+        part.IndexNum = it.value->IndexNum;
+        m_meshParts.push_back(part);
+    }
 }

@@ -23,6 +23,8 @@ GameObject<SkinnedMeshModelInstance>::~GameObject()
 			}
 		}
 	}
+
+	Scene::get_instance().UnregisterGameObject(this);
 }
 
 template <>
@@ -53,7 +55,7 @@ void GameObject<SkinnedMeshModelInstance>::Instantiate(char* modelPath, char* mo
 }
 
 template<>
-void GameObject< SkinnedMeshModelInstance>::Update()
+void GameObject<SkinnedMeshModelInstance>::Update()
 {
 	XMMATRIX mtxScl, mtxRot, mtxTranslate, mtxWorld;
 

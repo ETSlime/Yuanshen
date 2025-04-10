@@ -1,6 +1,6 @@
 //=============================================================================
 //
-// カメラ処理 [camera.h]
+// カメラ処理 [Camera.h]
 // Author : 
 //
 //=============================================================================
@@ -10,7 +10,7 @@
 //*****************************************************************************
 // インクルードファイル
 //*****************************************************************************
-#include "renderer.h"
+#include "Renderer.h"
 #include "SingletonBase.h"
 #include "Timer.h"
 //*****************************************************************************
@@ -46,8 +46,13 @@ public:
 
 	void SetCameraAT(XMFLOAT3 pos);
 
-	XMFLOAT4X4 GeViewMtx(void) { return mtxView; }
+	XMFLOAT4X4 GetViewMatrix(void) { return mtxView; }
+	XMFLOAT4X4 GetProjMatrix(void) { return mtxProjection; }
 	XMFLOAT3 GetRotation(void) { return rot; }
+	XMMATRIX GetViewProjMtx(void) { return XMLoadFloat4x4(&mtxView) * XMLoadFloat4x4(&mtxProjection); }
+
+	float GetNearZ(void) { return nearZ; }
+	float GetFarZ(void) { return farZ; }
 
 private:
 
@@ -62,6 +67,8 @@ private:
 
 	float				len;			// カメラの視点と注視点の距離
 	float				fov;
+	float				nearZ;
+	float				farZ;
 
 	Timer& timer = Timer::get_instance();
 };

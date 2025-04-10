@@ -71,6 +71,17 @@ private:
     EqualsFunc equalsFunc;
 
 public:
+
+    HashMap()
+        : size(32), hashFunc(HashFunc{}), equalsFunc(EqualsFunc{})
+    {
+        buckets = new Node * [size];
+        for (int i = 0; i < size; ++i)
+        {
+            buckets[i] = nullptr;
+        }
+    }
+
     HashMap(int size, HashFunc hashFunc, EqualsFunc equalsFunc)
         : size(size), hashFunc(hashFunc), equalsFunc(equalsFunc)
     {
@@ -209,6 +220,36 @@ public:
         }
     }
 
+    Value& at(const Key& key)
+    {
+        unsigned int index = hashFunc(key) % size;
+        Node* current = buckets[index];
+        while (current != nullptr)
+        {
+            if (equalsFunc(current->data.key, key))
+            {
+                return current->data.value;
+            }
+            current = current->next;
+        }
+        throw std::out_of_range("Key not found in HashMap");
+    }
+
+    const Value& at(const Key& key) const
+    {
+        unsigned int index = hashFunc(key) % size;
+        Node* current = buckets[index];
+        while (current != nullptr)
+        {
+            if (equalsFunc(current->data.key, key))
+            {
+                return current->data.value;
+            }
+            current = current->next;
+        }
+        throw std::out_of_range("Key not found in HashMap");
+    }
+
     class Iterator
     {
     private:
@@ -240,6 +281,11 @@ public:
             return current != other.current;
         }
 
+        bool operator==(const Iterator& other) const
+        {
+            return current == other.current;
+        }
+
         Iterator& operator++()
         {
             if (current && current->next)
@@ -264,6 +310,11 @@ public:
         {
             return current->data;
         }
+
+        Data* operator->() const
+        {
+            return &current->data;
+        }
     };
 
     Iterator begin() const
@@ -274,5 +325,20 @@ public:
     Iterator end() const
     {
         return Iterator(buckets, size, size);
+    }
+
+    Iterator find(const Key& key) const
+    {
+        unsigned int index = hashFunc(key) % size;
+        Node* current = buckets[index];
+        while (current != nullptr)
+        {
+            if (equalsFunc(current->data.key, key))
+            {
+                return Iterator(buckets, size, index, current);
+            }
+            current = current->next;
+        }
+        return end();
     }
 };

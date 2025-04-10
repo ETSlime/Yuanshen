@@ -61,7 +61,7 @@ Ground::Ground()
 	worldBB.minPoint = WORLD_MIN;
 	CollisionManager::get_instance().InitOctree(worldBB);
 
-	//town = new Town();
+	town = new Town();
 
 	XMMATRIX worldMatrix;
 
@@ -75,6 +75,7 @@ Ground::Ground()
 	fieldGO->GetSkinnedMeshModel()->BuildTrianglesByWorldMatrix(worldMatrix, true);
 	fieldGO->GetSkinnedMeshModel()->BuildOctree();
 	fieldGO->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
+	//fieldGO->SetCastShadow(false);
 	skinnedMeshGroundGO.push_back(fieldGO);
 
 	//GameObject<SkinnedMeshModelInstance>* bonfireGO = new GameObject<SkinnedMeshModelInstance>();
@@ -111,8 +112,8 @@ Ground::Ground()
 		1.0f
 	));
 
-	environment = new Environment();
-	environment->GenerateInstanceByParams(params, fieldGO->GetSkinnedMeshModel());
+	//environment = new Environment();
+	//environment->GenerateInstanceByParams(params, fieldGO->GetSkinnedMeshModel());
 	//environment->GenerateRandomInstances(EnvironmentObjectType::Shrubbery_1, fieldGO->GetSkinnedMeshModel(), 15);
 }
 
@@ -172,8 +173,8 @@ void Ground::Draw(void)
 {
 	renderer.SetLightModeBuffer(1);
 
-	if (town)
-		town->Draw();
+	//if (town)
+	//	town->Draw();
 
 	if (renderer.GetRenderMode() == RenderMode::INSTANCE
 		|| renderer.GetRenderMode() == RenderMode::INSTANCE_SHADOW)
@@ -226,3 +227,16 @@ void Ground::Draw(void)
 
 	renderer.SetLightModeBuffer(0);
 }
+
+void Ground::CollectStaticShadowMeshes(SimpleArray<StaticRenderData>& outMeshes)
+{
+	//UINT size = groundGO.getSize();
+	//for (UINT i = 0; i < size; ++i)
+	//{
+	//	auto* go = groundGO[i];
+	//	if (!go->GetUse() || !go->GetCastShadow()) continue;
+
+	//	go->CollectShadowMeshes(outMeshes);
+	//}
+}
+

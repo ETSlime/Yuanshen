@@ -12,12 +12,14 @@
 
 #define _CRT_SECURE_NO_WARNINGS			// scanf のwarning防止
 #include <stdio.h>
+#include <random>
 
 #include <d3d11.h>
 #include <d3dx11.h>
 #include <d3dcompiler.h>
 
 #include <DirectXMath.h>
+
 
 
 // 本来はヘッダに書かない方が良い
@@ -72,13 +74,13 @@ struct INTERPOLATION_DATA
 	float		frame;		// 実行フレーム数 ( dt = 1.0f/frame )
 };
 
-enum
+enum class MODE : int		// ゲームモード
 {
-	MODE_TITLE = 0,			// タイトル画面
-	MODE_TUTORIAL,			// ゲーム説明画面
-	MODE_GAME,				// ゲーム画面
-	MODE_RESULT,			// リザルト画面
-	MODE_MAX
+	TITLE = 0,			// タイトル画面
+	TUTORIAL,			// ゲーム説明画面
+	GAME,				// ゲーム画面
+	RESULT,				// リザルト画面
+	MAX
 };
 
 

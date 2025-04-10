@@ -5,10 +5,10 @@
 //
 //=============================================================================
 
-#include "renderer.h"
+#include "Renderer.h"
 #include "Player.h"
 #include "input.h"
-#include "camera.h"
+#include "Camera.h"
 #include "debugproc.h"
 #include "OctreeNode.h"
 //*****************************************************************************
@@ -41,6 +41,11 @@ Player::Player()
 	transform.pos = PLAYER_INIT_POS;
 	lumine->SetTransform(transform);
 	playerGO = lumine;
+
+	light = new DirectionalLight();
+	light->SetEnable(true);
+	light->BindToTransform(playerGO->GetTransformP());
+	lightMgr.AddLight(light);
 }
 
 Player::~Player()
@@ -63,6 +68,7 @@ void Player::Update(void)
 		//lumine->SetRenderProgress(0.0f);
 		//lumine->SetSwitchCharEffect(true);
 		playerGO = lumine;
+		light->BindToTransform(playerGO->GetTransformP());
 	}
 	if (klee && GetKeyboardTrigger(DIK_2))
 	{
@@ -70,6 +76,7 @@ void Player::Update(void)
 		//klee->SetRenderProgress(0.0f);
 		//klee->SetSwitchCharEffect(true);
 		playerGO = klee;
+		light->BindToTransform(playerGO->GetTransformP());
 	}
 	if (sigewinne && GetKeyboardTrigger(DIK_3))
 	{
@@ -77,6 +84,7 @@ void Player::Update(void)
 		//sigewinne->SetRenderProgress(0.0f);
 		//sigewinne->SetSwitchCharEffect(true);
 		playerGO = sigewinne;
+		light->BindToTransform(playerGO->GetTransformP());
 	}
 
 	Camera& camera = Camera::get_instance();
