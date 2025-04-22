@@ -61,13 +61,6 @@ public:
         CollectShadowMeshFromModel<TModel>(model, m_skinnedMeshes);
     }
 
-    // Collect 関数のオーバーロード
-    //template<typename TModel>
-    //void Collect(const GameObject<TModel>& obj)
-    //{
-    //    this->Collect(obj.GetInstanceRef(), obj.GetWorldMatrix());
-    //}
-
     const SimpleArray<StaticRenderData>& GetStaticMeshes() const { return m_staticMeshes; }
     const SimpleArray<InstancedRenderData>& GetInstancedMeshes() const { return m_instancedMeshes; }
     const SimpleArray<SkinnedRenderData>& GetSkinnedMeshes() const { return m_skinnedMeshes; }

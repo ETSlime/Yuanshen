@@ -16,7 +16,11 @@
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
-
+#define	VIEW_ANGLE				(XMConvertToRadians(45.0f))						// ビュー平面の視野角
+#define	VIEW_ASPECT				((float)SCREEN_WIDTH / (float)SCREEN_HEIGHT)	// ビュー平面のアスペクト比	
+#define	VIEW_NEAR_Z				(10.0f)											// ビュー平面のNearZ値
+#define	VIEW_FAR_Z_SKYBOX		(800000.0f)										// ビュー平面のFarZ値
+#define	VIEW_FAR_Z_SCENE		(50000.0f)										// ビュー平面のFarZ値
 
 enum 
 {
@@ -26,6 +30,12 @@ enum
 	TYPE_UP_HALF_SCREEN,
 	TYPE_DOWN_HALF_SCREEN,
 	TYPE_NONE,
+};
+
+enum class CameraType
+{
+	SKYBOX,
+	SCENE,
 };
 
 
@@ -51,14 +61,19 @@ public:
 	XMFLOAT3 GetRotation(void) { return rot; }
 	XMMATRIX GetViewProjMtx(void) { return XMLoadFloat4x4(&mtxView) * XMLoadFloat4x4(&mtxProjection); }
 
+	void SetCameraType(CameraType type);
 	float GetNearZ(void) { return nearZ; }
 	float GetFarZ(void) { return farZ; }
+	float GetFov(void) { return fov; }
+	float GetAspectRatio(void) { return VIEW_ASPECT; }
 
 private:
 
 	XMFLOAT4X4			mtxView;		// ビューマトリックス
 	XMFLOAT4X4			mtxInvView;		// ビューマトリックス
 	XMFLOAT4X4			mtxProjection;	// プロジェクションマトリックス
+	XMMATRIX			m_projScene;
+	XMMATRIX			m_projSkybox;
 
 	XMFLOAT3			pos;			// カメラの視点(位置)
 	XMFLOAT3			at;				// カメラの注視点
@@ -70,5 +85,8 @@ private:
 	float				nearZ;
 	float				farZ;
 
+	CameraType			m_CameraType = CameraType::SCENE;
+
 	Timer& timer = Timer::get_instance();
+	DebugProc& debugProc = DebugProc::get_instance();
 };

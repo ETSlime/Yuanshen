@@ -141,8 +141,9 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="CascadedShadowMap.h" />
     <ClInclude Include="CollisionManager.h" />
+    <ClInclude Include="CursorManager.h" />
     <ClInclude Include="DebugBoundingBoxRenderer.h" />
-    <ClInclude Include="debugproc.h" />
+    <ClInclude Include="Debugproc.h" />
     <ClInclude Include="DoubleLinkedList.h" />
     <ClInclude Include="Enemy.h" />
     <ClInclude Include="EnemyManager.h" />
@@ -152,6 +153,14 @@
     <ClInclude Include="Ground.h" />
     <ClInclude Include="HashMap.h" />
     <ClInclude Include="Hilichurl.h" />
+    <ClInclude Include="imgui\imconfig.h" />
+    <ClInclude Include="imgui\imgui.h" />
+    <ClInclude Include="imgui\imgui_impl_dx11.h" />
+    <ClInclude Include="imgui\imgui_impl_win32.h" />
+    <ClInclude Include="imgui\imgui_internal.h" />
+    <ClInclude Include="imgui\imstb_rectpack.h" />
+    <ClInclude Include="imgui\imstb_textedit.h" />
+    <ClInclude Include="imgui\imstb_truetype.h" />
     <ClInclude Include="input.h" />
     <ClInclude Include="Klee.h" />
     <ClInclude Include="Light.h" />
@@ -161,6 +170,7 @@
     <ClInclude Include="FBXLoader.h" />
     <ClInclude Include="Mitachurl.h" />
     <ClInclude Include="Model.h" />
+    <ClInclude Include="ModelCacheLoader.h" />
     <ClInclude Include="OctreeNode.h" />
     <ClInclude Include="offScreenRender.h" />
     <ClInclude Include="PauseModal.h" />
@@ -196,8 +206,9 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="CascadedShadowMap.cpp" />
     <ClCompile Include="CollisionManager.cpp" />
+    <ClCompile Include="CursorManager.cpp" />
     <ClCompile Include="DebugBoundingBoxRenderer.cpp" />
-    <ClCompile Include="debugproc.cpp" />
+    <ClCompile Include="Debugproc.cpp" />
     <ClCompile Include="Enemy.cpp" />
     <ClCompile Include="EnemyManager.cpp" />
     <ClCompile Include="FBXLoader.cpp" />
@@ -206,6 +217,12 @@
     <ClCompile Include="GameSystem.cpp" />
     <ClCompile Include="Ground.cpp" />
     <ClCompile Include="Hilichurl.cpp" />
+    <ClCompile Include="imgui\imgui.cpp" />
+    <ClCompile Include="imgui\imgui_draw.cpp" />
+    <ClCompile Include="imgui\imgui_impl_dx11.cpp" />
+    <ClCompile Include="imgui\imgui_impl_win32.cpp" />
+    <ClCompile Include="imgui\imgui_tables.cpp" />
+    <ClCompile Include="imgui\imgui_widgets.cpp" />
     <ClCompile Include="input.cpp" />
     <ClCompile Include="Klee.cpp" />
     <ClCompile Include="Light.cpp" />
@@ -214,6 +231,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Mitachurl.cpp" />
     <ClCompile Include="Model.cpp" />
+    <ClCompile Include="ModelCacheLoader.cpp" />
     <ClCompile Include="offScreenRender.cpp" />
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="Renderer.cpp" />

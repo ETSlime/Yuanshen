@@ -39,6 +39,9 @@ void ShaderManager::RegisterShaderSourcePaths(void)
     RegisterShaderSource(ShaderSetID::UI, VertexLayoutID::UI,
         "UI.hlsl", "VS",
         "UI.hlsl", "PS");
+    RegisterShaderSource(ShaderSetID::Debug, VertexLayoutID::Debug,
+        "DebugBox.hlsl", "VS",
+        "DebugBox.hlsl", "PS");
 
     // ===== シャドウシェーダーの登録 =====
     RegisterShadowShaderSource(ShaderSetID::StaticModel, VertexLayoutID::Static,

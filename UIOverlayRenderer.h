@@ -7,11 +7,16 @@
 #pragma once
 #include "Renderer.h"
 
+//*****************************************************************************
+// マクロ定義
+//*****************************************************************************
+#define UI_TEXTURE_PATH "data/TEXTURE/white_1x1.png"
+
 // UIフェード・オーバーレイ描画クラス
 class UIOverlayRenderer
 {
 public:
-    void Initialize(ID3D11Device* device);
+    bool Initialize(ID3D11Device* device);
     void Shutdown();
 
     // 瞬間表示（アルファ指定）
@@ -26,7 +31,7 @@ public:
 
 private:
     ID3D11Buffer* m_vertexBuffer = nullptr;
-
+    ID3D11ShaderResourceView* m_whiteTextureSRV = nullptr;
     float m_fadeTime = 0.0f;
     float m_fadeDuration = 0.0f;
     bool m_fadeIn = true;

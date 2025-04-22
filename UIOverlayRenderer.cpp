@@ -6,9 +6,12 @@
 //=============================================================================
 #include "UIOverlayRenderer.h"
 #include "UISpriteRenderer.h"
+#include "TextureMgr.h"
 
-void UIOverlayRenderer::Initialize(ID3D11Device* device)
+bool UIOverlayRenderer::Initialize(ID3D11Device* device)
 {
+    HRESULT hr = S_OK;
+
     if (m_vertexBuffer == nullptr)
     {
         D3D11_BUFFER_DESC desc = {};
@@ -16,8 +19,18 @@ void UIOverlayRenderer::Initialize(ID3D11Device* device)
         desc.ByteWidth = sizeof(UIVertex) * 4;
         desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
         desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        device->CreateBuffer(&desc, nullptr, &m_vertexBuffer);
+        hr = device->CreateBuffer(&desc, nullptr, &m_vertexBuffer);
     }
+
+    if (FAILED(hr))
+		return false;
+
+    m_whiteTextureSRV = TextureMgr::get_instance().CreateTexture(UI_TEXTURE_PATH);
+
+    if (m_whiteTextureSRV == nullptr)
+        return false;
+
+    return true;
 }
 
 void UIOverlayRenderer::Shutdown()
@@ -27,6 +40,8 @@ void UIOverlayRenderer::Shutdown()
         m_vertexBuffer->Release();
         m_vertexBuffer = nullptr;
     }
+
+    SafeRelease(&m_whiteTextureSRV);
 }
 
 void UIOverlayRenderer::Draw(ID3D11DeviceContext* ctx, float x, float y, float width, float height, XMFLOAT4 color)
@@ -37,7 +52,17 @@ void UIOverlayRenderer::Draw(ID3D11DeviceContext* ctx, float x, float y, float w
         color.w = ComputeAlpha();
     }
 
-    UISpriteRenderer::DrawSpriteWithColor(m_vertexBuffer, x, y, width, height, 0, 0, 1, 1, color);
+    // テクスチャをバインド
+    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &m_whiteTextureSRV);
+    // 頂点バッファを更新
+    UISpriteRenderer::SetSpriteWithColor(m_vertexBuffer, x, y, width, height, 0, 0, 1, 1, color);
+
+    UINT stride = sizeof(UIVertex);
+    UINT offset = 0;
+    Renderer::get_instance().GetDeviceContext()->IASetVertexBuffers(0, 1, &m_vertexBuffer, &stride, &offset);
+    Renderer::get_instance().GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    // 描画
+    Renderer::get_instance().GetDeviceContext()->Draw(4, 0);
 }
 
 void UIOverlayRenderer::StartFadeIn(float duration, XMFLOAT4 color)

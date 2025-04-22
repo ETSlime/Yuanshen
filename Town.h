@@ -6,6 +6,7 @@
 //
 //=============================================================================
 #include "GameObject.h"
+#include "Camera.h"
 
 class Town
 {
@@ -15,7 +16,8 @@ public:
 	void Update();
 	void Draw();
 
-	SimpleArray< GameObject<SkinnedMeshModelInstance>*> models;
+	SimpleArray<GameObject<SkinnedMeshModelInstance>*> models;
 
-	Renderer& renderer = Renderer::get_instance();
+	Renderer& m_Renderer = Renderer::get_instance();
+	Camera& m_Camera = Camera::get_instance();
 };

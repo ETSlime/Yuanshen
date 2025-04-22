@@ -8,7 +8,7 @@
 #include "input.h"
 #include "Camera.h"
 #include "debugproc.h"
-
+#include "GameSystem.h"
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
@@ -16,11 +16,6 @@
 #define	POS_Y_CAM			(50.0f)			// カメラの初期位置(Y座標)
 #define	POS_Z_CAM			(-480.0f)		// カメラの初期位置(Z座標)
 
-
-#define	VIEW_ANGLE		(XMConvertToRadians(45.0f))						// ビュー平面の視野角
-#define	VIEW_ASPECT		((float)SCREEN_WIDTH / (float)SCREEN_HEIGHT)	// ビュー平面のアスペクト比	
-#define	VIEW_NEAR_Z		(10.0f)											// ビュー平面のNearZ値
-#define	VIEW_FAR_Z		(800000.0f)										// ビュー平面のFarZ値
 
 #define	VALUE_MOVE_CAMERA	(2.0f)										// カメラの移動量
 #define	VALUE_ROTATE_CAMERA	(XM_PI * 0.01f)								// カメラの回転量
@@ -57,10 +52,17 @@ void Camera::Init(void)
 	pos.y = at.y + sinf(rot.x) * len;
 
 	nearZ = VIEW_NEAR_Z;
-	farZ = VIEW_FAR_Z;
+	farZ = VIEW_FAR_Z_SCENE;
 
 	// ビューポートタイプの初期化
 	SetViewPort(g_ViewPortType);
+
+
+	// プロジェクションマトリックス設定
+	m_projScene = XMMatrixPerspectiveFovLH(VIEW_ANGLE, VIEW_ASPECT, nearZ, VIEW_FAR_Z_SCENE);
+	m_projSkybox = XMMatrixPerspectiveFovLH(VIEW_ANGLE, VIEW_ASPECT, nearZ, VIEW_FAR_Z_SKYBOX);
+
+	SetCameraType(CameraType::SCENE);
 }
 
 
@@ -78,7 +80,10 @@ void Camera::Uninit(void)
 //=============================================================================
 void Camera::Update(void)
 {
-	if (!GetWindowActive()) return; // 非アクティブならカメラ更新スキップ
+	if (!GetWindowActive() 
+		|| GameSystem::get_instance().IsPaused()
+		|| GameSystem::get_instance().IsAltDown()) 
+		return; // 非アクティブならカメラ更新スキップ
 
 	// パラメータ設定
 	const float MOUSE_SENSITIVITY = 0.003f;
@@ -337,7 +342,7 @@ void Camera::Update(void)
 
 
 #ifdef _DEBUG	// デバッグ情報を表示する
-	PrintDebugProc("Camera:ZC QE TB YN UM R\n");
+	debugProc.PrintDebugProc("Camera:ZC QE TB YN UM R\n");
 #endif
 }
 
@@ -356,14 +361,6 @@ void Camera::SetCamera(void)
 	XMMATRIX mtxInvView;
 	mtxInvView = XMMatrixInverse(nullptr, mtxView);
 	XMStoreFloat4x4(&this->mtxInvView, mtxInvView);
-
-
-	// プロジェクションマトリックス設定
-	XMMATRIX mtxProjection;
-	mtxProjection = XMMatrixPerspectiveFovLH(VIEW_ANGLE, VIEW_ASPECT, nearZ, farZ);
-
-	renderer.SetProjectionMatrix(&mtxProjection);
-	XMStoreFloat4x4(&this->mtxProjection, mtxProjection);
 
 	renderer.SetShaderCamera(pos);
 }
@@ -450,5 +447,27 @@ void Camera::SetCameraAT(XMFLOAT3 pos)
 	pos.x = at.x - sinf(rot.y) * len;
 	pos.z = at.z - cosf(rot.y) * len;
 
+}
+
+void Camera::SetCameraType(CameraType type)
+{
+	m_CameraType = type;
+
+	switch (type)
+	{
+	case CameraType::SKYBOX:
+		farZ = VIEW_FAR_Z_SKYBOX;
+		XMStoreFloat4x4(&mtxProjection, m_projSkybox);
+		break;
+	case CameraType::SCENE:
+		farZ = VIEW_FAR_Z_SCENE;
+		XMStoreFloat4x4(&mtxProjection, m_projScene);
+		break;
+	default:
+		break;
+	}
+
+	XMMATRIX mtxProjection = XMLoadFloat4x4(&this->mtxProjection);
+	renderer.SetProjectionMatrix(&mtxProjection);
 }
 

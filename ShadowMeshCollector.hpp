@@ -32,7 +32,7 @@ inline void CollectShadowMeshFromModel<ModelInstance>(
     const ModelInstance& modelInstance,
     SimpleArray<StaticRenderData>& out)
 {
-    if (!modelInstance.pModel) return;
+    if (!modelInstance.pModel || modelInstance.isInstanced) return;
 
     const auto& parts = modelInstance.pModel->GetMeshParts();
     for (const auto& part : parts)

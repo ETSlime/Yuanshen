@@ -18,10 +18,10 @@
 #define MAX_TREE			(0)
 
 #define TREE_SIZE			(350.0f)
-#define FIELD_SIZE			(56850.0f)
-#define BONFIRE_SIZE		(80.0f)
+#define FIELD_SIZE			(46850.0f)
+#define BONFIRE_SIZE		(20.0f)
 
-#define PLAYER_INIT_POS		XMFLOAT3(12582.0f, -2424.0f, -19485.0f)
+#define PLAYER_INIT_POS		XMFLOAT3(12582.0f, -2111.0f, -19485.0f)
 
 //=============================================================================
 // ‰Šú‰»ˆ—
@@ -61,7 +61,7 @@ Ground::Ground()
 	worldBB.minPoint = WORLD_MIN;
 	CollisionManager::get_instance().InitOctree(worldBB);
 
-	town = new Town();
+	//town = new Town();
 
 	XMMATRIX worldMatrix;
 
@@ -75,21 +75,21 @@ Ground::Ground()
 	fieldGO->GetSkinnedMeshModel()->BuildTrianglesByWorldMatrix(worldMatrix, true);
 	fieldGO->GetSkinnedMeshModel()->BuildOctree();
 	fieldGO->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
-	//fieldGO->SetCastShadow(false);
+	fieldGO->SetCastShadow(false);
 	skinnedMeshGroundGO.push_back(fieldGO);
 
-	//GameObject<SkinnedMeshModelInstance>* bonfireGO = new GameObject<SkinnedMeshModelInstance>();
-	//bonfireGO->Instantiate(MODEL_ENVIRONMENT_PATH, MODEL_BONFIRE_NAME);
-	//bonfireGO->SetScale(XMFLOAT3(BONFIRE_SIZE, BONFIRE_SIZE, BONFIRE_SIZE));
-	//bonfireGO->SetPosition(XMFLOAT3(12582.0f, -2374.0f, -19485.0f));
-	//bonfireGO->Update();
-	//bonfireGO->SetCastShadow(true);
-	//worldMatrix = bonfireGO->GetWorldMatrix();
-	//BOUNDING_BOX boundingBox = bonfireGO->GetCollider().bbox;
-	//bonfireGO->GetSkinnedMeshModel()->BuildTrianglesByBoundingBox(boundingBox);
-	//bonfireGO->GetSkinnedMeshModel()->BuildOctree();
-	//bonfireGO->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
-	//skinnedMeshGroundGO.push_back(bonfireGO);
+	GameObject<ModelInstance>* bonfireGO = new GameObject<ModelInstance>();
+	bonfireGO->Instantiate(MODEL_BONFIRE_PATH);
+	bonfireGO->SetScale(XMFLOAT3(BONFIRE_SIZE, BONFIRE_SIZE, BONFIRE_SIZE));
+	bonfireGO->SetPosition(XMFLOAT3(12582.0f, -2011.0f, -19485.0f));
+	bonfireGO->Update();
+	bonfireGO->SetCastShadow(true);
+	worldMatrix = bonfireGO->GetWorldMatrix();
+	BOUNDING_BOX boundingBox = bonfireGO->GetCollider().bbox;
+	bonfireGO->GetModel()->BuildTrianglesByBoundingBox(boundingBox);
+	bonfireGO->GetModel()->BuildOctree();
+	bonfireGO->GetModel()->SetDrawBoundingBox(true);
+	groundGO.push_back(bonfireGO);
 
 	//GameObject<ModelInstance>* banyanGO = new GameObject<ModelInstance>();
 	//banyanGO->Instantiate(MODEL_BANYAN_PATH);
@@ -97,20 +97,14 @@ Ground::Ground()
 	//banyanGO->SetScale(XMFLOAT3(50.0f, 50.0f, 50.0f));
 	//groundGO.push_back(banyanGO);
 
-	//GameObject<ModelInstance>* banyanGO = new GameObject<ModelInstance>();
-	//banyanGO->Instantiate("data/MODEL/Environment/Bush/Bush_2.obj");
-	//banyanGO->SetPosition(XMFLOAT3(12582.0f, -2374.0f, -19485.0f));
-	//banyanGO->SetScale(XMFLOAT3(1.0f, 1.0f, 1.0f));
-	//groundGO.push_back(banyanGO);
-
-	InstanceParams params;
-	params.type = EnvironmentObjectType::Bush_2;
-	params.transformArray.push_back(InstanceTransformInfo(
-		12582.0f,
-		-19485.0f,
-		0.0f,
-		1.0f
-	));
+	//InstanceParams params;
+	//params.type = EnvironmentObjectType::Bush_2;
+	//params.transformArray.push_back(InstanceTransformInfo(
+	//	12582.0f,
+	//	-19485.0f,
+	//	0.0f,
+	//	1.0f
+	//));
 
 	//environment = new Environment();
 	//environment->GenerateInstanceByParams(params, fieldGO->GetSkinnedMeshModel());
@@ -173,8 +167,8 @@ void Ground::Draw(void)
 {
 	renderer.SetLightModeBuffer(1);
 
-	//if (town)
-	//	town->Draw();
+	if (town)
+		town->Draw();
 
 	if (renderer.GetRenderMode() == RenderMode::INSTANCE
 		|| renderer.GetRenderMode() == RenderMode::INSTANCE_SHADOW)

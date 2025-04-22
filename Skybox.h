@@ -10,7 +10,8 @@
 // マクロ定義
 //*****************************************************************************
 #define	TEXTURE_SKYBOX_PATH		"data/TEXTURE/BrightSky.dds"
-
+#define SKYBOX_DAY_SRV_SLOT		15
+#define SKYBOX_NIGHT_SRV_SLOT	21
 
 //*****************************************************************************
 // 構造体定義
@@ -50,11 +51,10 @@ private:
     ID3D11Device* m_device;
     ID3D11DeviceContext* m_context;
 
-    ID3D11Buffer* m_vertexBuffer;
-    ID3D11InputLayout* m_inputLayout;
-    ID3D11VertexShader* m_vertexShader;
-    ID3D11PixelShader* m_pixelShader;
 
+    ShaderSet m_shaderSet;
+
+    ID3D11Buffer* m_vertexBuffer;
     ID3D11SamplerState* m_samplerState;
     ID3D11Buffer* m_skyboxBuffer;
     ID3D11DepthStencilState* m_depthStencilState;

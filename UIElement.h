@@ -22,7 +22,7 @@ public:
     bool IsMouseOver(float mouseX, float mouseY) const { return false; }
 
     virtual bool NeedsOverlay() const { return HasCustomOverlay(); }
-    virtual bool HasCustomOverlay(void) const { return false; }
+    virtual bool HasCustomOverlay(void) const { return m_customOverlay; }
     virtual void DrawCustomOverlay(void) const {}
 
 protected:
@@ -30,4 +30,5 @@ protected:
     XMFLOAT2 m_size;
     int m_zOrder = 0;
     bool m_isHovering = false;
+    bool m_customOverlay = false;
 };

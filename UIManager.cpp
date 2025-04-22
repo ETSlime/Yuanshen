@@ -28,7 +28,8 @@ void UIManager::Update(void)
 void UIManager::Draw(void)
 {
     // Z順でソート（必要なら）
-    for (size_t i = 1; i < m_elements.getSize(); ++i)
+    UINT numUIElements = m_elements.getSize();
+    for (UINT i = 1; i < numUIElements; ++i)
     {
         auto key = m_elements[i];
         int j = static_cast<int>(i) - 1;
@@ -56,7 +57,7 @@ void UIManager::Draw(void)
         else if (m_modal->NeedsOverlay())
         {
             // 半透明の黒い背景
-            DrawOverlay(0, 0, 1280, 720, { 0, 0, 0, 0.5f });
+            DrawOverlay(0.0f, 0.0f, SCREEN_WIDTH, SCREEN_HEIGHT, { 0, 0, 0, 0.5f });
         }
 
 
@@ -71,6 +72,9 @@ void UIManager::AddElement(UIElement* element)
 
 void UIManager::SetModal(UIElement* modal)
 {
+    // 既存のモーダルを削除
+    SAFE_DELETE(m_modal);
+    // 新しいモーダルを設定
     m_modal = modal;
 }
 
@@ -81,7 +85,7 @@ bool UIManager::IsModalActive() const
 
 void UIManager::ClearModal(void)
 {
-    m_modal = nullptr;
+    SAFE_DELETE(m_modal);
 }
 
 void UIManager::DrawOverlay(float x, float y, float w, float h, XMFLOAT4 color)

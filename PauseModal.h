@@ -15,6 +15,7 @@ public:
     {
         m_position = { 640, 360 };
         m_size = { 400, 200 };
+        //m_customOverlay = true; // オーバーレイを使用する
     }
 
     void Update(void) override {} // 無処理
@@ -22,7 +23,7 @@ public:
     bool NeedsOverlay(void) const override { return true; } // オーバーレイが必要
     void DrawCustomOverlay(void) const override
     {
-        UIManager::get_instance().DrawOverlay(0, 0, 1280, 720, { 1.0f, 0.7f, 0.9f, 0.4f });
+        UIManager::get_instance().DrawOverlay(0.0f, 0.0f, SCREEN_WIDTH, SCREEN_HEIGHT, { 1.0f, 0.7f, 0.9f, 0.4f });
     }
 };
 

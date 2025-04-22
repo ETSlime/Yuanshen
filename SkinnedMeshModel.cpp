@@ -616,6 +616,8 @@ XMMATRIX SkinnedMeshModel::GetBoneFinalTransform(UINT boneIdx)
 const XMMATRIX* SkinnedMeshModel::GetFinalBoneMatrices(void)
 {
     UINT size = boneTransformData.mBoneFinalTransforms.getSize();
+    if (size == 0) return nullptr;
+
     for (UINT i = 0; i < size; i++) 
     {
         m_transposedBoneMatrices[i] =

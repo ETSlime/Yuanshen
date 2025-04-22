@@ -7,15 +7,13 @@
 #pragma once
 #include "Camera.h"
 #include "Light.h"
-#include "SimpleArray.h"
-#include "Renderer.h"
-#include "SingletonBase.h"
 #include "CascadedShadowMap.h"
 #include "ShaderManager.h"
 #include "DebugBoundingBoxRenderer.h"
 #include "ShadowMeshCollector.h"
+#include "Debugproc.h"
 
-class ShadowMapRenderer : public SingletonBase<ShadowMapRenderer>
+class ShadowMapRenderer : public SingletonBase<ShadowMapRenderer>, public IDebugUI
 {
 public:
 
@@ -26,12 +24,10 @@ public:
     void CollectFromScene_NoCulling(const SimpleArray<IGameObject*>& objects);
     void CollectFromScene(const SimpleArray<IGameObject*> objects, const XMMATRIX& lightViewProj);
     // シャドウマップを描画する
-    void RenderCSMForLight(DirectionalLight* light, const SimpleArray<IGameObject*>& sceneObjects);
+    void RenderCSMForLight(DirectionalLight* light, int lightIndex, const SimpleArray<IGameObject*>& sceneObjects);
 
-    ID3D11ShaderResourceView* GetShadowSRV(int cascadeIndex) const;
+    ID3D11ShaderResourceView* GetShadowSRV(int lightIndex, int cascadeIndex) const;
     const XMMATRIX& GetLightViewProj(int cascadeIndex) const;
-
-    void VisualizeCascadeBounds(void);
 
     inline void SetEnableStaticShadow(bool enable) { m_enableStaticShadow = enable; }
     inline void SetEnableSkinnedShadow(bool enable) { m_enableSkinnedShadow = enable; }
@@ -41,12 +37,16 @@ public:
     inline bool IsSkinnedShadowEnabled() const { return m_enableSkinnedShadow; }
     inline bool IsInstancedShadowEnabled() const { return m_enableInstancedShadow; }
 
+    virtual void RenderImGui(void) override;
+    virtual const char* GetPanelName(void) const override { return "Shadow Map Renderer"; } ;
+    virtual void RenderDebugInfo(void) override;
+
 private:
 
     // シャドウマップの初期化
     void BeginShadowPass(const DirectionalLight* light);
     // シャドウマップの描画を開始
-    void RenderShadowPass(void);
+    void RenderShadowPass(int cascadeIndex);
     // シャドウマップの描画を終了
     void EndShadowPass(void);
 
@@ -62,11 +62,7 @@ private:
     CascadedShadowMap m_csm;
     ShadowMeshCollector m_shadowCollector;
 
-    XMMATRIX m_cameraView;
-    XMMATRIX m_cameraProj;
     XMVECTOR m_lightDir;
-    float m_nearZ = 0.1f;
-    float m_farZ = 1000.0f;
 
     float m_alphaCutoff = 0.5f;
 
@@ -74,14 +70,7 @@ private:
     bool m_enableSkinnedShadow = true;
     bool m_enableInstancedShadow = true;
 
-    //struct CascadeDebugData 
-    //{
-    //    BOUNDING_BOX cascadeBounds;
-    //    //std::unique_ptr<GeometricPrimitive> debugBox;
-    //};
     SimpleArray<BOUNDING_BOX> m_debugBounds;
-
-    DebugBoundingBoxRenderer m_debugBoxRenderer;
 
     void UpdateCascadeDebugBounds(void);
 
@@ -93,5 +82,6 @@ private:
 
     ID3D11Device* m_device = Renderer::get_instance().GetDevice();
     ID3D11DeviceContext* m_context = Renderer::get_instance().GetDeviceContext();
+    Renderer& m_renderer = Renderer::get_instance();
     ShaderManager& m_shaderManager = ShaderManager::get_instance();
 };

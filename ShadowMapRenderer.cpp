@@ -8,7 +8,9 @@
 #include "ShaderLoader.h"
 
 bool ShadowMapRenderer::Init(int shadowMapSize, int numCascades)
-{
+{ 
+    DebugProc::get_instance().Register(this);
+
     m_csm.Initialize(shadowMapSize, numCascades);
     m_debugBounds.resize(numCascades);
 
@@ -52,41 +54,42 @@ void ShadowMapRenderer::Shutdown()
 
 void ShadowMapRenderer::BeginShadowPass(const DirectionalLight* light)
 {
-    m_cameraView = XMLoadFloat4x4(&m_camera.GetViewMatrix());
-    m_cameraProj = XMLoadFloat4x4(&m_camera.GetProjMatrix());
     XMFLOAT3 dir = light->GetDirection();
     m_lightDir = XMVectorSet(dir.x, dir.y, dir.z, 0.0f);
-    m_nearZ = m_camera.GetNearZ();
-    m_farZ = m_camera.GetFarZ();  
 
-    m_csm.UpdateCascades(m_cameraView, m_cameraProj, m_lightDir, m_nearZ, m_farZ);
-    UpdateCascadeDebugBounds();
+    m_csm.UpdateCascades(m_lightDir, m_camera.GetNearZ(), m_camera.GetFarZ());
+    //UpdateCascadeDebugBounds();
+
+    m_csm.UnbindShadowSRVs();
 }
 
-void ShadowMapRenderer::RenderCSMForLight(DirectionalLight* light, const SimpleArray<IGameObject*>& sceneObjects)
+void ShadowMapRenderer::RenderCSMForLight(DirectionalLight* light, int lightIndex, const SimpleArray<IGameObject*>& sceneObjects)
 {
     BeginShadowPass(light);
 
-    for (int i = 0; i < m_csm.GetCascadeCount(); ++i)
+    for (int cascadeIndex = 0; cascadeIndex < m_csm.GetCascadeCount(); cascadeIndex++)
     {
-        m_csm.BeginCascadeRender(i);
+        m_csm.BeginCascadeRender(lightIndex, cascadeIndex);
         m_csm.SetViewport();
+        m_csm.UpdateCascadeCBuffer(cascadeIndex);
 
-        m_context->ClearDepthStencilView(m_csm.GetDSV(i), D3D11_CLEAR_DEPTH, 1.0f, 0);
-
-        const auto& cascade = m_csm.GetCascadeData(i);
-        CollectFromScene(sceneObjects, cascade.lightViewProj);
-        RenderShadowPass();
+        m_csm.CollectFromScene(cascadeIndex, sceneObjects);
+        RenderShadowPass(cascadeIndex);
     }
 
     EndShadowPass();
+
+    m_csm.UpdateCascadeCBufferArray();
+    m_csm.BindShadowSRVsToPixelShader(lightIndex, CSM_SRV_SLOT);
 }
 
-void ShadowMapRenderer::RenderShadowPass(void)
+void ShadowMapRenderer::RenderShadowPass(int cascadeIndex)
 {
+    ShadowMeshCollector& collector = m_csm.GetCascadeCollector(cascadeIndex);
+
     if (m_enableStaticShadow)
     {
-        const auto& staticMeshes = m_shadowCollector.GetStaticMeshes();
+        const auto& staticMeshes = collector.GetStaticMeshes();
         for (UINT i = 0; i < staticMeshes.getSize(); ++i)
         {
             RenderStaticMesh(staticMeshes[i]);
@@ -95,7 +98,7 @@ void ShadowMapRenderer::RenderShadowPass(void)
 
     if (m_enableSkinnedShadow)
     {
-        const auto& skinnedMeshes = m_shadowCollector.GetSkinnedMeshes();
+        const auto& skinnedMeshes = collector.GetSkinnedMeshes();
         for (UINT i = 0; i < skinnedMeshes.getSize(); ++i)
         {
             RenderSkinnedMesh(skinnedMeshes[i]);
@@ -104,7 +107,7 @@ void ShadowMapRenderer::RenderShadowPass(void)
 
     if (m_enableInstancedShadow)
     {
-        const auto& instancedMeshes = m_shadowCollector.GetInstancedMeshes();
+        const auto& instancedMeshes = collector.GetInstancedMeshes();
         for (UINT i = 0; i < instancedMeshes.getSize(); ++i)
         {
             RenderInstancedMesh(instancedMeshes[i]);
@@ -149,9 +152,7 @@ void ShadowMapRenderer::RenderStaticMesh(const StaticRenderData& mesh)
     m_context->IASetIndexBuffer(mesh.indexBuffer, mesh.indexFormat, 0);
     m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    XMMATRIX lightVP = m_csm.GetCurrentCascadeData().lightViewProj;
-    XMMATRIX world = mesh.worldMatrix;
-    XMMATRIX wvp = XMMatrixTranspose(world * lightVP);
+    m_renderer.SetCurrentWorldMatrix(&mesh.worldMatrix);
 
     //D3D11_MAPPED_SUBRESOURCE mapped = {};
     //m_context->Map(m_cbPerObject, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
@@ -169,7 +170,7 @@ void ShadowMapRenderer::RenderStaticMesh(const StaticRenderData& mesh)
     }
     else
     {
-        m_context->PSSetShader(m_staticModelShaderSet.ps, nullptr, 0);
+        m_context->PSSetShader(nullptr, nullptr, 0);
     }
 
     m_context->DrawIndexed(mesh.indexCount, 0, 0);
@@ -177,6 +178,45 @@ void ShadowMapRenderer::RenderStaticMesh(const StaticRenderData& mesh)
 
 void ShadowMapRenderer::RenderSkinnedMesh(const SkinnedRenderData& mesh)
 {
+    m_context->IASetInputLayout(m_skinnedModelShaderSet.inputLayout);
+
+    UINT offset = 0;
+    m_context->IASetVertexBuffers(0, 1, &mesh.vertexBuffer, &mesh.stride, &offset);
+    m_context->IASetIndexBuffer(mesh.indexBuffer, mesh.indexFormat, 0);
+    m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    m_renderer.SetCurrentWorldMatrix(&mesh.worldMatrix);
+    if (mesh.pBoneMatrices)
+    {
+        m_renderer.SetBoneMatrix(mesh.pBoneMatrices);
+    }
+    else
+    {
+        XMMATRIX	boneMatrices[BONE_MAX];
+        boneMatrices[0] = XMMatrixTranspose(XMMatrixIdentity());
+        m_renderer.SetBoneMatrix(boneMatrices);
+    }
+
+    //D3D11_MAPPED_SUBRESOURCE mapped = {};
+    //m_context->Map(m_cbPerObject, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+    //CBPerObject* cb = reinterpret_cast<CBPerObject*>(mapped.pData);
+    //cb->worldViewProj = wvp;
+    //context->Unmap(m_cbPerObject, 0);
+
+    m_context->VSSetShader(m_skinnedModelShaderSet.vs, nullptr, 0);
+    //m_context->VSSetConstantBuffers(0, 1, &m_cbPerObject);
+
+    if (mesh.enableAlphaTest && mesh.opacityMapSRV)
+    {
+        m_context->PSSetShader(m_skinnedModelShaderSet.alphaPs, nullptr, 0);
+        m_context->PSSetShaderResources(0, 1, &mesh.opacityMapSRV);
+    }
+    else
+    {
+        m_context->PSSetShader(nullptr, nullptr, 0);
+    }
+
+    m_context->DrawIndexed(mesh.indexCount, 0, 0);
 }
 
 void ShadowMapRenderer::RenderInstancedMesh(const InstancedRenderData& mesh)
@@ -221,9 +261,9 @@ void ShadowMapRenderer::EndShadowPass()
     }
 }
 
-ID3D11ShaderResourceView* ShadowMapRenderer::GetShadowSRV(int cascadeIndex) const
+ID3D11ShaderResourceView* ShadowMapRenderer::GetShadowSRV(int lightIndex, int cascadeIndex) const
 {
-    return m_csm.GetShadowSRV(cascadeIndex);
+    return m_csm.GetShadowSRV(lightIndex, cascadeIndex);
 }
 
 const XMMATRIX& ShadowMapRenderer::GetLightViewProj(int cascadeIndex) const
@@ -231,20 +271,29 @@ const XMMATRIX& ShadowMapRenderer::GetLightViewProj(int cascadeIndex) const
     return m_csm.GetCascadeData(cascadeIndex).lightViewProj;
 }
 
-void ShadowMapRenderer::VisualizeCascadeBounds(void)
+void ShadowMapRenderer::RenderImGui(void)
 {
-    XMFLOAT4 colors[] = {
-    {1, 0, 0, 1}, // red
-    {1, 1, 0, 1}, // yellow
-    {0, 1, 0, 1}, // green
-    {0, 1, 1, 1}  // cyan
-    };
+    // シャドウのタイプごとの有効化設定（1行ずつチェックボックス表示）
+    ImGui::Checkbox("Enable Static Shadow", &m_enableStaticShadow);
+    ImGui::Checkbox("Enable Skinned Shadow", &m_enableSkinnedShadow);
+    ImGui::Checkbox("Enable Instanced Shadow", &m_enableInstancedShadow);
 
     for (int i = 0; i < m_csm.GetCascadeCount(); ++i)
     {
-        const BOUNDING_BOX& box = m_debugBounds[i];
-        m_debugBoxRenderer.DrawBox(box, m_camera.GetViewProjMtx(), colors[i]);
+        ImGui::Text("Cascade %d", i);
+        ImGui::Image((ImTextureID)m_csm.GetSRV(0, i), ImVec2(128, 128));
     }
+
+
+    // CSM 設定のデバッグUIを表示
+    ImGui::Separator();
+    ImGui::Text("Cascaded Shadow Map");
+    m_csm.RenderImGui();
+}
+
+void ShadowMapRenderer::RenderDebugInfo(void)
+{
+    m_csm.VisualizeCascadeBounds();
 }
 
 void ShadowMapRenderer::UpdateCascadeDebugBounds(void)
@@ -257,7 +306,7 @@ void ShadowMapRenderer::UpdateCascadeDebugBounds(void)
     XMMATRIX camProj = XMLoadFloat4x4(&m_camera.GetProjMatrix());
 
     float lambda = 0.5f;
-    float splitDepths[CascadedShadowMap::MaxCascades];
+    float splitDepths[MAX_CASCADES];
 
     for (int i = 0; i < cascadeCount; ++i)
     {

@@ -7,6 +7,7 @@
 #include "Skybox.h"
 #include "TextureMgr.h"
 #include "Renderer.h"
+
 //*****************************************************************************
 // ƒ}ƒNƒ’è‹`
 //*****************************************************************************
@@ -35,7 +36,8 @@ static char* nightTextures[6] =
 };
 
 Skybox::Skybox() 
-	: m_device(Renderer::get_instance().GetDevice()), m_context(Renderer::get_instance().GetDeviceContext())
+	: m_device(Renderer::get_instance().GetDevice()), 
+    m_context(Renderer::get_instance().GetDeviceContext())
 {
     dayToNight = true;
     m_timeOfDay = 0.0f;
@@ -45,9 +47,6 @@ Skybox::Skybox()
 Skybox::~Skybox() 
 {
     if (m_vertexBuffer) m_vertexBuffer->Release();
-    if (m_inputLayout) m_inputLayout->Release();
-    if (m_vertexShader) m_vertexShader->Release();
-    if (m_pixelShader) m_pixelShader->Release();
     if (m_samplerState) m_samplerState->Release();
     if (m_skyboxBuffer) m_skyboxBuffer->Release();
 
@@ -140,45 +139,45 @@ void Skybox::CreateCube()
         {{ size,  size,  size}, {0.0f, 0.0f}, 0},
         {{ size,  size, -size}, {1.0f, 0.0f}, 0},
 
-        // -X –Ê (faceIndex = 1)
-        {{-size,  size,  size}, {1.0f, 0.0f}, 1},
-        {{-size, -size,  size}, {1.0f, 1.0f}, 1},
-        {{-size, -size, -size}, {0.0f, 1.0f}, 1},
-        {{-size, -size, -size}, {0.0f, 1.0f}, 1},
-        {{-size,  size, -size}, {0.0f, 0.0f}, 1},
-        {{-size,  size,  size}, {1.0f, 0.0f}, 1},
+        // -X –Ê (faceIndex = 2)
+        {{-size,  size,  size}, {1.0f, 0.0f}, 2},
+        {{-size, -size,  size}, {1.0f, 1.0f}, 2},
+        {{-size, -size, -size}, {0.0f, 1.0f}, 2},
+        {{-size, -size, -size}, {0.0f, 1.0f}, 2},
+        {{-size,  size, -size}, {0.0f, 0.0f}, 2},
+        {{-size,  size,  size}, {1.0f, 0.0f}, 2},
 
-        // +Y –Ê (faceIndex = 2)
-        {{-size,  size, -size}, {0.0f, 1.0f}, 2},
-        {{-size,  size,  size}, {0.0f, 0.0f}, 2},
-        {{ size,  size,  size}, {1.0f, 0.0f}, 2},
-        {{ size,  size,  size}, {1.0f, 0.0f}, 2},
-        {{ size,  size, -size}, {1.0f, 1.0f}, 2},
-        {{-size,  size, -size}, {0.0f, 1.0f}, 2},
+        // +Y –Ê (faceIndex = 4)
+        {{-size,  size, -size}, {0.0f, 1.0f}, 4},
+        {{-size,  size,  size}, {0.0f, 0.0f}, 4},
+        {{ size,  size,  size}, {1.0f, 0.0f}, 4},
+        {{ size,  size,  size}, {1.0f, 0.0f}, 4},
+        {{ size,  size, -size}, {1.0f, 1.0f}, 4},
+        {{-size,  size, -size}, {0.0f, 1.0f}, 4},
 
-        // -Y –Ê (faceIndex = 3)
-        {{-size, -size,  size}, {0.0f, 0.0f}, 3},
-        {{-size, -size, -size}, {0.0f, 1.0f}, 3},
-        {{ size, -size, -size}, {1.0f, 1.0f}, 3},
-        {{ size, -size, -size}, {1.0f, 1.0f}, 3},
-        {{ size, -size,  size}, {1.0f, 0.0f}, 3},
-        {{-size, -size,  size}, {0.0f, 0.0f}, 3},
-
-        // +Z –Ê (faceIndex = 4)
-        {{-size,  size,  size}, {1.0f, 0.0f}, 4},
-        {{-size, -size,  size}, {1.0f, 1.0f}, 4},
-        {{ size, -size,  size}, {0.0f, 1.0f}, 4},
-        {{ size, -size,  size}, {0.0f, 1.0f}, 4},
-        {{ size,  size,  size}, {0.0f, 0.0f}, 4},
-        {{-size,  size,  size}, {1.0f, 0.0f}, 4},
-
-        // -Z –Ê (faceIndex = 5)
-        {{ size,  size, -size}, {1.0f, 0.0f}, 5},
+        // -Y –Ê (faceIndex = 5)
+        {{-size, -size,  size}, {0.0f, 0.0f}, 5},
+        {{-size, -size, -size}, {0.0f, 1.0f}, 5},
         {{ size, -size, -size}, {1.0f, 1.0f}, 5},
-        {{-size, -size, -size}, {0.0f, 1.0f}, 5},
-        {{-size, -size, -size}, {0.0f, 1.0f}, 5},
-        {{-size,  size, -size}, {0.0f, 0.0f}, 5},
-        {{ size,  size, -size}, {1.0f, 0.0f}, 5},
+        {{ size, -size, -size}, {1.0f, 1.0f}, 5},
+        {{ size, -size,  size}, {1.0f, 0.0f}, 5},
+        {{-size, -size,  size}, {0.0f, 0.0f}, 5},
+
+        // +Z –Ê (faceIndex = 3)
+        {{-size,  size,  size}, {0.0f, 0.0f}, 3},
+        {{-size, -size,  size}, {0.0f, 1.0f}, 3},
+        {{ size, -size,  size}, {1.0f, 1.0f}, 3},
+        {{ size, -size,  size}, {1.0f, 1.0f}, 3},
+        {{ size,  size,  size}, {1.0f, 0.0f}, 3},
+        {{-size,  size,  size}, {0.0f, 0.0f}, 3},
+
+        // -Z –Ê (faceIndex = 1)
+        {{ size,  size, -size}, {0.0f, 0.0f}, 1},
+        {{ size, -size, -size}, {0.0f, 1.0f}, 1},
+        {{-size, -size, -size}, {1.0f, 1.0f}, 1},
+        {{-size, -size, -size}, {1.0f, 1.0f}, 1},
+        {{-size,  size, -size}, {1.0f, 0.0f}, 1},
+        {{ size,  size, -size}, {0.0f, 0.0f}, 1},
     };
 
     D3D11_BUFFER_DESC vertexBufferDesc = {};
@@ -194,34 +193,7 @@ void Skybox::CreateCube()
 
 void Skybox::LoadShaders() 
 {
-    HRESULT hr = S_OK;
-
-    ID3DBlob* pVSBlob, * pPSBlob;
-    ID3DBlob* pErrorBlob = NULL;
-    hr = D3DX11CompileFromFile("Skybox.hlsl", NULL, NULL, "VS", "vs_4_0", 0, 0, NULL, &pVSBlob, &pErrorBlob, NULL);
-    if (FAILED(hr))
-    {
-        MessageBox(NULL, (char*)pErrorBlob->GetBufferPointer(), "VS", MB_OK | MB_ICONERROR);
-    }
-
-    hr = D3DX11CompileFromFile("Skybox.hlsl", NULL, NULL, "PS", "ps_4_0", 0, 0, NULL, &pPSBlob, &pErrorBlob, NULL);
-    if (FAILED(hr))
-    {
-        MessageBox(NULL, (char*)pErrorBlob->GetBufferPointer(), "PS", MB_OK | MB_ICONERROR);
-    }
-
-
-    m_device->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &m_vertexShader);
-    m_device->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &m_pixelShader);
-
-    D3D11_INPUT_ELEMENT_DESC layout[] = { 
-        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}, 
-    };
-    m_device->CreateInputLayout(layout, 1, pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), &m_inputLayout);
-
-    pVSBlob->Release();
-    pPSBlob->Release();
+    m_shaderSet = ShaderManager::get_instance().GetShaderSet(ShaderSetID::Skybox);
 }
 
 float Skybox::AdjustBlendFactor(float time)
@@ -259,15 +231,15 @@ void Skybox::Draw(const XMMATRIX& viewMatrix, const XMMATRIX& projectionMatrix)
     dataPtr->blendFactor = blendFactor;
     m_context->Unmap(m_skyboxBuffer, 0);
 
-    m_context->IASetInputLayout(m_inputLayout);
+    m_context->IASetInputLayout(m_shaderSet.inputLayout);
     m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_context->IASetVertexBuffers(0, 1, &m_vertexBuffer, &stride, &offset);
 
-    m_context->VSSetShader(m_vertexShader, nullptr, 0);
+    m_context->VSSetShader(m_shaderSet.vs, nullptr, 0);
     m_context->VSSetConstantBuffers(9, 1, &m_skyboxBuffer);
-    m_context->PSSetShader(m_pixelShader, nullptr, 0);
-    m_context->PSSetShaderResources(0, 6, skyboxDaySRVs);
-    m_context->PSSetShaderResources(6, 6, skyboxNightSRVs);
+    m_context->PSSetShader(m_shaderSet.ps, nullptr, 0);
+    m_context->PSSetShaderResources(SKYBOX_DAY_SRV_SLOT, 6, skyboxDaySRVs);
+    m_context->PSSetShaderResources(SKYBOX_NIGHT_SRV_SLOT, 6, skyboxNightSRVs);
     m_context->PSSetSamplers(2, 1, &m_samplerState);
     m_context->PSSetConstantBuffers(9, 1, &m_skyboxBuffer);
 

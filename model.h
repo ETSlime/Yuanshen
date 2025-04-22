@@ -84,23 +84,32 @@ struct SUBSET
 // モデル構造体
 struct MODEL_DATA
 {
-	VERTEX_3D* VertexArray;
+	VERTEX_3D*		VertexArray;
 	unsigned int	VertexNum;
-	unsigned int* IndexArray;
+	unsigned int*	IndexArray;
 	unsigned int	IndexNum;
+
+	SUBSET*			SubsetArray;
+	unsigned int	SubsetNum;
+	BOUNDING_BOX	boundingBox;
+
+	SimpleArray<Triangle*> triangles;
 
 	MODEL_DATA()
 	{
 		VertexArray = nullptr;
 		IndexArray = nullptr;
+		SubsetArray = nullptr;
 		VertexNum = 0;
 		IndexNum = 0;
+		SubsetNum = 0;
 	}
 
 	~MODEL_DATA()
 	{
-		delete[] VertexArray;
-		delete[] IndexArray;
+		SAFE_DELETE_ARRAY(VertexArray);
+		SAFE_DELETE_ARRAY(IndexArray);
+		SAFE_DELETE_ARRAY(SubsetArray);
 	}
 };
 
@@ -143,10 +152,14 @@ public:
 	// モデルの指定マテリアルのディフューズをセットする。
 	void SetModelDiffuse(int mno, XMFLOAT4 diffuse);
 
+	void BuildTrianglesByBoundingBox(BOUNDING_BOX box);
+	bool BuildOctree(void);
+
 	const MODEL_DATA* GetModelData(void) { return modelData; }
-	const SUBSET* GetSubset(void) { return SubsetArray; }
-	unsigned int GetSubNum(void) { return SubsetNum; }
-	BOUNDING_BOX GetBoundingBox(void) { return boundingBox; }
+	const SUBSET* GetSubset(void) { return modelData->SubsetArray; }
+	unsigned int GetSubNum(void) { return modelData->SubsetNum; }
+	BOUNDING_BOX GetBoundingBox(void) { return modelData->boundingBox; }
+	void SetDrawBoundingBox(bool draw) { drawBoundingBox = draw; }
 
 	const SimpleArray<StaticMeshPart>& GetMeshParts(void) const;
 
@@ -167,13 +180,14 @@ private:
 	ID3D11Buffer*	VertexBuffer;
 	ID3D11Buffer*	IndexBuffer;
 
-	SUBSET*			SubsetArray;
-	unsigned int	SubsetNum;
+	//SUBSET*			SubsetArray;
+	//unsigned int	SubsetNum;
 
 	MODEL_DATA*		modelData;
 	bool			loadTangent = false;
+	bool			drawBoundingBox = false;
 
-	BOUNDING_BOX	boundingBox;
+	//BOUNDING_BOX	boundingBox;
 	ID3D11Buffer* BBVertexBuffer;
 
 	Renderer& renderer = Renderer::get_instance();

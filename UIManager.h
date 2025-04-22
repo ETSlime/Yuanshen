@@ -5,22 +5,33 @@
 //
 //=============================================================================
 #pragma once
-#include "SimpleArray.h"
 #include "SingletonBase.h"
 #include "UIElement.h"
 #include "UIOverlayRenderer.h"
+#include "SimpleArray.h"
 
 class UIManager : public SingletonBase<UIManager>
 {
 public:
     UIManager() : m_modal(nullptr) {}
-    ~UIManager() { Clear(); }
 
     void Init(void);
+    void Uninit(void) {Clear();}
     void Update(void);
     void Draw(void);
     void Clear(void);
     void AddElement(UIElement* element);
+
+    template<typename T>
+    void SetModalIfNotExist()
+    {
+        if (dynamic_cast<T*>(m_modal) == nullptr)
+        {
+            if (m_modal)
+                delete m_modal;
+            m_modal = new T();
+        }
+    }
 
     void SetModal(UIElement* modal);
     bool IsModalActive() const;

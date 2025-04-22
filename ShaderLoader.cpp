@@ -7,38 +7,6 @@
 #include "ShaderLoader.h"
 #include "SimpleArray.h"
 
-//bool ShaderLoader::LoadShaderSet(ID3D11Device* device,
-//    const char* vsPath, const char* psPath,
-//    const char* vsEntry, const char* psEntry,
-//    const D3D11_INPUT_ELEMENT_DESC* layoutDesc,
-//    UINT numElements,
-//    ShaderSet& outShaderSet)
-//{
-//    ID3DBlob* vsBlob = nullptr;
-//    if (!CompileShaderFromFile(vsPath, vsEntry, SHADER_MODEL_VS, &vsBlob))
-//        return false;
-//
-//    device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &outShaderSet.vs);
-//
-//    if (layoutDesc)
-//    {
-//        device->CreateInputLayout(layoutDesc, numElements, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &outShaderSet.inputLayout);
-//    }
-//    else
-//    {
-//        CreateInputLayoutFromReflection(device, vsBlob, &outShaderSet.inputLayout);
-//    }
-//
-//    vsBlob->Release();
-//
-//    ID3DBlob* psBlob = nullptr;
-//    if (!CompileShaderFromFile(psPath, psEntry, SHADER_MODEL_PS, &psBlob))
-//        return false;
-//    device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &outShaderSet.ps);
-//    psBlob->Release();
-//
-//    return true;
-//}
 
 bool ShaderLoader::LoadShaderSet(ID3D11Device* device,
     const char* vsPath, const char* psPath,

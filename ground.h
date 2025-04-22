@@ -19,10 +19,10 @@
 #define	MODEL_FIELD					"data/MODEL/Environment/Land.obj"
 #define	MODEL_TREE_NAME				"Tree.fbx"
 #define	MODEL_FIELD_NAME			"Land.fbx"
-#define	MODEL_BONFIRE_NAME			"bonfire.fbx"
+#define MODEL_BONFIRE_PATH			"data/MODEL/Environment/bonfire.obj"
 
-#define WORLD_MAX			(XMFLOAT3(200000.0f, 200000.0f, 200000.0f))
-#define WORLD_MIN			(XMFLOAT3(-200000.0f, -200000.0f, -200000.0f))
+#define WORLD_MAX			(XMFLOAT3(50000.0f, 50000.0f, 50000.0f))
+#define WORLD_MIN			(XMFLOAT3(-50000.0f, -50000.0f, -50000.0f))
 //*****************************************************************************
 // ç\ë¢ëÃíËã`
 //*****************************************************************************
@@ -38,7 +38,7 @@ public:
 private:
 	SimpleArray<GameObject<SkinnedMeshModelInstance>*> skinnedMeshGroundGO;
 	SimpleArray<GameObject<ModelInstance>*>	groundGO;
-	Town* town;
-	Environment* environment;
+	Town* town = nullptr;
+	Environment* environment = nullptr;
 	Renderer& renderer = Renderer::get_instance();
 };

@@ -28,14 +28,15 @@ Town::Town()
 {
 	XMMATRIX worldMatrix;
 
+
 	GameObject<SkinnedMeshModelInstance>* skyBox = new GameObject<SkinnedMeshModelInstance>();
-	skyBox->Instantiate(MODEL_TOWN_PATH, MODEL_SKYBOX_NAME);
+	skyBox->Instantiate(MODEL_TOWN_PATH, MODEL_SKYBOX_NAME, ModelType::Skybox);
 	skyBox->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
 	skyBox->SetScale(XMFLOAT3(SKYBOX_SIZE, SKYBOX_SIZE, SKYBOX_SIZE));
 	skyBox->Update();
 	worldMatrix = skyBox->GetWorldMatrix();
-	skyBox->GetSkinnedMeshModel()->BuildTrianglesByWorldMatrix(worldMatrix);
-	skyBox->GetSkinnedMeshModel()->BuildOctree();
+	//skyBox->GetSkinnedMeshModel()->BuildTrianglesByWorldMatrix(worldMatrix);
+	//skyBox->GetSkinnedMeshModel()->BuildOctree();
 	skyBox->SetCastShadow(false);
 
 	models.push_back(skyBox);
@@ -136,13 +137,24 @@ void Town::Draw()
 	int modelCnt = models.getSize();
 	for (int i = 0; i < modelCnt; i++)
 	{
-		if (renderer.GetRenderMode() == RenderMode::SKINNED_MESH_SHADOW)
+		if (m_Renderer.GetRenderMode() == RenderMode::SKINNED_MESH_SHADOW)
 		{
 			if (models[i]->GetCastShadow())
 				models[i]->Draw();
 		}
-		else if (renderer.GetRenderMode() == RenderMode::SKINNED_MESH)
-			models[i]->Draw();
+		else if (m_Renderer.GetRenderMode() == RenderMode::SKINNED_MESH)
+		{
+			if (models[i]->GetSkinnedMeshModel()->GetModelType() == ModelType::Skybox)
+			{
+				m_Camera.SetCameraType(CameraType::SKYBOX);
+				models[i]->Draw();
+				m_Camera.SetCameraType(CameraType::SCENE);
+			}
+			else
+				models[i]->Draw();
+
+		}
+
 	}
 
 }

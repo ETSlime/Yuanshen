@@ -74,15 +74,6 @@ struct INTERPOLATION_DATA
 	float		frame;		// 実行フレーム数 ( dt = 1.0f/frame )
 };
 
-enum class MODE : int		// ゲームモード
-{
-	TITLE = 0,			// タイトル画面
-	TUTORIAL,			// ゲーム説明画面
-	GAME,				// ゲーム画面
-	RESULT,				// リザルト画面
-	MAX
-};
-
 
 //*****************************************************************************
 // プロトタイプ宣言

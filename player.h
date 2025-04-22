@@ -67,4 +67,6 @@ private:
 
 	Renderer& renderer = Renderer::get_instance();
 	LightManager& lightMgr = LightManager::get_instance();
+
+	DebugProc& debugProc = DebugProc::get_instance();
 };

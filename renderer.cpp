@@ -137,7 +137,7 @@ void Renderer::SetFillMode(D3D11_FILL_MODE mode)
 
 }
 
-void Renderer::SetBoneMatrix(XMMATRIX matrices[BONE_MAX])
+void Renderer::SetBoneMatrix(const XMMATRIX matrices[BONE_MAX]) const
 {
 	g_ImmediateContext->UpdateSubresource(g_BoneMatrixBuffer, 0, NULL, matrices, 0, 0);
 }
@@ -433,6 +433,11 @@ void Renderer::SetRenderInstanceShadowMap(int lightIdx)
 
 }
 
+void Renderer::SetRenderMainPass(void)
+{
+
+}
+
 void Renderer::SetRenderSkinnedMeshModel(void)
 {
 	g_RenderMode = RenderMode::SKINNED_MESH;
@@ -446,14 +451,14 @@ void Renderer::SetRenderSkinnedMeshModel(void)
 	g_ImmediateContext->VSSetConstantBuffers(11, 1, &g_BoneMatrixBuffer);
 	g_ImmediateContext->PSSetConstantBuffers(11, 1, &g_BoneMatrixBuffer);
 
-	g_ImmediateContext->PSSetShaderResources(1, LIGHT_MAX, g_ShadowMapSRV);
+	//g_ImmediateContext->PSSetShaderResources(1, LIGHT_MAX, g_ShadowMapSRV);
 }
 
 void Renderer::SetRenderInstance(void)
 {
 	g_RenderMode = RenderMode::INSTANCE;
 
-	g_ImmediateContext->PSSetShaderResources(1, LIGHT_MAX, g_ShadowMapSRV);
+	//g_ImmediateContext->PSSetShaderResources(1, LIGHT_MAX, g_ShadowMapSRV);
 }
 
 void Renderer::SetRenderVFX(void)
@@ -473,27 +478,32 @@ void Renderer::SetRenderUI(void)
 {
 	g_RenderMode = RenderMode::UI;
 
-	g_ImmediateContext->VSSetShader(g_VertexShader, NULL, 0);
-	g_ImmediateContext->PSSetShader(g_PixelShader, NULL, 0);
+	g_ImmediateContext->VSSetShader(m_UIShaderSet.vs, NULL, 0);
+	g_ImmediateContext->PSSetShader(m_UIShaderSet.ps, NULL, 0);
 }
 
-void Renderer::SetModelInputLayout(void)
+void Renderer::SetStaticModelInputLayout(void)
 {
 	//g_ImmediateContext->IASetInputLayout(g_VertexLayout);
 
-	g_ImmediateContext->IASetInputLayout(m_ShaderManager.GetInputLayout(VertexLayoutID::Static));
+	g_ImmediateContext->IASetInputLayout(m_StaticModelShaderSet.inputLayout);
+}
+
+void Renderer::SetUIInputLayout(void)
+{
+	g_ImmediateContext->IASetInputLayout(m_UIShaderSet.inputLayout);
 }
 
 void Renderer::SetSkinnedMeshInputLayout(void)
 {
 	//g_ImmediateContext->IASetInputLayout(g_SkinnedMeshVertexLayout);
-	g_ImmediateContext->IASetInputLayout(m_ShaderManager.GetInputLayout(VertexLayoutID::Skinned));
+	g_ImmediateContext->IASetInputLayout(m_SkinnedModelShaderSet.inputLayout);
 }
 
 void Renderer::SetVFXInputLayout(void)
 {
 	//g_ImmediateContext->IASetInputLayout(g_VFXVertexLayout);
-	g_ImmediateContext->IASetInputLayout(m_ShaderManager.GetInputLayout(VertexLayoutID::VFX));
+	g_ImmediateContext->IASetInputLayout(m_VFXShaderSet.inputLayout);
 }
 
 void Renderer::SetRenderObject(void)
@@ -504,7 +514,7 @@ void Renderer::SetRenderObject(void)
 
 	g_ImmediateContext->VSSetShader(m_StaticModelShaderSet.vs, NULL, 0);
 	g_ImmediateContext->PSSetShader(m_StaticModelShaderSet.ps, NULL, 0);
-	g_ImmediateContext->PSSetShaderResources(1, LIGHT_MAX, g_ShadowMapSRV);
+	//g_ImmediateContext->PSSetShaderResources(1, LIGHT_MAX, g_ShadowMapSRV);
 }
 
 
@@ -550,6 +560,7 @@ void Renderer::SetShadersets(void)
 	m_SkinnedModelShaderSet = m_ShaderManager.GetShaderSet(ShaderSetID::SkinnedModel);
 	m_InstanceModelShaderSet = m_ShaderManager.GetShaderSet(ShaderSetID::Instanced_Tree);
 	m_VFXShaderSet = m_ShaderManager.GetShaderSet(ShaderSetID::VFX);
+	m_UIShaderSet = m_ShaderManager.GetShaderSet(ShaderSetID::UI);
 }
 
 //=============================================================================

@@ -34,6 +34,29 @@
 #define BUTTON_M		0x00002000l	// Ｍボタン(.rgbButtons[9]&0x80)
 #define GAMEPADMAX		4			// 同時に接続するジョイパッドの最大数をセット
 
+//===============================
+// 入力キー定義（固定バインディング）
+//===============================
+
+// 一時停止（ポーズ）キー
+#define KEY_PAUSE       DIK_P
+
+// プレイヤー移動キー
+#define KEY_MOVE_FORWARD   DIK_W
+#define KEY_MOVE_BACKWARD  DIK_S
+#define KEY_MOVE_LEFT      DIK_A
+#define KEY_MOVE_RIGHT     DIK_D
+
+// ダッシュ（走る）キー
+#define KEY_RUN         DIK_LSHIFT
+
+// マップ／クエストキー
+#define KEY_MAP         DIK_M
+#define KEY_QUEST       DIK_Q
+
+// メニュー操作
+#define KEY_CONFIRM     DIK_RETURN
+#define KEY_CANCEL      DIK_ESCAPE
 
 //*****************************************************************************
 // プロトタイプ宣言

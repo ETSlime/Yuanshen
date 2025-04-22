@@ -221,6 +221,7 @@ public:
 	static void RemoveModel(char* modelPath);
 
 	const SimpleArray<SkinnedMeshPart>& GetMeshParts() const;
+	ModelType GetModelType(void) const { return modelType; }
 
 private:
 

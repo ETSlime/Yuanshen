@@ -9,8 +9,15 @@
 //=============================================================================
 // ‰Šú‰»ˆ—
 //=============================================================================
-void DebugBoundingBoxRenderer::Initialize(void)
+void DebugBoundingBoxRenderer::Initialize(char* name)
 {
+    strcpy(m_boxName, name);
+
+    DebugProc::get_instance().Register(this);
+
+    m_device = Renderer::get_instance().GetDevice();
+    m_context = Renderer::get_instance().GetDeviceContext();
+
     // 8 corner vertices
     Vertex vertices[] = 
     {
@@ -49,31 +56,7 @@ void DebugBoundingBoxRenderer::Initialize(void)
     ibData.pSysMem = indices;
     m_device->CreateBuffer(&ibDesc, &ibData, &m_indexBuffer);
 
-    // Compile and create shaders
-    HRESULT hr = S_OK;
-
-    ID3DBlob* pVSBlob, * pPSBlob;
-    ID3DBlob* pErrorBlob = NULL;
-    hr = D3DX11CompileFromFile("DebugBox.hlsl", NULL, NULL, "VS", "vs_4_0", 0, 0, NULL, &pVSBlob, &pErrorBlob, NULL);
-    if (FAILED(hr))
-    {
-        MessageBox(NULL, (char*)pErrorBlob->GetBufferPointer(), "VS", MB_OK | MB_ICONERROR);
-    }
-
-    hr = D3DX11CompileFromFile("DebugBox.hlsl", NULL, NULL, "PS", "ps_4_0", 0, 0, NULL, &pPSBlob, &pErrorBlob, NULL);
-    if (FAILED(hr))
-    {
-        MessageBox(NULL, (char*)pErrorBlob->GetBufferPointer(), "PS", MB_OK | MB_ICONERROR);
-    }
-    m_device->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &m_vertexShader);
-    m_device->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &m_pixelShader);
-
-    // Input layout
-    D3D11_INPUT_ELEMENT_DESC layout[] = 
-    {
-        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-    };
-    m_device->CreateInputLayout(layout, ARRAYSIZE(layout), pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), &m_inputLayout);
+    debugShaderSet = ShaderManager::get_instance().GetShaderSet(ShaderSetID::Debug);
 
     // Constant buffer
     D3D11_BUFFER_DESC cbDesc = {};
@@ -82,19 +65,19 @@ void DebugBoundingBoxRenderer::Initialize(void)
     cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     m_device->CreateBuffer(&cbDesc, nullptr, &m_constantBuffer);
-
-    pVSBlob->Release();
-    pPSBlob->Release();
 }
 
 void DebugBoundingBoxRenderer::DrawBox(const BOUNDING_BOX& box, const XMMATRIX& viewProj, const XMFLOAT4& color)
 {
     XMVECTOR minPt = XMLoadFloat3(&box.minPoint);
     XMVECTOR maxPt = XMLoadFloat3(&box.maxPoint);
-    XMVECTOR center = (minPt + maxPt) * 0.5f;
-    XMVECTOR size = (maxPt - minPt);
+    XMVECTOR centerVec = (minPt + maxPt) * 0.5f;
+    XMVECTOR sizeVec = (maxPt - minPt);
 
-    XMMATRIX world = XMMatrixScalingFromVector(size) * XMMatrixTranslationFromVector(center);
+    XMStoreFloat3(&m_center, centerVec);
+    XMStoreFloat3(&m_size, sizeVec);
+
+    XMMATRIX world = XMMatrixScalingFromVector(sizeVec) * XMMatrixTranslationFromVector(centerVec);
     XMMATRIX wvp = XMMatrixTranspose(world * viewProj);
 
     D3D11_MAPPED_SUBRESOURCE mapped = {};
@@ -106,17 +89,23 @@ void DebugBoundingBoxRenderer::DrawBox(const BOUNDING_BOX& box, const XMMATRIX& 
 
     UINT stride = sizeof(Vertex);
     UINT offset = 0;
-    m_context->IASetInputLayout(m_inputLayout);
+    m_context->IASetInputLayout(debugShaderSet.inputLayout);
     m_context->IASetVertexBuffers(0, 1, &m_vertexBuffer, &stride, &offset);
     m_context->IASetIndexBuffer(m_indexBuffer, DXGI_FORMAT_R16_UINT, 0);
     m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
 
-    m_context->VSSetShader(m_vertexShader, nullptr, 0);
+    m_context->VSSetShader(debugShaderSet.vs, nullptr, 0);
     m_context->VSSetConstantBuffers(9, 1, &m_constantBuffer);
-    m_context->PSSetShader(m_pixelShader, nullptr, 0);
+    m_context->PSSetShader(debugShaderSet.ps, nullptr, 0);
     m_context->PSSetConstantBuffers(9, 1, &m_constantBuffer);
 
     m_context->DrawIndexed(24, 0, 0);
+}
+
+void DebugBoundingBoxRenderer::RenderImGui(void)
+{
+    ImGui::Text("Box Pos: %.1f %.1f %.1f", m_center.x, m_center.y, m_center.z);
+    ImGui::Text("Box Size: %.1f %.1f %.1f", m_size.x, m_size.y, m_size.z);
 }
 
 DebugBoundingBoxRenderer::~DebugBoundingBoxRenderer()
@@ -124,7 +113,4 @@ DebugBoundingBoxRenderer::~DebugBoundingBoxRenderer()
     SafeRelease(&m_vertexBuffer);
     SafeRelease(&m_indexBuffer);
     SafeRelease(&m_constantBuffer);
-    SafeRelease(&m_vertexShader);
-    SafeRelease(&m_pixelShader);
-    SafeRelease(&m_inputLayout);
 }

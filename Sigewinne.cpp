@@ -8,6 +8,8 @@
 #include "input.h"
 #include "debugproc.h"
 #include "Player.h"
+#include "CursorManager.h"
+
 //*****************************************************************************
 // ƒ}ƒNƒ’è‹`
 //*****************************************************************************
@@ -84,7 +86,7 @@ void Sigewinne::Update(void)
 
 	if (stateMachine->GetCurrentState() == STATE(PlayerState::IDLE))
 	{
-		if (IsMouseLeftTriggered())
+		if (IsMouseLeftTriggered() && !CursorManager::get_instance().IsMouseFreeMode())
 		{
 			instance.attributes.isAttacking = true;
 		}

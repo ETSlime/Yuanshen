@@ -142,6 +142,15 @@ struct SKINNED_VERTEX_3D
 	}
 };
 
+// UI描画用の頂点構造体
+struct UIVertex
+{
+	XMFLOAT2 Position; // 位置（スクリーン座標）
+	XMFLOAT2 TexCoord; // テクスチャ座標
+	XMFLOAT4 Color;
+};
+
+
 struct VFXVertex
 {
 	XMFLOAT3 position;
@@ -368,18 +377,20 @@ public:
 	void SetFuchi(int flag);
 	void SetShaderCamera(XMFLOAT3 pos);
 	void SetFillMode(D3D11_FILL_MODE mode);
-	void SetBoneMatrix(XMMATRIX matrices[BONE_MAX]);
+	void SetBoneMatrix(const XMMATRIX matrices[BONE_MAX]) const;
 	void SetClearColor(float* color4);
 	void SetRenderLayer(RenderLayer layer);
 	void SetRenderShadowMap(int lightIdx);
 	void SetRenderSkinnedMeshShadowMap(int lightIdx);
 	void SetRenderInstanceShadowMap(int lightIdx);
+	void SetRenderMainPass(void);
 	void SetRenderObject(void);
 	void SetRenderSkinnedMeshModel(void);
 	void SetRenderInstance(void);
 	void SetRenderVFX(void);
 	void SetRenderUI(void);
-	void SetModelInputLayout(void);
+	void SetStaticModelInputLayout(void);
+	void SetUIInputLayout(void);
 	void SetSkinnedMeshInputLayout(void);
 	void SetVFXInputLayout(void);
 	void ResetRenderTarget(void);
@@ -463,6 +474,7 @@ private:
 	ShaderSet m_SkinnedModelShaderSet;
 	ShaderSet m_InstanceModelShaderSet;
 	ShaderSet m_VFXShaderSet;
+	ShaderSet m_UIShaderSet;
 
 	MATERIAL_CBUFFER	g_Material;
 	LIGHT_CBUFFER	g_Light;

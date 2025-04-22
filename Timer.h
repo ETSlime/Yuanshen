@@ -8,7 +8,7 @@
 
 #include "SingletonBase.h"
 #include "main.h"
-#include "debugproc.h"
+#include "Debugproc.h"
 
 class Timer : public SingletonBase<Timer>
 {
@@ -20,6 +20,7 @@ private:
     float scaledDeltaTime;
     const float targetFrameRate = 60.0f;
     const float timeScale = targetFrameRate;
+    DebugProc& debugProc = DebugProc::get_instance();
 
 public:
     Timer() 
@@ -45,8 +46,8 @@ public:
         elapsedTime += deltaTime;
 
 #ifdef _DEBUG
-        PrintDebugProc("scaledDeltaTime: %f\n", scaledDeltaTime);
-        PrintDebugProc("deltaTime: %f\n", deltaTime);
+        debugProc.PrintDebugProc("scaledDeltaTime: %f\n", scaledDeltaTime);
+        debugProc.PrintDebugProc("deltaTime: %f\n", deltaTime);
 #endif // _DEBUG
 
     }

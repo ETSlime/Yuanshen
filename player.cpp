@@ -11,6 +11,8 @@
 #include "Camera.h"
 #include "debugproc.h"
 #include "OctreeNode.h"
+#include "CursorManager.h"
+
 //*****************************************************************************
 // ƒ}ƒNƒ’è‹`
 //*****************************************************************************
@@ -22,6 +24,7 @@
 #define SPD_DECAY_RATE		(0.93f)
 
 #define PLAYER_INIT_POS		XMFLOAT3(14582.0f, -2424.0f, -19485.0f)
+//#define PLAYER_INIT_POS		XMFLOAT3(0.0f, -0.0f, -0.0f)
 //=============================================================================
 // ‰Šú‰»ˆ—
 //=============================================================================
@@ -100,7 +103,7 @@ void Player::Update(void)
 	}
 #endif
 
-	if (IsMouseLeftTriggered())
+	if (IsMouseLeftTriggered() && !CursorManager::get_instance().IsMouseFreeMode())
 	{
 		PlayerAction action;
 		action.actionType = ActionEnum::ATTACK;
@@ -187,7 +190,7 @@ void Player::Update(void)
 
 	if (attributes.isGrounded == false)
 	{
-		transform.pos.y -= FALLING_SPEED * playerGO->timer.GetScaledDeltaTime();
+		//transform.pos.y -= FALLING_SPEED * playerGO->timer.GetScaledDeltaTime();
 	}
 
 	playerGO->SetTransform(transform);
@@ -206,7 +209,7 @@ void Player::Update(void)
 	Camera::get_instance().SetCamera();
 
 #ifdef _DEBUG
-	PrintDebugProc("PosX: %f PosY: %f, PosZ: %f\n", transform.pos.x, transform.pos.y, transform.pos.z);
+	debugProc.PrintDebugProc("PosX: %f PosY: %f, PosZ: %f\n", transform.pos.x, transform.pos.y, transform.pos.z);
 #endif
 }
 

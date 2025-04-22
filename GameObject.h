@@ -190,6 +190,7 @@ public:
 	inline void SetPosition(XMFLOAT3 pos) { instance.transform.pos = pos; }
 	inline void SetRotation(XMFLOAT3 rot) { instance.transform.rot = rot; }
 	inline void SetScale(XMFLOAT3 scl) { instance.transform.scl = scl; }
+	inline void SetIsInstanced(bool instanced) { instance.isInstanced = instanced; }
 	inline void SetTransform(Transform transform) { instance.transform = transform; }
 	inline void SetWorldMatrix(XMMATRIX mtxWorld) { instance.transform.mtxWorld = mtxWorld; }
 	inline Transform GetTransform() { return instance.transform; }

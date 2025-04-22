@@ -25,8 +25,8 @@ struct VS_OUTPUT
 //*****************************************************************************
 // ÉOÉçÅ[ÉoÉãïœêî
 //*****************************************************************************
-Texture2D skyboxDayTextures[6] : register(t0);
-Texture2D skyboxNightTextures[6] : register(t6);
+Texture2D skyboxDayTextures[6] : register(t15);
+Texture2D skyboxNightTextures[6] : register(t21);
 SamplerState samplerState : register(s2);
 
 //=============================================================================
@@ -39,7 +39,7 @@ VS_OUTPUT VS(VS_INPUT input)
     float4 pos = float4(input.position, 1.0f);
     output.position = mul(pos, view);
     output.position = mul(output.position, projection);
-
+    output.faceIndex = input.faceIndex;
     output.texCoord = input.texCoord;
     return output;
 }

@@ -6,7 +6,7 @@
 //=============================================================================
 #include "UISpriteRenderer.h"
 
-void UISpriteRenderer::DrawSpriteCenter(ID3D11Buffer* buf, float X, float Y, float Width, float Height,
+void UISpriteRenderer::SetSpriteCenter(ID3D11Buffer* buf, float X, float Y, float Width, float Height,
     float U, float V, float UW, float VH)
 {
     D3D11_MAPPED_SUBRESOURCE msr;
@@ -31,7 +31,7 @@ void UISpriteRenderer::DrawSpriteCenter(ID3D11Buffer* buf, float X, float Y, flo
     Renderer::get_instance().GetDeviceContext()->Unmap(buf, 0);
 }
 
-void UISpriteRenderer::DrawSpriteLeftTop(ID3D11Buffer* buf, float X, float Y, float Width, float Height,
+void UISpriteRenderer::SetSpriteLeftTop(ID3D11Buffer* buf, float X, float Y, float Width, float Height,
     float U, float V, float UW, float VH)
 {
     D3D11_MAPPED_SUBRESOURCE msr;
@@ -53,14 +53,38 @@ void UISpriteRenderer::DrawSpriteLeftTop(ID3D11Buffer* buf, float X, float Y, fl
     Renderer::get_instance().GetDeviceContext()->Unmap(buf, 0);
 }
 
-void UISpriteRenderer::DrawSpriteWithColor(ID3D11Buffer* buf, float X, float Y, float Width, float Height,
-    float U, float V, float UW, float VH, XMFLOAT4 /*color*/)
+void UISpriteRenderer::SetSpriteWithColor(ID3D11Buffer* buf, float X, float Y, float Width, float Height,
+    float U, float V, float UW, float VH, XMFLOAT4 color)
 {
-    // ※色はUIVertexに含まれていないので無視されます（別の方式でアルファ合成や色変更を考慮）
-    DrawSpriteCenter(buf, X, Y, Width, Height, U, V, UW, VH);
+    D3D11_MAPPED_SUBRESOURCE msr;
+    Renderer::get_instance().GetDeviceContext()->Map(buf, 0, D3D11_MAP_WRITE_DISCARD, 0, &msr);
+
+    UIVertex* vertex = reinterpret_cast<UIVertex*>(msr.pData);
+
+    float hw = Width * 0.5f;
+    float hh = Height * 0.5f;
+
+    // 中心基準で頂点設定（左上、右上、左下、右下）
+    vertex[0].Position = XMFLOAT2(X - hw, Y - hh);
+    vertex[1].Position = XMFLOAT2(X + hw, Y - hh);
+    vertex[2].Position = XMFLOAT2(X - hw, Y + hh);
+    vertex[3].Position = XMFLOAT2(X + hw, Y + hh);
+
+    vertex[0].TexCoord = XMFLOAT2(U, V);
+    vertex[1].TexCoord = XMFLOAT2(U + UW, V);
+    vertex[2].TexCoord = XMFLOAT2(U, V + VH);
+    vertex[3].TexCoord = XMFLOAT2(U + UW, V + VH);
+
+    // カラー設定
+    vertex[0].Color = color;
+    vertex[1].Color = color;
+    vertex[2].Color = color;
+    vertex[3].Color = color;
+
+    Renderer::get_instance().GetDeviceContext()->Unmap(buf, 0);
 }
 
-void UISpriteRenderer::DrawSpriteWithRotation(ID3D11Buffer* buf, float X, float Y, float Width, float Height,
+void UISpriteRenderer::SetSpriteWithRotation(ID3D11Buffer* buf, float X, float Y, float Width, float Height,
     float U, float V, float UW, float VH,
     XMFLOAT4 /*color*/, float Rot)
 {

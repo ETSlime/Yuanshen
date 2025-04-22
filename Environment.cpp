@@ -502,6 +502,7 @@ bool Environment::LoadEnvironmentObj(EnvironmentObject* obj)
 
     const MODEL_DATA* modelData = obj->model->GetModel()->GetModelData();
     BOUNDING_BOX boudningBox = obj->model->GetModel()->GetBoundingBox();
+    //obj->model->SetIsInstanced(true); // インスタンス化フラグを立てる
 
     InstanceVertex* VertexArray = new InstanceVertex[modelData->VertexNum];
 

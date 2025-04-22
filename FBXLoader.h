@@ -110,6 +110,7 @@ enum class ModelType
 	AbyssMage,
 	Tree,
 	Field,
+	Skybox,
 	Town_LOD0,
 	Town_LOD1,
 	Town_LOD2,

@@ -26,6 +26,7 @@ enum class ShaderSetID : uint64_t
     SOFT_BODY,
     EXPLOSION,
     UI,
+    Debug,
 };
 
 // 頂点レイアウト ID（InputLayout を管理するため）
@@ -37,6 +38,7 @@ enum class VertexLayoutID : uint64_t
     Skybox,
     VFX,
     UI,
+    Debug,
 };
 
 

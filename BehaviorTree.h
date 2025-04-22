@@ -18,6 +18,8 @@ protected:
     {
         return enemy->enemyAttr;
     }
+
+    DebugProc& debugProc = DebugProc::get_instance();
 };
 
 // ======= 選択ノード（Selector） =======
@@ -92,7 +94,7 @@ public:
     {
         bool nextMove = false;
 
-        PrintDebugProc("%d\n", static_cast<int>(GetEnemyAttributes(enemy).cooldownState));
+        debugProc.PrintDebugProc("%d\n", static_cast<int>(GetEnemyAttributes(enemy).cooldownState));
 
         switch (GetEnemyAttributes(enemy).cooldownState)
         {
