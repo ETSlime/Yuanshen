@@ -46,18 +46,18 @@ Skybox::Skybox()
 
 Skybox::~Skybox() 
 {
-    if (m_vertexBuffer) m_vertexBuffer->Release();
-    if (m_samplerState) m_samplerState->Release();
-    if (m_skyboxBuffer) m_skyboxBuffer->Release();
+    SafeRelease(&m_vertexBuffer);
+    SafeRelease(&m_skyboxBuffer);
 
     for (auto& srv : skyboxDaySRVs)
     {
-        if (srv) srv->Release();
+        SafeRelease(&srv);
     }
     for (auto& srv : skyboxNightSRVs)
     {
-        if (srv) srv->Release();
+        SafeRelease(&srv);
     }
+
 }
 
 bool Skybox::Initialize() 
@@ -78,13 +78,6 @@ bool Skybox::Initialize()
         if (!skyboxNightSRVs[i])
             return false;
     }
-
-    D3D11_SAMPLER_DESC samplerDesc = {};
-    samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-    m_device->CreateSamplerState(&samplerDesc, &m_samplerState);
 
     D3D11_BUFFER_DESC matrixBufferDesc = {};
     matrixBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
@@ -236,12 +229,12 @@ void Skybox::Draw(const XMMATRIX& viewMatrix, const XMMATRIX& projectionMatrix)
     m_context->IASetVertexBuffers(0, 1, &m_vertexBuffer, &stride, &offset);
 
     m_context->VSSetShader(m_shaderSet.vs, nullptr, 0);
-    m_context->VSSetConstantBuffers(9, 1, &m_skyboxBuffer);
     m_context->PSSetShader(m_shaderSet.ps, nullptr, 0);
-    m_context->PSSetShaderResources(SKYBOX_DAY_SRV_SLOT, 6, skyboxDaySRVs);
-    m_context->PSSetShaderResources(SKYBOX_NIGHT_SRV_SLOT, 6, skyboxNightSRVs);
-    m_context->PSSetSamplers(2, 1, &m_samplerState);
-    m_context->PSSetConstantBuffers(9, 1, &m_skyboxBuffer);
+    m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_SKYBOX, m_skyboxBuffer);
+    m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_SKYBOX, m_skyboxBuffer);
+    m_ShaderResourceBinder.BindShaderResources(ShaderStage::PS, SLOT_TEX_SKYBOX_DAY, 6, skyboxDaySRVs);
+    m_ShaderResourceBinder.BindShaderResources(ShaderStage::PS, SLOT_TEX_SKYBOX_NIGHT, 6, skyboxNightSRVs);
+
 
     m_context->OMSetDepthStencilState(m_depthStencilState, 0);
     m_context->Draw(36, 0);

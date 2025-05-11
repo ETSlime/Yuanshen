@@ -140,9 +140,6 @@
     <ClInclude Include="score.h">
       <Filter>UI</Filter>
     </ClInclude>
-    <ClInclude Include="sprite.h">
-      <Filter>UI</Filter>
-    </ClInclude>
     <ClInclude Include="input.h">
       <Filter>Utility</Filter>
     </ClInclude>
@@ -233,6 +230,30 @@
     <ClInclude Include="ModelCacheLoader.h">
       <Filter>Model</Filter>
     </ClInclude>
+    <ClInclude Include="sprite.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="FireEffectRenderer.h">
+      <Filter>Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="ShaderResourceBinder.h">
+      <Filter>Core\Shader</Filter>
+    </ClInclude>
+    <ClInclude Include="IEffectRenderer.h">
+      <Filter>Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="EffectSystem.h">
+      <Filter>Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="SmokeEffectRenderer.h">
+      <Filter>Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="ParticleEffectRendererBase.h">
+      <Filter>Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="FireBallEffectRenderer.h">
+      <Filter>Effects</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -307,9 +328,6 @@
     <ClCompile Include="score.cpp">
       <Filter>UI</Filter>
     </ClCompile>
-    <ClCompile Include="sprite.cpp">
-      <Filter>UI</Filter>
-    </ClCompile>
     <ClCompile Include="offScreenRender.cpp">
       <Filter>UI</Filter>
     </ClCompile>
@@ -381,6 +399,27 @@
     </ClCompile>
     <ClCompile Include="ModelCacheLoader.cpp">
       <Filter>Model</Filter>
+    </ClCompile>
+    <ClCompile Include="sprite.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="FireEffectRenderer.cpp">
+      <Filter>Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="ShaderResourceBinder.cpp">
+      <Filter>Core\Shader</Filter>
+    </ClCompile>
+    <ClCompile Include="EffectSystem.cpp">
+      <Filter>Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="SmokeEffectRenderer.cpp">
+      <Filter>Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="ParticleEffectRendererBase.cpp">
+      <Filter>Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="FireBallEffectRenderer.cpp">
+      <Filter>Effects</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

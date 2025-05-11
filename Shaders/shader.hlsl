@@ -1,12 +1,14 @@
-
+//*****************************************************************************
+// マクロ定義
+//*****************************************************************************
+#define LIGHT_MAX_NUM   5
+#define LIGHT_MAX_NUM_CASCADE 4
+#define SCREEN_WIDTH    1920
+#define SHADOWMAP_SIZE  2048
 
 //*****************************************************************************
 // 定数バッファ
 //*****************************************************************************
-
-#define LIGHT_MAX_NUM   5
-#define SCREEN_WIDTH    1920
-#define SHADOWMAP_SIZE  SCREEN_WIDTH * 3.5
 
 struct WorldMatrixBuffer
 {
@@ -90,6 +92,7 @@ struct SkinnedMeshVertexInputType
 struct PixelInputType
 {
     float4 position : SV_POSITION;
+    float3 viewPos : POSITIONT1;
     float3 normal : NORMAL;
     float3 tangent : TANGENT;
     float3 bitangent : BITANGENT;
@@ -97,6 +100,15 @@ struct PixelInputType
     float4 color : COLOR;
     float4 worldPos : POSITION;
     float4 shadowCoord[LIGHT_MAX_NUM] : TEXCOORD1;
+};
+
+struct CascadeData
+{
+    float4x4 lightViewProj;
+    float4x4 lightView;
+    float4x4 lightProj;
+    float splitDepth;
+    float3 padding; // 16バイトのアライメントを維持するため
 };
 
 // マトリクスバッファ
@@ -131,11 +143,9 @@ cbuffer FogBuffer : register(b5)
     FOG Fog;
 };
 
-// 縁取り用バッファ
-cbuffer Fuchi : register(b6)
+cbuffer CB_CascadeData : register(b8)
 {
-    int fuchi;
-    int fill[3];
+    CascadeData g_CascadeData;
 };
 
 cbuffer CameraPosBuffer : register(b7)
@@ -143,16 +153,11 @@ cbuffer CameraPosBuffer : register(b7)
     float4 CameraPos;
 }
 
-cbuffer CB_CascadeData : register(b8)
+cbuffer CB_CascadeDataMainPass : register(b6)
 {
-    matrix lightViewProj;
-    matrix lightView;
-    matrix lightProj;
-    float splitDepth;
-    float padding0;
-    float padding1;
-    float padding2;
-};
+    CascadeData g_CascadeArray[LIGHT_MAX_NUM_CASCADE];
+    float4 g_CascadeSplits;
+}
 
 cbuffer ModeBuffer : register(b10)
 {
@@ -196,8 +201,8 @@ void VertexShaderPolygon( in  float3 inPosition		: POSITION0,
 	wvp = mul(wvp, Projection);
     outPosition = mul(float4(inPosition, 1.0f), wvp);
 
-    outNormal = float4(normalize(mul(inNormal, (float3x3) WorldBuffer.invWorld)), 0.0f); // w = 0
-    outTangent = float4(normalize(mul(inTangent, (float3x3) WorldBuffer.world)), 0.0f); // w = 0
+    outNormal = normalize(mul(inNormal, (float3x3) WorldBuffer.invWorld)); // w = 0
+    outTangent = normalize(mul(inTangent, (float3x3) WorldBuffer.world)); // w = 0
 	//outNormal = normalize(mul(float4(inNormal.xyz, 0.0f), World));
     //outTangent = normalize(mul(float4(inTangent.xyz, 0.0f), World));
 
@@ -234,9 +239,9 @@ PixelInputType SkinnedMeshVertexShaderPolygon(SkinnedMeshVertexInputType input)
     output.position = mul(worldPosition, wvp);
 
     // Normal transformation (only transform by the world matrix part)
-    output.normal = normalize(mul(float4(input.normal, 0.0), boneTransform));
-    output.tangent = normalize(mul(float4(input.tangent, 0.0), boneTransform));
-    output.bitangent = normalize(mul(float4(input.bitangent, 0.0), boneTransform));
+    output.normal = normalize(mul(float4(input.normal, 0.0), boneTransform)).xyz;
+    output.tangent = normalize(mul(float4(input.tangent, 0.0), boneTransform)).xyz;
+    output.bitangent = normalize(mul(float4(input.bitangent, 0.0), boneTransform)).xyz;
 
     // Pass through the texture coordinates and color
     output.texcoord = input.texcoord;
@@ -244,9 +249,10 @@ PixelInputType SkinnedMeshVertexShaderPolygon(SkinnedMeshVertexInputType input)
 
     // Compute shadow coordinates for multiple light sources
     output.worldPos = mul(float4(input.position, 1.0f), WorldBuffer.world);
-    for (int j = 0; j < LIGHT_MAX_NUM; ++j)
+    output.viewPos = mul(output.worldPos, View).xyz;
+    for (int j = 0; j < LIGHT_MAX_NUM_CASCADE; ++j)
     {
-        output.shadowCoord[j] = mul(output.worldPos, Light.LightViewProj[j]);
+        output.shadowCoord[j] = mul(output.worldPos, g_CascadeArray[j].lightViewProj);
     }
 
     return output;
@@ -538,6 +544,17 @@ void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
 	//}
 }
 
+int GetCascadeIndex(float viewDepth, float4 splits)
+{
+    if (viewDepth < splits.x)
+        return 0;
+    if (viewDepth < splits.y)
+        return 1;
+    if (viewDepth < splits.z)
+        return 2;
+    return 3;
+}
+
 
 void SkinnedMeshPixelShader(PixelInputType input,
                             out float4 outDiffuse : SV_Target)
@@ -645,34 +662,64 @@ void SkinnedMeshPixelShader(PixelInputType input,
                     tempColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
                 }
                 float shadowFactor = 1.0f;
-                if (Light.Flags[i].Type == 1)
+                if (Light.Flags[i].Type == 1) // DirectionalLight
                 {
-                    float2 shadowTexCoord = float2(input.shadowCoord[i].x, -input.shadowCoord[i].y) / input.shadowCoord[i].w * 0.5f + 0.5f;
+                    // ビュースペース深度を取得（通常は viewPos.z）
+                    float viewDepth = input.viewPos.z;
+                    
+                    // カスケードインデックスの決定
+                    int cascadeIdx = GetCascadeIndex(viewDepth, g_CascadeSplits);
+                    
+                    // シャドウ座標の取得
+                    float4 shadowCoord = input.shadowCoord[cascadeIdx];
+                    float2 shadowUV = shadowCoord.xy / shadowCoord.w * 0.5f + 0.5f;
+                    shadowUV.y = 1.0f - shadowUV.y; // Y反転
 
-                    float currentDepth = input.shadowCoord[i].z / input.shadowCoord[i].w;
-                    currentDepth -= 0.005f;
+                    float currentDepth = shadowCoord.z / shadowCoord.w;
+                    currentDepth -= 0.005f; // バイアス
                     
 
                     //tempColor = float4(currentDepth, currentDepth, currentDepth, 1.0f);
       //              float shadowMapValue = g_ShadowMap[2].Sample(g_SamplerState, shadowTexCoord).r;
       //              tempColor = float4(shadowMapValue, shadowMapValue, shadowMapValue, 1.0f);
                     
+                    //if (cascadeIdx == 0)
+                    //    tempColor = float4(1, 0, 0, 1);
+                    //if (cascadeIdx == 1)
+                    //    tempColor = float4(0, 1, 0, 1);
+                    //if (cascadeIdx == 2)
+                    //    tempColor = float4(0, 0, 1, 1);
+                    //if (cascadeIdx == 3)
+                    //    tempColor = float4(1, 1, 0, 1);
                     
-                    int kernelSize = 1;
                     float2 shadowMapDimensions = float2(SHADOWMAP_SIZE, SHADOWMAP_SIZE);
-                    float shadow = 0.0;
                     float2 texelSize = 1.0 / shadowMapDimensions;
+                    float shadow = 0.0;
                     float totalWeight = 0.0;
-                    if (shadowTexCoord.x >= 0.0f && shadowTexCoord.y >= 0.0f &&
-						shadowTexCoord.x <= 1.0f && shadowTexCoord.y <= 1.0f &&
-						currentDepth >= 0.0f && currentDepth <= 1.0f)
+                    int kernelSize = 1;
+
+                    if (shadowUV.x >= 0.0f && shadowUV.y >= 0.0f &&
+                        shadowUV.x <= 1.0f && shadowUV.y <= 1.0f &&
+                        currentDepth >= 0.0f && currentDepth <= 1.0f)
                     {
                         for (int x = -kernelSize; x <= kernelSize; x++)
                         {
                             for (int y = -kernelSize; y <= kernelSize; y++)
                             {
+                                float2 offset = float2(x, y) * texelSize;
+                                
                                 float weight = exp(-(x * x + y * y) / (2.0 * kernelSize * kernelSize)); // gaussian weight
-                                shadow += g_ShadowMap[i].SampleCmpLevelZero(g_ShadowSampler, shadowTexCoord + float2(x, y) * texelSize, currentDepth) * weight;
+                                float sampled = 0.0f;
+                                if (cascadeIdx == 0)
+                                    sampled = g_ShadowMap[0].SampleCmpLevelZero(g_ShadowSampler, shadowUV + offset, currentDepth);
+                                else if (cascadeIdx == 1)
+                                    sampled = g_ShadowMap[1].SampleCmpLevelZero(g_ShadowSampler, shadowUV + offset, currentDepth);
+                                else if (cascadeIdx == 2)
+                                    sampled = g_ShadowMap[2].SampleCmpLevelZero(g_ShadowSampler, shadowUV + offset, currentDepth);
+                                else
+                                    sampled = g_ShadowMap[3].SampleCmpLevelZero(g_ShadowSampler, shadowUV + offset, currentDepth);
+
+                                shadow += sampled * weight;
                                 totalWeight += weight;
                             }
                         }
@@ -684,7 +731,7 @@ void SkinnedMeshPixelShader(PixelInputType input,
                     }
 
  
-                    shadowFactor = shadow / totalWeight + 0.2f;
+                    shadowFactor = shadow / totalWeight + 0.2f; // 最終陰影係数（ソフトシャドウ補正）
                 }
 
                 if (md.mode != 2)
@@ -748,6 +795,7 @@ void SkinnedMeshPixelShader(PixelInputType input,
     //    return;
 
     //}
+
 
     outDiffuse = color;
 }

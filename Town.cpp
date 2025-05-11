@@ -137,12 +137,7 @@ void Town::Draw()
 	int modelCnt = models.getSize();
 	for (int i = 0; i < modelCnt; i++)
 	{
-		if (m_Renderer.GetRenderMode() == RenderMode::SKINNED_MESH_SHADOW)
-		{
-			if (models[i]->GetCastShadow())
-				models[i]->Draw();
-		}
-		else if (m_Renderer.GetRenderMode() == RenderMode::SKINNED_MESH)
+		if (m_Renderer.GetRenderMode() == RenderMode::SKINNED_MESH)
 		{
 			if (models[i]->GetSkinnedMeshModel()->GetModelType() == ModelType::Skybox)
 			{

@@ -13,6 +13,7 @@
 #include "Timer.h"
 #include "ShadowMeshCollector.h"
 #include "Scene.h"
+
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
@@ -107,22 +108,33 @@ struct Attributes
 	}
 };
 
+struct InstanceModelAttribute
+{
+	bool			isInstanced = false;
+	UINT			instanceCount = 0;
+	ID3D11Buffer*	instanceBuffer = nullptr;
+	ID3D11Buffer*	vertexBuffer = nullptr;
+	ID3D11Buffer*	indexBuffer = nullptr;
+};
+
 struct SkinnedMeshModelInstance
 {
 	char*				modelPath = nullptr;
 	char*				modelName = nullptr;
 	char*				modelFullPath = nullptr;
-	bool				use;
-	bool				load;
-	bool				castShadow;
+	bool				use = false;
+	bool				load = false;
+	bool				castShadow = true;
+	bool				enableAlphaTest = false;
 	SkinnedMeshModel*	pModel = nullptr;
 	Transform			transform;
 
-	BOOL			isSelected;
-	BOOL			isCursorIn;
-	int				editorIdx;
 	Attributes		attributes;
 	Collider		collider;
+
+	BOOL			isSelected = false;
+	BOOL			isCursorIn = false;
+	int				editorIdx = -1;
 
 	RenderProgressBuffer renderProgress;
 };
@@ -131,9 +143,10 @@ struct ModelInstance
 {
 	char*				modelPath = nullptr;
 	int					state;
-	bool				use;
-	bool				load;
-	bool				castShadow;
+	bool				use = false;
+	bool				load = false;
+	bool				castShadow = true;
+	bool				enableAlphaTest = false;
 	Model*				pModel = nullptr;				// モデル情報
 	XMFLOAT4			diffuse[MODEL_MAX_MATERIAL];	// モデルの色
 	Transform			transform;
@@ -141,16 +154,15 @@ struct ModelInstance
 	Attributes		attributes;
 	Collider		collider;
 
-	BOOL			isSelected;
-	BOOL			isCursorIn;
-	int				editorIdx;
+	BOOL			isSelected = false;
+	BOOL			isCursorIn = false;
+	int				editorIdx = -1;
 
 	RenderProgressBuffer renderProgress;
 
 	// インスタンス化されたモデルかどうか
-	bool			isInstanced = false;
-	ID3D11Buffer*	instanceBuffer = nullptr;
-	UINT			instanceCount = 0;
+	InstanceModelAttribute instanceAttribute;
+
 };
 
 // 非テンプレート基底クラス
@@ -187,25 +199,44 @@ public:
 		collector.Collect(instance);
 	}
 
-	inline void SetPosition(XMFLOAT3 pos) { instance.transform.pos = pos; }
-	inline void SetRotation(XMFLOAT3 rot) { instance.transform.rot = rot; }
-	inline void SetScale(XMFLOAT3 scl) { instance.transform.scl = scl; }
-	inline void SetIsInstanced(bool instanced) { instance.isInstanced = instanced; }
-	inline void SetTransform(Transform transform) { instance.transform = transform; }
-	inline void SetWorldMatrix(XMMATRIX mtxWorld) { instance.transform.mtxWorld = mtxWorld; }
-	inline Transform GetTransform() { return instance.transform; }
-	inline const Transform* GetTransformP() { return &instance.transform; } // bind
-	inline const XMMATRIX& GetWorldMatrix() const override { return instance.transform.mtxWorld; }
 	inline const TModel* GetInstance() const { return &instance; }
 	inline const TModel& GetInstanceRef() const { return instance; }
 	inline Model* GetModel() { return instance.pModel; }
 	inline SkinnedMeshModel* GetSkinnedMeshModel() { return instance.pModel; }
 	inline const SkinnedMeshModel* GetSkinnedMeshModelConst() const { return instance.pModel; }
+
+
+	inline void SetPosition(XMFLOAT3 pos) { instance.transform.pos = pos; }
+	inline void SetRotation(XMFLOAT3 rot) { instance.transform.rot = rot; }
+	inline void SetScale(XMFLOAT3 scl) { instance.transform.scl = scl; }
+	inline void SetTransform(Transform transform) { instance.transform = transform; }
+	inline void SetWorldMatrix(XMMATRIX mtxWorld) { instance.transform.mtxWorld = mtxWorld; }
+	inline Transform GetTransform() { return instance.transform; }
+	inline const Transform* GetTransformP() { return &instance.transform; } // bind
+	inline const XMMATRIX& GetWorldMatrix() const override { return instance.transform.mtxWorld; }
+
+
 	inline XMFLOAT4* GetDiffuse() { return instance.diffuse; }
 	inline bool GetUse() const override { return instance.use; }
 	inline void SetUse(bool use) { instance.use = use; }
 	inline bool GetCastShadow() const override { return instance.castShadow; }
 	inline void SetCastShadow(bool shadow) { instance.castShadow = shadow; }
+	inline void GetEnableAlphaTest(void) { return instance.enableAlphaTest; }
+	inline void SetEnableAlphaTest(bool alpha) { instance.enableAlphaTest = alpha; }
+
+	// インスタンス化されたモデルかどうか
+	inline void SetIsInstanced(bool instanced) { instance.instanceAttribute.isInstanced = instanced; }
+	inline bool GetIsInstanced() { return instance.instanceAttribute.isInstanced; }
+	inline void SetInstanceCount(UINT count) { instance.instanceAttribute.instanceCount = count; }
+	inline UINT GetInstanceCount() { return instance.instanceAttribute.instanceCount; }
+	inline void SetInstanceBuffer(ID3D11Buffer* buffer) { instance.instanceAttribute.instanceBuffer = buffer; }
+	inline ID3D11Buffer* GetInstanceBuffer() { return instance.instanceAttribute.instanceBuffer; }
+	inline void SetVertexBuffer(ID3D11Buffer* buffer) { instance.instanceAttribute.vertexBuffer = buffer; }
+	inline ID3D11Buffer* GetVertexBuffer() { return instance.instanceAttribute.vertexBuffer; }
+	inline void SetIndexBuffer(ID3D11Buffer* buffer) { instance.instanceAttribute.indexBuffer = buffer; }
+	inline ID3D11Buffer* GetIndexBuffer() { return instance.instanceAttribute.indexBuffer; }
+
+
 	inline BOOL GetIsModelSelected() { return instance.isSelected; }
 	inline BOOL GetIsCursorIn() { return instance.isCursorIn; }
 	inline void SetIsCursorIn(BOOL cursorIn) { instance.isCursorIn = cursorIn; }
@@ -213,6 +244,8 @@ public:
 	inline void SetEditorIndex(int idx) { instance.editorIdx = idx; }
 	inline const Attributes& GetAttributes() { return instance.attributes; }
 	inline void UpdateAttributes(Attributes attributes) { instance.attributes = attributes; }
+
+	// 物理演算用の当たり判定
 	inline void SetDrawBoundingBox(bool draw) { instance.pModel.SetDrawBoundingBox(draw); }
 	inline void SetColliderType(ColliderType type) { instance.collider.type = type; }
 	inline void SetColliderOwner(void* owner) { instance.collider.owner = owner; }
@@ -220,6 +253,8 @@ public:
 	inline void SetColliderBoundingBox(BOUNDING_BOX boundingBox) { instance.collider.bbox = boundingBox; }
 	inline const Collider& GetCollider(void) { return instance.collider; }
 	inline BOUNDING_BOX GetBoundingBoxWorld(void) const override { return instance.collider.bbox; }
+
+
 	inline void SetGrounded(bool grounded) { instance.attributes.isGrounded = grounded; }
 	inline void SetMoveBlock(bool blocked) { instance.attributes.isMoveBlocked = blocked; }
 	inline void SetIsHit(bool isHit) { instance.attributes.isHit1 = isHit; }
@@ -288,14 +323,6 @@ public:
 template <typename T>
 GameObject<T>::GameObject()
 {
-	instance.pModel = nullptr;
-	instance.isSelected = FALSE;
-	instance.isCursorIn = FALSE;
-	instance.editorIdx = -1;
-	instance.castShadow = true;
-	instance.renderProgress.progress = 0.0f;
-	instance.renderProgress.isRandomFade = TRUE;
-
 	Scene::get_instance().RegisterGameObject(this);
 }
 

@@ -108,7 +108,6 @@ enum class ModelType
 	Hilichurl,
 	Mitachurl,
 	AbyssMage,
-	Tree,
 	Field,
 	Skybox,
 	Town_LOD0,

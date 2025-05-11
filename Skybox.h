@@ -10,8 +10,6 @@
 // マクロ定義
 //*****************************************************************************
 #define	TEXTURE_SKYBOX_PATH		"data/TEXTURE/BrightSky.dds"
-#define SKYBOX_DAY_SRV_SLOT		15
-#define SKYBOX_NIGHT_SRV_SLOT	21
 
 //*****************************************************************************
 // 構造体定義
@@ -55,12 +53,14 @@ private:
     ShaderSet m_shaderSet;
 
     ID3D11Buffer* m_vertexBuffer;
-    ID3D11SamplerState* m_samplerState;
     ID3D11Buffer* m_skyboxBuffer;
     ID3D11DepthStencilState* m_depthStencilState;
 
     ID3D11ShaderResourceView* skyboxDaySRVs[6];
     ID3D11ShaderResourceView* skyboxNightSRVs[6];
+
+    ShaderResourceBinder& m_ShaderResourceBinder = ShaderResourceBinder::get_instance();
+
     float m_timeOfDay;
     bool dayToNight;
     static float blendFactor;

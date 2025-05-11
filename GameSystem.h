@@ -16,6 +16,7 @@
 #include "Camera.h"
 #include "ShadowMapRenderer.h"
 #include "CursorManager.h"
+#include "EffectSystem.h"
 
 //*****************************************************************************
 // マクロ定義
@@ -72,7 +73,8 @@ protected:
         , m_camera(Camera::get_instance())
         , m_scene(Scene::get_instance())
         , m_shadowMapRenderer(ShadowMapRenderer::get_instance())
-        , m_cursorManager(CursorManager::get_instance()) {}
+        , m_cursorManager(CursorManager::get_instance())
+        , m_effectSystem(EffectSystem::get_instance()) {}
 
     // この行が絶対に必要！！
     // SingletonBase<GameSystem> が GameSystem の protected コンストラクタにアクセスできるようにするための特別な許可
@@ -104,6 +106,7 @@ private:
     Scene& m_scene;
     ShadowMapRenderer& m_shadowMapRenderer;
     CursorManager& m_cursorManager;
+    EffectSystem& m_effectSystem;
 
     // モードごとの更新と描画関数
     void UpdateTitle(void);

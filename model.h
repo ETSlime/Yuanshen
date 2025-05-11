@@ -153,14 +153,15 @@ public:
 	void SetModelDiffuse(int mno, XMFLOAT4 diffuse);
 
 	void BuildTrianglesByBoundingBox(BOUNDING_BOX box);
+	void BuildTrianglesByWorldMatrix(XMMATRIX worldMatrix, bool alwaysFaceUp = false);
 	bool BuildOctree(void);
 
 	const MODEL_DATA* GetModelData(void) { return modelData; }
 	const SUBSET* GetSubset(void) { return modelData->SubsetArray; }
 	unsigned int GetSubNum(void) { return modelData->SubsetNum; }
-	BOUNDING_BOX GetBoundingBox(void) { return modelData->boundingBox; }
+	BOUNDING_BOX GetBoundingBox(void) const { return modelData->boundingBox; }
 	void SetDrawBoundingBox(bool draw) { drawBoundingBox = draw; }
-
+	const SimpleArray<Triangle*>* GetTriangles(void) const;
 	const SimpleArray<StaticMeshPart>& GetMeshParts(void) const;
 
 	static Model* StoreModel(char* modelPath);
@@ -180,15 +181,12 @@ private:
 	ID3D11Buffer*	VertexBuffer;
 	ID3D11Buffer*	IndexBuffer;
 
-	//SUBSET*			SubsetArray;
-	//unsigned int	SubsetNum;
-
 	MODEL_DATA*		modelData;
 	bool			loadTangent = false;
 	bool			drawBoundingBox = false;
 
-	//BOUNDING_BOX	boundingBox;
 	ID3D11Buffer* BBVertexBuffer;
 
 	Renderer& renderer = Renderer::get_instance();
+	ShaderResourceBinder& m_ShaderResourceBinder = ShaderResourceBinder::get_instance();
 };

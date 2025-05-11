@@ -194,27 +194,27 @@ void Model::DrawModel()
 		// テクスチャ設定
 		if (modelData->SubsetArray[i].Material.MaterialData.noTexSampling == 0)
 		{
-			renderer.GetDeviceContext()->PSSetShaderResources(0, 1, &modelData->SubsetArray[i].diffuseTexture);
+			m_ShaderResourceBinder.BindShaderResource(ShaderStage::PS, SLOT_TEX_DIFFUSE, modelData->SubsetArray[i].diffuseTexture);
 		}
 		if (modelData->SubsetArray[i].Material.MaterialData.normalMapSampling == 1)
 		{
-			renderer.GetDeviceContext()->PSSetShaderResources(9, 1, &modelData->SubsetArray[i].normalTexture);
+			m_ShaderResourceBinder.BindShaderResource(ShaderStage::PS, SLOT_TEX_NORMAL, modelData->SubsetArray[i].normalTexture);
 		}
 		if (modelData->SubsetArray[i].Material.MaterialData.bumpMapSampling == 1)
 		{
-			renderer.GetDeviceContext()->PSSetShaderResources(10, 1, &modelData->SubsetArray[i].bumpTexture);
+			m_ShaderResourceBinder.BindShaderResource(ShaderStage::PS, SLOT_TEX_BUMP, modelData->SubsetArray[i].bumpTexture);
 		}
 		if (modelData->SubsetArray[i].Material.MaterialData.opacityMapSampling == 1)
 		{
-			renderer.GetDeviceContext()->PSSetShaderResources(11, 1, &modelData->SubsetArray[i].opacityTexture);
+			m_ShaderResourceBinder.BindShaderResource(ShaderStage::PS, SLOT_TEX_OPACITY, modelData->SubsetArray[i].opacityTexture);
 		}
 		if (modelData->SubsetArray[i].Material.MaterialData.reflectMapSampling == 1)
 		{
-			renderer.GetDeviceContext()->PSSetShaderResources(12, 1, &modelData->SubsetArray[i].reflectTexture);
+			m_ShaderResourceBinder.BindShaderResource(ShaderStage::PS, SLOT_TEX_REFLECT, modelData->SubsetArray[i].reflectTexture);
 		}
 		if (modelData->SubsetArray[i].Material.MaterialData.translucencyMapSampling == 1)
 		{
-			renderer.GetDeviceContext()->PSSetShaderResources(13, 1, &modelData->SubsetArray[i].translucencyTexture);
+			m_ShaderResourceBinder.BindShaderResource(ShaderStage::PS, SLOT_TEX_TRANSLUCENCY, modelData->SubsetArray[i].translucencyTexture);
 		}
 
 		// ポリゴン描画
@@ -229,8 +229,6 @@ void Model::DrawModel()
 
 void Model::DrawBoundingBox()
 {
-	if (renderer.GetRenderMode() == RenderMode::OBJ_SHADOW) return;
-
 	renderer.SetFillMode(D3D11_FILL_WIREFRAME);
 	// 頂点バッファ設定
 	UINT stride = sizeof(VERTEX_3D);
@@ -962,6 +960,81 @@ void Model::BuildTrianglesByBoundingBox(BOUNDING_BOX box)
 	modelData->triangles.push_back(new Triangle(v3, v0, v1, normalZPlus)); // 三角形 12
 }
 
+void Model::BuildTrianglesByWorldMatrix(XMMATRIX worldMatrix, bool alwaysFaceUp)
+{
+	XMFLOAT3 worldPos1, worldPos2;
+
+	XMVECTOR localAABBMax = XMVectorSet(
+		modelData->boundingBox.maxPoint.x,
+		modelData->boundingBox.maxPoint.y,
+		modelData->boundingBox.maxPoint.z,
+		1.0f
+	);
+
+	XMVECTOR localAABBMin = XMVectorSet(
+		modelData->boundingBox.minPoint.x,
+		modelData->boundingBox.minPoint.y,
+		modelData->boundingBox.minPoint.z,
+		1.0f
+	);
+
+
+	XMVECTOR worldPosMax = XMVector3Transform(localAABBMax, worldMatrix);
+	XMVECTOR worldPosMin = XMVector3Transform(localAABBMin, worldMatrix);
+
+
+	XMStoreFloat3(&worldPos1, worldPosMax);
+	XMStoreFloat3(&worldPos2, worldPosMin);
+
+	modelData->boundingBox.maxPoint = XMFLOAT3(
+		max(worldPos1.x, worldPos2.x),
+		max(worldPos1.y, worldPos2.y),
+		max(worldPos1.z, worldPos2.z)
+	);
+
+	modelData->boundingBox.minPoint = XMFLOAT3(
+		min(worldPos1.x, worldPos2.x),
+		min(worldPos1.y, worldPos2.y),
+		min(worldPos1.z, worldPos2.z)
+	);
+
+
+
+	int vertexNum = modelData->VertexNum;
+	SimpleArray<XMFLOAT3> triangleVertices(3);
+	for (int i = 0; i < vertexNum; i++)
+	{
+		XMFLOAT3 worldPos;
+
+		XMVECTOR localPosVec = XMVectorSet(
+			modelData->VertexArray[i].Position.x,
+			modelData->VertexArray[i].Position.y,
+			modelData->VertexArray[i].Position.z,
+			1.0f
+		);
+
+		XMVECTOR worldPosVec = XMVector3Transform(localPosVec, worldMatrix);
+		XMStoreFloat3(&worldPos, worldPosVec);
+
+		triangleVertices.push_back(worldPos);
+
+		if ((i + 1) % 3 == 0)
+		{
+			Triangle* triangle = new Triangle(
+				triangleVertices[0],
+				triangleVertices[1],
+				triangleVertices[2],
+				alwaysFaceUp
+			);
+
+			modelData->triangles.push_back(triangle);
+			triangleVertices.clear();
+
+		}
+	}
+
+}
+
 bool Model::BuildOctree(void)
 {
 	if (!modelData->triangles.getSize())
@@ -978,6 +1051,11 @@ bool Model::BuildOctree(void)
 	}
 
 	return true;
+}
+
+const SimpleArray<Triangle*>* Model::GetTriangles(void) const
+{
+	return &modelData->triangles;
 }
 
 const SimpleArray<StaticMeshPart>& Model::GetMeshParts(void) const

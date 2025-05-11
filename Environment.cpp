@@ -16,7 +16,6 @@ Environment::Environment() :
     time = 0.0f; // 累積時間
 
     Initialize();
-    CompileShaders();
 }
 
 Environment::Environment(EnvironmentConfig config) :
@@ -26,7 +25,6 @@ Environment::Environment(EnvironmentConfig config) :
 	time = 0.0f; // 累積時間
 
 	Initialize();
-	CompileShaders();
 
 	if (config.loadGrass)
 		InitializeEnvironmentObj(EnvironmentObjectType::Grass_1);
@@ -42,30 +40,6 @@ Environment::Environment(EnvironmentConfig config) :
 
 bool Environment::Initialize(void)
 {
-    // サンプラーステート作成
-    D3D11_SAMPLER_DESC samplerDesc = {};
-    samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-    samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-    samplerDesc.MinLOD = 0;
-    samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
-    m_device->CreateSamplerState(&samplerDesc, &samplerState);
-
-    // シャドウ用サンプラー (比較サンプラー)
-    D3D11_SAMPLER_DESC shadowSamplerDesc = {};
-    shadowSamplerDesc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
-    shadowSamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
-    shadowSamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
-    shadowSamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
-    shadowSamplerDesc.BorderColor[0] = 1.0f;
-    shadowSamplerDesc.BorderColor[1] = 1.0f;
-    shadowSamplerDesc.BorderColor[2] = 1.0f;
-    shadowSamplerDesc.BorderColor[3] = 1.0f;
-    shadowSamplerDesc.ComparisonFunc = D3D11_COMPARISON_LESS_EQUAL;
-    m_device->CreateSamplerState(&shadowSamplerDesc, &shadowSamplerState);
-
     // ノイズテクスチャ生成
     if (!GenerateNoiseTexture(&noiseTextureSRV))
         return false;
@@ -79,6 +53,18 @@ bool Environment::Initialize(void)
 
     HRESULT hr = m_device->CreateBuffer(&bufferDesc, nullptr, &perFrameBuffer);
     if (FAILED(hr))
+        return false;
+
+    bool loadShaders = true;
+
+    loadShaders &= ShaderManager::get_instance().HasShaderSet(ShaderSetID::Instanced_Grass);
+    if (loadShaders)
+        grassShaderSet = ShaderManager::get_instance().GetShaderSet(ShaderSetID::Instanced_Grass);
+    loadShaders &= ShaderManager::get_instance().HasShaderSet(ShaderSetID::Instanced_Tree);
+    if (loadShaders)
+        treeShaderSet = ShaderManager::get_instance().GetShaderSet(ShaderSetID::Instanced_Tree);
+
+    if (!loadShaders)
         return false;
 
     return true;
@@ -101,7 +87,7 @@ EnvironmentObject* Environment::InitializeEnvironmentObj(EnvironmentObjectType t
         obj->attributes.billboard = false;
         obj->attributes.maxSlopeAngle = GRASS_MAX_SLOPE_ANGLE;
         obj->modelPath = GRASS_1_MODEL_PATH;
-        obj->texturePath = GRASS_1_TEX_PATH;
+        obj->extDiffuseTexPath = GRASS_1_TEX_PATH;
         break;
     case EnvironmentObjectType::Grass_2:
         obj = new EnvironmentObject();
@@ -114,7 +100,7 @@ EnvironmentObject* Environment::InitializeEnvironmentObj(EnvironmentObjectType t
         obj->attributes.billboard = true;
         obj->attributes.maxSlopeAngle = GRASS_MAX_SLOPE_ANGLE;
         obj->modelPath = GRASS_2_MODEL_PATH;
-        obj->texturePath = GRASS_2_TEX_PATH;
+        obj->extDiffuseTexPath = GRASS_2_TEX_PATH;
         break;
     case EnvironmentObjectType::Clover_1:
         obj = new EnvironmentObject();
@@ -127,7 +113,7 @@ EnvironmentObject* Environment::InitializeEnvironmentObj(EnvironmentObjectType t
         obj->attributes.billboard = false;
         obj->attributes.maxSlopeAngle = CLOVER_MAX_SLOPE_ANGLE;
         obj->modelPath = CLOVER_1_MODEL_PATH;
-        obj->texturePath = CLOVER_1_TEX_PATH;
+        obj->extDiffuseTexPath = CLOVER_1_TEX_PATH;
         break;
     case EnvironmentObjectType::Bush_1:
         obj = new EnvironmentObject();
@@ -164,7 +150,7 @@ EnvironmentObject* Environment::InitializeEnvironmentObj(EnvironmentObjectType t
         obj->attributes.billboard = true;
         obj->attributes.maxSlopeAngle = FLOWER_MAX_SLOPE_ANGLE;
         obj->modelPath = FLOWER_1_MODEL_PATH;
-        obj->texturePath = FLOWER_1_TEX_PATH;
+        obj->extDiffuseTexPath = FLOWER_1_TEX_PATH;
         break;
     case EnvironmentObjectType::Shrubbery_1:
         obj = new EnvironmentObject();
@@ -177,7 +163,7 @@ EnvironmentObject* Environment::InitializeEnvironmentObj(EnvironmentObjectType t
         obj->attributes.billboard = true;
         obj->attributes.maxSlopeAngle = SHRUBBERY_MAX_SLOPE_ANGLE;
         obj->modelPath = SHRUBBERY_1_MODEL_PATH;
-        obj->texturePath = SHRUBBERY_1_TEX_PATH;
+        obj->extDiffuseTexPath = SHRUBBERY_1_TEX_PATH;
         break;
     case EnvironmentObjectType::Tree_1:
         obj = new EnvironmentObject();
@@ -190,7 +176,7 @@ EnvironmentObject* Environment::InitializeEnvironmentObj(EnvironmentObjectType t
         obj->attributes.billboard = true;
         obj->attributes.maxSlopeAngle = TREE_MAX_SLOPE_ANGLE;
         obj->modelPath = TREE_1_MODEL_PATH;
-        obj->texturePath = TREE_1_TEX_PATH;
+        obj->extDiffuseTexPath = TREE_1_TEX_PATH;
         break;
     default:
         return nullptr;
@@ -217,16 +203,6 @@ Environment::~Environment()
     SafeRelease(&perFrameBuffer);
     SafeRelease(&shadowMapSRV);
     SafeRelease(&noiseTextureSRV);
-
-    SafeRelease(&instanceInputLayout);
-    SafeRelease(&grassVertexShader);
-    SafeRelease(&grassPixelShader);
-    SafeRelease(&treeVertexShader);
-    SafeRelease(&treePixelShader);
-    SafeRelease(&shadowVertexShader);
-
-    SafeRelease(&samplerState);
-    SafeRelease(&shadowSamplerState);
 }
 
 void Environment::Update(void)
@@ -301,57 +277,41 @@ void Environment::Draw(void)
 
 void Environment::RenderEnvironmentObj(EnvironmentObject* obj)
 {
-    // 影描画モードの場合、影を生成しないオブジェクトは描画しない
-    if (!obj->attributes.castShadow &&
-        Renderer::get_instance().GetRenderMode() == RenderMode::INSTANCE_SHADOW)
-        return;
 
     UINT strides[2] = { sizeof(InstanceVertex), sizeof(InstanceData) }; // 頂点 & インスタンスストライド
     UINT offsets[2] = { 0, 0 }; // オフセット初期化
     ID3D11Buffer* buffers[2] = { obj->vertexBuffer, obj->instanceBuffer }; // バッファ配列
 
-    m_context->IASetInputLayout(instanceInputLayout);
+    m_context->IASetInputLayout(treeShaderSet.inputLayout);
     m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     // 頂点バッファとインスタンスバッファ設定
     m_context->IASetVertexBuffers(0, 2, buffers, strides, offsets);
     // インデックスバッファ設定
     m_context->IASetIndexBuffer(obj->indexBuffer, DXGI_FORMAT_R32_UINT, 0); 
-    
-    m_context->VSSetConstantBuffers(12, 1, &perFrameBuffer);
+    m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_INSTANCED_DATA, perFrameBuffer);
 
-    if (Renderer::get_instance().GetRenderMode() == RenderMode::INSTANCE)
-    {
-        m_context->VSSetShader(obj->vertexShader, nullptr, 0);
+    m_context->VSSetShader(obj->vertexShader, nullptr, 0);
 
-        // 風に影響される場合、ノイズテクスチャとピクセルシェーダーを設定
-        if (obj->attributes.affectedByWind)
-            m_context->VSSetShaderResources(7, 1, &noiseTextureSRV);
+    // 風に影響される場合、ノイズテクスチャとピクセルシェーダーを設定
+    if (obj->attributes.affectedByWind)
+        m_ShaderResourceBinder.BindShaderResource(ShaderStage::VS, SLOT_TEX_NOISE, noiseTextureSRV);
 
-        m_context->PSSetShader(obj->pixelShader, nullptr, 0);
-        m_context->PSSetSamplers(0, 1, &samplerState);
+    m_context->PSSetShader(obj->pixelShader, nullptr, 0);
 
-    }
-    else if (Renderer::get_instance().GetRenderMode() == RenderMode::INSTANCE_SHADOW)
-    {
-        m_context->VSSetShader(shadowVertexShader, nullptr, 0);
-        m_context->PSSetShader(nullptr, nullptr, 0);
-        m_context->PSSetSamplers(1, 1, &shadowSamplerState);
-    }
-
-    if (obj->externTexPath)
+    if (obj->extDiffuseTexPath)
     {
         MATERIAL material;
         ZeroMemory(&material, sizeof(material));
         material.Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
         Renderer::get_instance().SetMaterial(material);
-        m_context->PSSetShaderResources(0, 1, &obj->externDiffuseTextureSRV);
+        m_ShaderResourceBinder.BindShaderResource(ShaderStage::PS, SLOT_TEX_DIFFUSE, obj->externDiffuseTextureSRV);
         // インスタンス化描画実行
         m_context->DrawIndexedInstanced(obj->indexCount, obj->instanceCount, 0, 0, 0);
     }
     else
     {
-        const SUBSET* subset = obj->model->GetModel()->GetSubset();
-        unsigned int subsetNum = obj->model->GetModel()->GetSubNum();
+        const SUBSET* subset = obj->modelGO->GetModel()->GetSubset();
+        unsigned int subsetNum = obj->modelGO->GetModel()->GetSubNum();
 
         for (unsigned int i = 0; i < subsetNum; i++)
         {
@@ -362,27 +322,27 @@ void Environment::RenderEnvironmentObj(EnvironmentObject* obj)
             // テクスチャ設定
             if (subset[i].Material.MaterialData.noTexSampling == 0)
             {
-                m_context->PSSetShaderResources(0, 1, &subset[i].diffuseTexture);
+                m_ShaderResourceBinder.BindShaderResource(ShaderStage::PS, SLOT_TEX_DIFFUSE, subset[i].diffuseTexture);
             }
             if (subset[i].Material.MaterialData.normalMapSampling == 1)
             {
-                m_context->PSSetShaderResources(9, 1, &subset[i].normalTexture);
+                m_ShaderResourceBinder.BindShaderResource(ShaderStage::PS, SLOT_TEX_NORMAL, subset[i].normalTexture);
             }
             if (subset[i].Material.MaterialData.bumpMapSampling == 1)
             {
-                m_context->PSSetShaderResources(10, 1, &subset[i].bumpTexture);
+                m_ShaderResourceBinder.BindShaderResource(ShaderStage::PS, SLOT_TEX_BUMP, subset[i].bumpTexture);
             }
             if (subset[i].Material.MaterialData.opacityMapSampling == 1)
             {
-                m_context->PSSetShaderResources(11, 1, &subset[i].opacityTexture);
+                m_ShaderResourceBinder.BindShaderResource(ShaderStage::PS, SLOT_TEX_OPACITY, subset[i].opacityTexture);
             }
             if (subset[i].Material.MaterialData.reflectMapSampling == 1)
             {
-                m_context->PSSetShaderResources(12, 1, &subset[i].reflectTexture);
+                m_ShaderResourceBinder.BindShaderResource(ShaderStage::PS, SLOT_TEX_REFLECT, subset[i].reflectTexture);
             }
             if (subset[i].Material.MaterialData.translucencyMapSampling == 1)
             {
-                m_context->PSSetShaderResources(13, 1, &subset[i].translucencyTexture);
+                m_ShaderResourceBinder.BindShaderResource(ShaderStage::PS, SLOT_TEX_TRANSLUCENCY, subset[i].translucencyTexture);
             }
 
             // インスタンス化描画実行
@@ -486,23 +446,36 @@ float Environment::RayIntersectTriangle(const XMFLOAT3& rayOrigin, const XMFLOAT
 
 bool Environment::LoadEnvironmentObj(EnvironmentObject* obj)
 {
-    obj->model = new GameObject<ModelInstance>();
-    obj->model->Instantiate(obj->modelPath);
+    obj->modelGO = new GameObject<ModelInstance>();
+    obj->modelGO->Instantiate(obj->modelPath);
 
-    const SUBSET* subset = obj->model->GetModel()->GetSubset();
-    unsigned int subsetNum = obj->model->GetModel()->GetSubNum();
-    if (subsetNum > 0)
-    {
-        if (subset[0].diffuseTexture == nullptr && obj->texturePath)
-        {
-            obj->externTexPath = true;
-            obj->externDiffuseTextureSRV = TextureMgr::get_instance().CreateTexture(obj->texturePath);
-        }
-    }
+    const SUBSET* subset = obj->modelGO->GetModel()->GetSubset();
+    unsigned int subsetNum = obj->modelGO->GetModel()->GetSubNum();
 
-    const MODEL_DATA* modelData = obj->model->GetModel()->GetModelData();
-    BOUNDING_BOX boudningBox = obj->model->GetModel()->GetBoundingBox();
-    //obj->model->SetIsInstanced(true); // インスタンス化フラグを立てる
+    obj->useExtDiffuseTex = true;
+    for (unsigned int i = 0; i < subsetNum; i++)
+	{
+        // テクスチャの有無を確認
+		if (subset[i].diffuseTexture != nullptr)
+		{
+			obj->useExtDiffuseTex = false;
+		}
+
+        if (subset[i].opacityTexture != nullptr)
+            obj->modelGO->SetEnableAlphaTest(true);
+	}
+
+    // テクスチャの読み込み
+    if (obj->useExtDiffuseTex && obj->extDiffuseTexPath)
+	{
+		obj->externDiffuseTextureSRV = TextureMgr::get_instance().CreateTexture(obj->extDiffuseTexPath);
+		if (obj->externDiffuseTextureSRV == nullptr)
+			return false;
+	}
+
+    const MODEL_DATA* modelData = obj->modelGO->GetModel()->GetModelData();
+    BOUNDING_BOX boudningBox = obj->modelGO->GetModel()->GetBoundingBox();
+    obj->modelGO->SetIsInstanced(true); // インスタンス化フラグを立てる
 
     InstanceVertex* VertexArray = new InstanceVertex[modelData->VertexNum];
 
@@ -558,6 +531,9 @@ bool Environment::LoadEnvironmentObj(EnvironmentObject* obj)
 
     SAFE_DELETE_ARRAY(VertexArray);
 
+    obj->modelGO->SetVertexBuffer(obj->vertexBuffer);
+    obj->modelGO->SetIndexBuffer(obj->indexBuffer);
+
     LoadShaders(obj);
 
     return true;
@@ -567,112 +543,34 @@ void Environment::LoadShaders(EnvironmentObject* obj)
 {
 	if (obj->attributes.affectedByWind)
 	{
-		obj->vertexShader = grassVertexShader;
-		obj->pixelShader = grassPixelShader;
+        obj->vertexShader = grassShaderSet.vs;
+        obj->pixelShader = grassShaderSet.ps;
 	}
 	else
 	{
-		obj->vertexShader = treeVertexShader;
-        obj->pixelShader = treePixelShader;
+        obj->vertexShader = treeShaderSet.vs;
+        obj->pixelShader = treeShaderSet.ps;
 	}
 }
 
-void Environment::CompileShaders(void)
+OctreeNode* Environment::GenerateOctree(const SimpleArray<Triangle*>* triangles, BOUNDING_BOX boundingBox)
 {
-    HRESULT hr = S_OK;
+    if (triangles == nullptr || triangles->getSize() == 0)
+		return nullptr;
 
-    ID3DBlob* pVSBlob, * pPSBlob;
-    ID3DBlob* pErrorBlob = NULL;
-    UINT compileFlags = D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY;
-
-    // シェーダーコンパイル
-    hr = D3DX11CompileFromFile("Grass.hlsl", NULL, NULL, "VS", "vs_4_0", compileFlags, 0, NULL, &pVSBlob, &pErrorBlob, NULL);
-    if (FAILED(hr))
-    {
-        MessageBox(NULL, (char*)pErrorBlob->GetBufferPointer(), "VS", MB_OK | MB_ICONERROR);
-    }
-
-    hr = D3DX11CompileFromFile("Grass.hlsl", NULL, NULL, "PS", "ps_4_0", 0, 0, NULL, &pPSBlob, &pErrorBlob, NULL);
-    if (FAILED(hr))
-    {
-        MessageBox(NULL, (char*)pErrorBlob->GetBufferPointer(), "PS", MB_OK | MB_ICONERROR);
-    }
-
-    m_device->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &grassVertexShader);
-    m_device->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &grassPixelShader);
-
-    ID3DBlob* pVSBlob2, *pPSBlob2;
-
-    hr = D3DX11CompileFromFile("Tree.hlsl", NULL, NULL, "VS", "vs_4_0", compileFlags, 0, NULL, &pVSBlob2, &pErrorBlob, NULL);
-    if (FAILED(hr))
-    {
-        MessageBox(NULL, (char*)pErrorBlob->GetBufferPointer(), "VS", MB_OK | MB_ICONERROR);
-    }
-
-    hr = D3DX11CompileFromFile("Tree.hlsl", NULL, NULL, "PS", "ps_4_0", 0, 0, NULL, &pPSBlob2, &pErrorBlob, NULL);
-    if (FAILED(hr))
-    {
-        MessageBox(NULL, (char*)pErrorBlob->GetBufferPointer(), "PS", MB_OK | MB_ICONERROR);
-    }
-
-    m_device->CreateVertexShader(pVSBlob2->GetBufferPointer(), pVSBlob2->GetBufferSize(), nullptr, &treeVertexShader);
-    m_device->CreatePixelShader(pPSBlob2->GetBufferPointer(), pPSBlob2->GetBufferSize(), nullptr, &treePixelShader);
-
-    ID3DBlob* pVSBlob3;
-    hr = D3DX11CompileFromFile("Tree.hlsl", NULL, NULL, "VSShadow", "vs_4_0", 0, 0, NULL, &pVSBlob3, &pErrorBlob, NULL);
-    if (FAILED(hr))
-    {
-        MessageBox(NULL, (char*)pErrorBlob->GetBufferPointer(), "VSShadow", MB_OK | MB_ICONERROR);
-    }
-    
-    m_device->CreateVertexShader(pVSBlob3->GetBufferPointer(), pVSBlob3->GetBufferSize(), nullptr, &shadowVertexShader);
-
-    D3D11_INPUT_ELEMENT_DESC layoutDesc[] = 
-    {
-        // 頂点データ
-        { "POSITION",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,   D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "NORMAL",     0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12,  D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD",   0, DXGI_FORMAT_R32G32_FLOAT,    0, 24,  D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD",   1, DXGI_FORMAT_R32_FLOAT,       0, 32,  D3D11_INPUT_PER_VERTEX_DATA, 0 }, // Weight
-        { "TANGENT",    0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 36,  D3D11_INPUT_PER_VERTEX_DATA, 0 },
-
-        // インスタンスデータ
-        { "POSITION",   1, DXGI_FORMAT_R32G32B32_FLOAT,    1, 0,   D3D11_INPUT_PER_INSTANCE_DATA, 1 }, // OffsetPosition
-        { "TEXCOORD",   2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 12,  D3D11_INPUT_PER_INSTANCE_DATA, 1 }, // Rotation (Quaternion)
-        { "TEXCOORD",   3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 28, D3D11_INPUT_PER_INSTANCE_DATA, 1 },  // initialBillboardRot (初期ビルボード回転)
-        { "TEXCOORD",   4, DXGI_FORMAT_R32_FLOAT,          1, 44, D3D11_INPUT_PER_INSTANCE_DATA, 1 },  // Scale
-        { "TEXCOORD",   5, DXGI_FORMAT_R32_FLOAT,          1, 48, D3D11_INPUT_PER_INSTANCE_DATA, 1 },  // Type
-    };
-
-    m_device->CreateInputLayout(
-        layoutDesc,
-        ARRAYSIZE(layoutDesc),
-        pVSBlob2->GetBufferPointer(),
-        pVSBlob2->GetBufferSize(),
-        &instanceInputLayout);
-
-    pVSBlob->Release();
-    pVSBlob2->Release();
-    pVSBlob3->Release();
-    pPSBlob->Release();
-    pPSBlob2->Release();
-}
-
-OctreeNode* Environment::GenerateOctree(const SimpleArray<Triangle*>& triangles, BOUNDING_BOX boundingBox)
-{
     OctreeNode* octree = new OctreeNode(boundingBox);
 
-    int numTriangles = triangles.getSize();
+    int numTriangles = triangles->getSize();
     for (int i = 0; i < numTriangles; i++)
     {
-        if (!octree->insert(triangles[i]))
+        if (!octree->insert((*triangles)[i]))
             return nullptr;
     }
 
     return octree;
 }
 
-bool Environment::GenerateRandomInstances(EnvironmentObjectType type, const SkinnedMeshModel* fieldModel, int clusterCount)
+bool Environment::GenerateRandomInstances(EnvironmentObjectType type, const Model* fieldModel, int clusterCount)
 {
     // 環境オブジェクト検索
     EnvironmentObject* obj = nullptr;
@@ -699,7 +597,7 @@ bool Environment::GenerateRandomInstances(EnvironmentObjectType type, const Skin
     
     SimpleArray<InstanceData> instanceDataArray;
 
-    const SimpleArray<Triangle*>& triangles = fieldModel->GetTriangles();
+    const SimpleArray<Triangle*>* triangles = fieldModel->GetTriangles();
     BOUNDING_BOX boundingBox = fieldModel->GetBoundingBox();
     OctreeNode* octree = GenerateOctree(triangles, boundingBox);
 
@@ -799,6 +697,9 @@ bool Environment::GenerateRandomInstances(EnvironmentObjectType type, const Skin
 
     SAFE_DELETE(octree);
 
+    // インスタンスデータの数を設定
+    obj->modelGO->SetInstanceCount(instanceDataArray.getSize());
+
     if (!CreateInstanceBuffer(obj, instanceDataArray))
         return false;
 
@@ -815,7 +716,7 @@ bool Environment::GenerateInstanceByParams(const InstanceParams& params, const S
 
     SimpleArray<InstanceData> instanceDataArray;
 
-    const SimpleArray<Triangle*>& triangles = fieldModel->GetTriangles();
+    const SimpleArray<Triangle*>* triangles = fieldModel->GetTriangles();
     BOUNDING_BOX boundingBox = fieldModel->GetBoundingBox();
     OctreeNode* octree = GenerateOctree(triangles, boundingBox);
 
@@ -902,6 +803,9 @@ bool Environment::GenerateInstanceByParams(const InstanceParams& params, const S
     }
 
     SAFE_DELETE(octree);
+
+    // インスタンスデータの数を設定
+    obj->modelGO->SetInstanceCount(instanceDataArray.getSize());
 
     if (!CreateInstanceBuffer(obj, instanceDataArray))
         return false;
@@ -1010,6 +914,8 @@ bool Environment::CreateInstanceBuffer(EnvironmentObject* obj, const SimpleArray
     HRESULT hr = m_device->CreateBuffer(&bufferDesc, &initData, &obj->instanceBuffer);
     if (FAILED(hr))
         return false;
+
+    obj->modelGO->SetInstanceBuffer(obj->instanceBuffer); // モデルにインスタンスバッファを設定
 
     return true;
 }

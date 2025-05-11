@@ -18,7 +18,6 @@
 #define CSM_SHADOW_MAP_SIZE 2048
 // カスケードの数（最大4）
 #define MAX_CASCADES    4
-#define CSM_SRV_SLOT    1  //t1~t4
 #define SHADOW_CASTING_LIGHT_MAX 2
 #define MIN_SHADOW_DISTANCE 15.0f
 #define MAX_SHADOW_DISTANCE 40000.0f
@@ -164,6 +163,7 @@ private:
     ID3D11DeviceContext* m_context = nullptr;
 
     Camera& m_camera = Camera::get_instance();
+    ShaderResourceBinder& m_ShaderResourceBinder = ShaderResourceBinder::get_instance();
 
     // debug
     XMVECTOR m_tempFrustumCenter[MAX_CASCADES];

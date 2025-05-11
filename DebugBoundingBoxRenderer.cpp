@@ -95,9 +95,9 @@ void DebugBoundingBoxRenderer::DrawBox(const BOUNDING_BOX& box, const XMMATRIX& 
     m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
 
     m_context->VSSetShader(debugShaderSet.vs, nullptr, 0);
-    m_context->VSSetConstantBuffers(9, 1, &m_constantBuffer);
     m_context->PSSetShader(debugShaderSet.ps, nullptr, 0);
-    m_context->PSSetConstantBuffers(9, 1, &m_constantBuffer);
+    m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_DEBUG_BOUNDING_BOX, m_constantBuffer);
+    m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_DEBUG_BOUNDING_BOX, m_constantBuffer);
 
     m_context->DrawIndexed(24, 0, 0);
 }

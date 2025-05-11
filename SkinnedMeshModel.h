@@ -201,9 +201,9 @@ public:
 	bool BuildOctree(void);
 	UINT GetNumBones(void) { return numBones; }
 	BOUNDING_BOX GetBoundingBox(void) const { return boundingBox; }
-	const SimpleArray<Triangle*>& GetTriangles(void) const;
+	const SimpleArray<Triangle*>* GetTriangles(void) const;
 
-	void SetCurrentAnim(AnimationClip* currAnimClp, float startTime = 0);// (AnimClipName clipName, float startTime = 0);
+	void SetCurrentAnim(AnimationClip* currAnimClp, float startTime = 0);
 	AnimClipName GetCurrentAnim(void) { return currentAnimClip->name; }
 	AnimationClip* GetAnimationClip(AnimClipName clipName);
 	void PlayCurrentAnim(float playSpeed = 1.0f);
@@ -213,15 +213,14 @@ public:
 	XMMATRIX GetBoneFinalTransform(UINT boneIdx = 0);
 	const XMMATRIX* GetFinalBoneMatrices(void);
 
-	UINT weaponTransformIdx;
+	const SimpleArray<SkinnedMeshPart>& GetMeshParts() const;
+	ModelType GetModelType(void) const { return modelType; }
 
 	static SkinnedMeshModel* StoreModel(char* modelPath, char* modelName, char* modelFullPath, 
 		ModelType modelType, AnimClipName clipName);
 	static SkinnedMeshModelPool* GetModel(char* modelFullPath);
 	static void RemoveModel(char* modelPath);
 
-	const SimpleArray<SkinnedMeshPart>& GetMeshParts() const;
-	ModelType GetModelType(void) const { return modelType; }
 
 private:
 
@@ -236,7 +235,6 @@ private:
 	void DrawSigewinne(ModelData* modelData);
 	void DrawKlee(ModelData* modelData);
 	void DrawLumine(ModelData* modelData);
-	void DrawTree(ModelData* modelData);
 	void DrawField(ModelData* modelData);
 	void DrawChurch(ModelData* modelData);
 	void DrawTownLoD(ModelData* modelData, int LoD);
@@ -256,6 +254,7 @@ private:
 	ModelType modelType;
 	bool drawBoundingBox;
 	BoneTransformData boneTransformData;
+	UINT weaponTransformIdx;
 
 	AnimationClip* currentAnimClip;
 	FbxNode* armatureNode;

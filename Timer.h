@@ -20,6 +20,7 @@ private:
     float scaledDeltaTime;
     const float targetFrameRate = 60.0f;
     const float timeScale = targetFrameRate;
+    const float maxDeltaTime = 1.0f / 10.0f;
     DebugProc& debugProc = DebugProc::get_instance();
 
 public:
@@ -41,8 +42,13 @@ public:
         LARGE_INTEGER currentTime;
         QueryPerformanceCounter(&currentTime);
         deltaTime = static_cast<float>(currentTime.QuadPart - lastTime.QuadPart) / frequency.QuadPart;
+        if (deltaTime > maxDeltaTime)
+        {
+            deltaTime = maxDeltaTime; // 制限をかける
+        }
+        deltaTime = 1.0f / 60.0f;
         lastTime = currentTime;
-        scaledDeltaTime = deltaTime * timeScale;
+        scaledDeltaTime = deltaTime * timeScale; // スケーリング
         elapsedTime += deltaTime;
 
 #ifdef _DEBUG

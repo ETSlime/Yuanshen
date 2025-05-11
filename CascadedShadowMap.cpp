@@ -103,7 +103,7 @@ void CascadedShadowMap::SetViewport(void)
 
 void CascadedShadowMap::BindShadowSRVsToPixelShader(int lightIndex, int startSlot)
 {
-    m_context->PSSetShaderResources(startSlot, m_config.numCascades, m_srvs[lightIndex]);
+    m_ShaderResourceBinder.BindShaderResources(ShaderStage::PS, startSlot, m_config.numCascades, m_srvs[lightIndex]);
 }
 
 ID3D11ShaderResourceView* CascadedShadowMap::GetSRV(int lightIndex, int cascadeIndex) const
@@ -267,7 +267,7 @@ ID3D11ShaderResourceView** CascadedShadowMap::GetAllShadowSRVs(int lightIndex)
 void CascadedShadowMap::UnbindShadowSRVs(void)
 {
     ID3D11ShaderResourceView* nullSRVs[MAX_CASCADES] = { nullptr, nullptr, nullptr, nullptr };
-    m_context->PSSetShaderResources(CSM_SRV_SLOT, MAX_CASCADES, nullSRVs);
+    m_ShaderResourceBinder.BindShaderResources(ShaderStage::PS, SLOT_TEX_CSM, m_config.numCascades, nullSRVs);
 }
 
 void CascadedShadowMap::BeginCascadeRender(int lightIndex, int cascadeIndex)
@@ -364,8 +364,8 @@ void CascadedShadowMap::UpdateCascadeCBufferArray(void)
 
     m_context->Unmap(m_cascadeArrayCBuffer, 0);
 
-    m_context->VSSetConstantBuffers(6, 1, &m_cascadeArrayCBuffer);
-    m_context->PSSetConstantBuffers(6, 1, &m_cascadeArrayCBuffer);
+    m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_CASCADE_DATA_ARRAY, m_cascadeArrayCBuffer);
+    m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_CASCADE_DATA_ARRAY, m_cascadeArrayCBuffer);
 }
 
 void CascadedShadowMap::UpdateCascadeCBuffer(int cascadeIndex)
@@ -378,10 +378,10 @@ void CascadedShadowMap::UpdateCascadeCBuffer(int cascadeIndex)
     m_context->Unmap(m_cascadeSingleCBuffer, 0);
 
     // VS—p‚Ìê‡
-    m_context->VSSetConstantBuffers(8, 1, &m_cascadeSingleCBuffer);
+    m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_CASCADE_DATA, m_cascadeSingleCBuffer);
 
     // PS‚Å‚àŽg‚¢‚½‚¢ê‡‚Í‚±‚ê‚à’Ç‰Á
-    // m_context->PSSetConstantBuffers(1, 1, &m_cascadeCBuffer);
+    //m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_CASCADE_DATA, m_cascadeSingleCBuffer);
 }
 
 void CascadedShadowMap::VisualizeCascadeBounds(void)

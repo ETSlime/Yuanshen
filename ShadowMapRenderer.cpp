@@ -17,14 +17,9 @@ bool ShadowMapRenderer::Init(int shadowMapSize, int numCascades)
     m_device = Renderer::get_instance().GetDevice();
     m_context = Renderer::get_instance().GetDeviceContext();
 
-    //for (auto& debug : m_debugBounds) 
-    //{
-    //    debug.debugBox = GeometricPrimitive::CreateBox(device);
-    //}
-
     // 空のピクセルシェーダーを読み込む
     ID3D11PixelShader* emptyPS = nullptr;
-    if (ShaderLoader::LoadEmptyPixelShader(m_device, &emptyPS, "DepthMap.hlsl", "DummyPS"))
+    if (ShaderLoader::LoadEmptyPixelShader(m_device, &emptyPS, "Shaders/DepthMap.hlsl", "DummyPS"))
         m_shaderManager.SetSharedShadowPixelShader(emptyPS);
     else
         return false;
@@ -33,15 +28,18 @@ bool ShadowMapRenderer::Init(int shadowMapSize, int numCascades)
 
     // 静的モデル用シャドウシェーダー
     loadShaders &= m_shaderManager.HasShadowShaderSet(ShaderSetID::StaticModel);
-    m_staticModelShaderSet = m_shaderManager.GetShadowShaderSet(ShaderSetID::StaticModel);
+    if (loadShaders)
+        m_staticModelShaderSet = m_shaderManager.GetShadowShaderSet(ShaderSetID::StaticModel);
 
     // スキニングメッシュ用シャドウシェーダー
     loadShaders &= m_shaderManager.HasShadowShaderSet(ShaderSetID::SkinnedModel);
-    m_skinnedModelShaderSet = m_shaderManager.GetShadowShaderSet(ShaderSetID::SkinnedModel);
+    if (loadShaders)
+        m_skinnedModelShaderSet = m_shaderManager.GetShadowShaderSet(ShaderSetID::SkinnedModel);
 
     // インスタンスモデル（草、木など）
     loadShaders &= m_shaderManager.HasShadowShaderSet(ShaderSetID::Instanced_Tree);
-    m_instancedModelShaderSet = m_shaderManager.GetShadowShaderSet(ShaderSetID::Instanced_Tree);
+    if (loadShaders)
+        m_instancedModelShaderSet = m_shaderManager.GetShadowShaderSet(ShaderSetID::Instanced_Tree);
 
     return loadShaders;
 }
@@ -49,7 +47,6 @@ bool ShadowMapRenderer::Init(int shadowMapSize, int numCascades)
 void ShadowMapRenderer::Shutdown() 
 {
     m_csm.Shutdown();
-    //m_debugBounds.clear();
 }
 
 void ShadowMapRenderer::BeginShadowPass(const DirectionalLight* light)
@@ -58,8 +55,6 @@ void ShadowMapRenderer::BeginShadowPass(const DirectionalLight* light)
     m_lightDir = XMVectorSet(dir.x, dir.y, dir.z, 0.0f);
 
     m_csm.UpdateCascades(m_lightDir, m_camera.GetNearZ(), m_camera.GetFarZ());
-    //UpdateCascadeDebugBounds();
-
     m_csm.UnbindShadowSRVs();
 }
 
@@ -80,7 +75,7 @@ void ShadowMapRenderer::RenderCSMForLight(DirectionalLight* light, int lightInde
     EndShadowPass();
 
     m_csm.UpdateCascadeCBufferArray();
-    m_csm.BindShadowSRVsToPixelShader(lightIndex, CSM_SRV_SLOT);
+    m_csm.BindShadowSRVsToPixelShader(lightIndex, SLOT_TEX_CSM);
 }
 
 void ShadowMapRenderer::RenderShadowPass(int cascadeIndex)
@@ -151,17 +146,9 @@ void ShadowMapRenderer::RenderStaticMesh(const StaticRenderData& mesh)
     m_context->IASetVertexBuffers(0, 1, &mesh.vertexBuffer, &mesh.stride, &offset);
     m_context->IASetIndexBuffer(mesh.indexBuffer, mesh.indexFormat, 0);
     m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_context->VSSetShader(m_staticModelShaderSet.vs, nullptr, 0);
 
     m_renderer.SetCurrentWorldMatrix(&mesh.worldMatrix);
-
-    //D3D11_MAPPED_SUBRESOURCE mapped = {};
-    //m_context->Map(m_cbPerObject, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-    //CBPerObject* cb = reinterpret_cast<CBPerObject*>(mapped.pData);
-    //cb->worldViewProj = wvp;
-    //context->Unmap(m_cbPerObject, 0);
-
-    m_context->VSSetShader(m_staticModelShaderSet.vs, nullptr, 0);
-    //m_context->VSSetConstantBuffers(0, 1, &m_cbPerObject);
 
     if (mesh.enableAlphaTest && mesh.opacityMapSRV)
     {
@@ -173,7 +160,7 @@ void ShadowMapRenderer::RenderStaticMesh(const StaticRenderData& mesh)
         m_context->PSSetShader(nullptr, nullptr, 0);
     }
 
-    m_context->DrawIndexed(mesh.indexCount, 0, 0);
+    m_context->DrawIndexed(mesh.indexCount, mesh.startIndexLocation, 0);
 }
 
 void ShadowMapRenderer::RenderSkinnedMesh(const SkinnedRenderData& mesh)
@@ -184,8 +171,11 @@ void ShadowMapRenderer::RenderSkinnedMesh(const SkinnedRenderData& mesh)
     m_context->IASetVertexBuffers(0, 1, &mesh.vertexBuffer, &mesh.stride, &offset);
     m_context->IASetIndexBuffer(mesh.indexBuffer, mesh.indexFormat, 0);
     m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_context->VSSetShader(m_skinnedModelShaderSet.vs, nullptr, 0);
 
     m_renderer.SetCurrentWorldMatrix(&mesh.worldMatrix);
+
+    // ボーン行列をシェーダーにセット
     if (mesh.pBoneMatrices)
     {
         m_renderer.SetBoneMatrix(mesh.pBoneMatrices);
@@ -196,15 +186,6 @@ void ShadowMapRenderer::RenderSkinnedMesh(const SkinnedRenderData& mesh)
         boneMatrices[0] = XMMatrixTranspose(XMMatrixIdentity());
         m_renderer.SetBoneMatrix(boneMatrices);
     }
-
-    //D3D11_MAPPED_SUBRESOURCE mapped = {};
-    //m_context->Map(m_cbPerObject, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-    //CBPerObject* cb = reinterpret_cast<CBPerObject*>(mapped.pData);
-    //cb->worldViewProj = wvp;
-    //context->Unmap(m_cbPerObject, 0);
-
-    m_context->VSSetShader(m_skinnedModelShaderSet.vs, nullptr, 0);
-    //m_context->VSSetConstantBuffers(0, 1, &m_cbPerObject);
 
     if (mesh.enableAlphaTest && mesh.opacityMapSRV)
     {
@@ -221,6 +202,32 @@ void ShadowMapRenderer::RenderSkinnedMesh(const SkinnedRenderData& mesh)
 
 void ShadowMapRenderer::RenderInstancedMesh(const InstancedRenderData& mesh)
 {
+
+    m_context->IASetInputLayout(m_instancedModelShaderSet.inputLayout);
+
+    UINT strides[2] = { mesh.stride, mesh.instanceStride };
+    UINT offsets[2] = { 0, 0 };
+    ID3D11Buffer* buffers[2] = { mesh.vertexBuffer, mesh.instanceBuffer };
+
+    m_context->IASetVertexBuffers(0, 2, buffers, strides, offsets);
+    m_context->IASetIndexBuffer(mesh.indexBuffer, mesh.indexFormat, 0);
+    m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_context->VSSetShader(m_instancedModelShaderSet.vs, nullptr, 0);
+
+    m_renderer.SetCurrentWorldMatrix(&mesh.worldMatrix);
+
+    if (mesh.enableAlphaTest && mesh.opacityMapSRV)
+    {
+        m_context->PSSetShader(m_instancedModelShaderSet.alphaPs, nullptr, 0);
+        m_context->PSSetShaderResources(0, 1, &mesh.opacityMapSRV);
+    }
+    else
+    {
+        m_context->PSSetShader(nullptr, nullptr, 0);
+    }
+
+    m_context->DrawIndexedInstanced(mesh.indexCount, mesh.instanceCount, mesh.startIndexLocation, 0, 0);
+
 }
 
 bool ShadowMapRenderer::IsAABBInsideLightFrustum(const BOUNDING_BOX& worldAABB, const XMMATRIX& lightViewProj)
@@ -302,8 +309,6 @@ void ShadowMapRenderer::UpdateCascadeDebugBounds(void)
 
     float nearZ = m_camera.GetNearZ();
     float farZ = m_camera.GetFarZ();
-    XMMATRIX camView = XMLoadFloat4x4(&m_camera.GetViewMatrix());
-    XMMATRIX camProj = XMLoadFloat4x4(&m_camera.GetProjMatrix());
 
     float lambda = 0.5f;
     float splitDepths[MAX_CASCADES];

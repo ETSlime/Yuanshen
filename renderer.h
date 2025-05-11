@@ -8,6 +8,8 @@
 #include "main.h"
 #include "SingletonBase.h"
 #include "ShaderManager.h"
+#include "ShaderResourceBinder.h"
+
 //*********************************************************
 // マクロ定義
 //*********************************************************
@@ -41,14 +43,18 @@ enum CULL_MODE
 	CULL_MODE_NUM
 };
 
+enum class DepthMode
+{
+	Enable,			// 深度テストON + 書き込みON（通常のモデル用）
+	Particle,		// 深度テストON + 書き込みOFF（パーティクル用）
+	Disable			// 深度テストOFF（UIなどに使用）
+};
+
 enum class RenderMode
 {
 	OBJ,
 	SKINNED_MESH,
-	OBJ_SHADOW,
-	SKINNED_MESH_SHADOW,
 	INSTANCE,
-	INSTANCE_SHADOW,
 	UI,
 	VFX,
 };
@@ -65,8 +71,6 @@ enum class RenderLayer
 //*********************************************************
 // 構造体
 //*********************************************************
-
-
 
 // 頂点構造体
 struct VERTEX_3D
@@ -221,13 +225,6 @@ struct FOG
 	XMFLOAT4	FogColor;	// フォグの色
 };
 
-struct LightViewProjBuffer
-{
-	XMMATRIX ProjView[LIGHT_MAX];
-	int LightIndex;
-	int padding[3];
-};
-
 // マテリアル用定数バッファ構造体
 struct MATERIAL_CBUFFER
 {
@@ -297,8 +294,8 @@ struct BoneMatrices
 
 struct RenderProgressBuffer
 {
-	float progress;
-	int isRandomFade;
+	float progress = 0.0f;
+	int isRandomFade = true;
 	XMFLOAT2 padding;
 };
 
@@ -330,6 +327,7 @@ struct InstancedRenderData : public MeshRenderData
 	ID3D11Buffer* instanceBuffer = nullptr;
 	UINT instanceCount = 0;
 	UINT startIndexLocation = 0;
+	UINT instanceStride = 0; // インスタンスストライド追加
 };
 
 
@@ -352,6 +350,8 @@ public:
 	ID3D11DeviceContext* GetDeviceContext(void);
 
 	void SetDepthEnable(BOOL Enable);
+	void SetDepthForParticle(void);
+	void SetDepthMode(DepthMode mode);
 	void SetBlendState(BLEND_MODE bm);
 	void SetCullingMode(CULL_MODE cm);
 	void SetAlphaTestEnable(BOOL flag);
@@ -362,10 +362,6 @@ public:
 	void SetProjectionMatrix(const XMMATRIX* ProjectionMatrix) const;
 
 	void SetMaterial(MATERIAL material);
-
-	//void SetLightEnable(BOOL flag);
-	//void SetLight(int index, LightData* light);
-	void SetLightProjView(LightViewProjBuffer* lightBuffer);
 
 	void SetFogEnable(BOOL flag);
 	void SetFog(FOG* fog);
@@ -380,10 +376,6 @@ public:
 	void SetBoneMatrix(const XMMATRIX matrices[BONE_MAX]) const;
 	void SetClearColor(float* color4);
 	void SetRenderLayer(RenderLayer layer);
-	void SetRenderShadowMap(int lightIdx);
-	void SetRenderSkinnedMeshShadowMap(int lightIdx);
-	void SetRenderInstanceShadowMap(int lightIdx);
-	void SetRenderMainPass(void);
 	void SetRenderObject(void);
 	void SetRenderSkinnedMeshModel(void);
 	void SetRenderInstance(void);
@@ -396,14 +388,14 @@ public:
 	void ResetRenderTarget(void);
 	void SetLightModeBuffer(int mode);
 	void SetLightBuffer(const LIGHT_CBUFFER& lightBuffer);
-	void ClearShadowDSV(int lightIdx);
 
 	void SetMainPassViewport(void);
-	void SetShadowPassViewport(void);
 	void SetShadersets(void);
 
 	RenderMode GetRenderMode(void);
 	void SetRenderMode(RenderMode mode);
+
+	void BindViewBuffer(ShaderStage stage);
 
 
 private:
@@ -417,23 +409,7 @@ private:
 	IDXGISwapChain* g_SwapChain = NULL;
 
 	ID3D11RenderTargetView* g_RenderTargetView = NULL;
-
-	ID3D11DepthStencilView* g_ShadowDSV[LIGHT_MAX];
 	ID3D11DepthStencilView* g_SceneDepthStencilView = NULL;
-
-	ID3D11InputLayout* g_VertexLayout = NULL;
-	ID3D11VertexShader* g_VertexShader = NULL;
-	ID3D11VertexShader* g_DepthVertexShader = NULL;
-	ID3D11PixelShader* g_PixelShader = NULL;
-
-	ID3D11InputLayout* g_SkinnedMeshVertexLayout = NULL;
-	ID3D11VertexShader* g_SkinnedMeshVertexShader = NULL;
-	ID3D11PixelShader* g_SkinnedMeshPixelShader = NULL;
-	ID3D11VertexShader* g_DepthSkinnedMeshVertexShader = NULL;
-
-	ID3D11VertexShader* g_VFXVertexShader = NULL;
-	ID3D11PixelShader* g_VFXPixelShader = NULL;
-	ID3D11InputLayout* g_VFXVertexLayout = NULL;
 
 	ID3D11Buffer* g_WorldBuffer = NULL;
 	ID3D11Buffer* g_ViewBuffer = NULL;
@@ -448,10 +424,10 @@ private:
 	ID3D11Buffer* g_LightModeBuffer = NULL;
 	ID3D11Buffer* g_RenderProgressBuffer = NULL;
 
-	ID3D11ShaderResourceView* g_ShadowMapSRV[LIGHT_MAX];
 
 	ID3D11DepthStencilState* g_DepthStateEnable = NULL;
 	ID3D11DepthStencilState* g_DepthStateDisable = NULL;
+	ID3D11DepthStencilState* g_DepthStateParticle = NULL;
 
 	ID3D11BlendState* g_BlendStateNone = NULL;
 	ID3D11BlendState* g_BlendStateAlphaBlend = NULL;
@@ -460,16 +436,21 @@ private:
 	ID3D11BlendState* g_BlendStateSwordTrail = NULL;
 	BLEND_MODE				g_BlendStateParam;
 
+	ID3D11SamplerState* g_SamplerState = NULL;
+	ID3D11SamplerState* g_SamplerStateShadow = NULL;
+	ID3D11SamplerState* g_SamplerStateOpacity = NULL;
 
-	ID3D11RasterizerState* g_RasterStateCullOff;
-	ID3D11RasterizerState* g_RasterStateCullCW;
-	ID3D11RasterizerState* g_RasterStateCullCCW;
-	ID3D11RasterizerState* g_RasterizerLayer0;
-	ID3D11RasterizerState* g_RasterizerLayer1;
-	ID3D11RasterizerState* g_RasterizerLayer2;
-	ID3D11RasterizerState* g_RasterizerLayer3;
+	ID3D11RasterizerState* g_RasterStateCullOff = NULL;
+	ID3D11RasterizerState* g_RasterStateCullCW = NULL;
+	ID3D11RasterizerState* g_RasterStateCullCCW = NULL;
+	ID3D11RasterizerState* g_RasterizerLayer0 = NULL;
+	ID3D11RasterizerState* g_RasterizerLayer1 = NULL;
+	ID3D11RasterizerState* g_RasterizerLayer2 = NULL;
+	ID3D11RasterizerState* g_RasterizerLayer3 = NULL;
 
 	ShaderManager& m_ShaderManager = ShaderManager::get_instance();
+	ShaderResourceBinder& m_ShaderResourceBinder = ShaderResourceBinder::get_instance();
+
 	ShaderSet m_StaticModelShaderSet;
 	ShaderSet m_SkinnedModelShaderSet;
 	ShaderSet m_InstanceModelShaderSet;

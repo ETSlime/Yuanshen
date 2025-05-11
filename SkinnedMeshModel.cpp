@@ -135,9 +135,6 @@ void SkinnedMeshModel::DrawModel()
         case ModelType::Lumine:
             DrawLumine(modelData);
             break;
-        case ModelType::Tree:
-            DrawTree(modelData);
-            break;
         case ModelType::Field:
             DrawField(modelData);
             break;
@@ -542,16 +539,16 @@ bool SkinnedMeshModel::BuildOctree(void)
     return true;
 }
 
-const SimpleArray<Triangle*>& SkinnedMeshModel::GetTriangles(void) const
+const SimpleArray<Triangle*>* SkinnedMeshModel::GetTriangles(void) const
 {
     for (auto& it : meshDataMap)
     {
         ModelData* modelData = it.value;
 
-        return modelData->triangles;
+        return &modelData->triangles;
     }
 
-    return SimpleArray<Triangle*>();    
+    return nullptr;
 }
 
 void SkinnedMeshModel::SetCurrentAnim(AnimationClip* currAnimClip, float startTime)
@@ -1129,39 +1126,39 @@ void SkinnedMeshModel::DrawSigewinne(ModelData* modelData)
     // ƒ|ƒŠƒSƒ“•`‰æ
     int IndexNum, StartIndexLocation;
 
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &faceDiffuseTexture);
+    ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_DIFFUSE, faceDiffuseTexture);
     if (faceLightMapTexture)
-        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &faceLightMapTexture);
+        ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_LIGHT, faceLightMapTexture);
     CalculateDrawParameters(modelData, 0, 0.001894f, IndexNum, StartIndexLocation);
     Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
 
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &bodyDiffuseTexture);
+    ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_DIFFUSE, bodyDiffuseTexture);
     if (bodyLightMapTexture)
-        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &bodyLightMapTexture);
+        ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_LIGHT, bodyDiffuseTexture);
     CalculateDrawParameters(modelData, 0.001894f, 0.00715f, IndexNum, StartIndexLocation);
     Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
 
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &faceDiffuseTexture);
+    ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_DIFFUSE, faceDiffuseTexture);
     if (faceLightMapTexture)
-        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &faceLightMapTexture);
+        ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_LIGHT, faceLightMapTexture);
     CalculateDrawParameters(modelData, 0.00715f, 0.047f, IndexNum, StartIndexLocation);
     Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
 
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &hairDiffuseTexture);
+    ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_DIFFUSE, hairDiffuseTexture);
     if (hairLightMapTexture)
-        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &hairLightMapTexture);
+        ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_LIGHT, hairLightMapTexture);
     CalculateDrawParameters(modelData, 0.047f, 0.44f, IndexNum, StartIndexLocation);
     Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
 
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &bodyDiffuseTexture);
+    ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_DIFFUSE, bodyDiffuseTexture);
     if (bodyLightMapTexture)
-        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &bodyLightMapTexture);
+        ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_LIGHT, bodyDiffuseTexture);
     CalculateDrawParameters(modelData, 0.44f, 0.916f, IndexNum, StartIndexLocation);
     Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
 
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &faceDiffuseTexture);
+    ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_DIFFUSE, faceDiffuseTexture);
     if (faceLightMapTexture)
-        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &faceLightMapTexture);
+        ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_LIGHT, faceLightMapTexture);
     CalculateDrawParameters(modelData, 0.916f, 0.996f, IndexNum, StartIndexLocation);
     Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
 }
@@ -1171,21 +1168,21 @@ void SkinnedMeshModel::DrawKlee(ModelData* modelData)
     // ƒ|ƒŠƒSƒ“•`‰æ
     int IndexNum, StartIndexLocation;
 
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &hairDiffuseTexture);
+    ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_DIFFUSE, hairDiffuseTexture);
     if (hairLightMapTexture)
-        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &hairLightMapTexture);
+        ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_LIGHT, hairLightMapTexture);
     CalculateDrawParameters(modelData, 0, 0.149f, IndexNum, StartIndexLocation);
     Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
 
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &bodyDiffuseTexture);
+    ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_DIFFUSE, bodyDiffuseTexture);
     if (bodyLightMapTexture)
-        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &bodyLightMapTexture);
+        ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_LIGHT, bodyDiffuseTexture);
     CalculateDrawParameters(modelData, 0.149f, 0.854f, IndexNum, StartIndexLocation);
     Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
 
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &faceDiffuseTexture);
+    ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_DIFFUSE, faceDiffuseTexture);
     if (faceLightMapTexture)
-        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &faceLightMapTexture);
+        ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_LIGHT, faceLightMapTexture);
     CalculateDrawParameters(modelData, 0.8628f, 0.9966f, IndexNum, StartIndexLocation);
     Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
 }
@@ -1195,36 +1192,22 @@ void SkinnedMeshModel::DrawLumine(ModelData* modelData)
     // ƒ|ƒŠƒSƒ“•`‰æ
     int IndexNum, StartIndexLocation;
 
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &hairDiffuseTexture);
+    ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_DIFFUSE, hairDiffuseTexture);
     if (hairLightMapTexture)
-        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &hairLightMapTexture);
+        ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_LIGHT, hairLightMapTexture);
     CalculateDrawParameters(modelData, 0, 0.1323f, IndexNum, StartIndexLocation);
     Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
 
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &bodyDiffuseTexture);
+    ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_DIFFUSE, bodyDiffuseTexture);
     if (bodyLightMapTexture)
-        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &bodyLightMapTexture);
+        ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_LIGHT, bodyDiffuseTexture);
     CalculateDrawParameters(modelData, 0.1323f, 0.847f, IndexNum, StartIndexLocation);
     Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
 
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &faceDiffuseTexture);
+    ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_DIFFUSE, faceDiffuseTexture);
     if (faceLightMapTexture)
-        Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(8, 1, &faceLightMapTexture);
+        ShaderResourceBinder::get_instance().BindShaderResource(ShaderStage::PS, SLOT_TEX_LIGHT, faceLightMapTexture);
     CalculateDrawParameters(modelData, 0.847f, 1.0f, IndexNum, StartIndexLocation);
-    Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
-}
-
-void SkinnedMeshModel::DrawTree(ModelData* modelData)
-{
-    // ƒ|ƒŠƒSƒ“•`‰æ
-    int IndexNum, StartIndexLocation;
-
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &bodyDiffuseTexture);
-    CalculateDrawParameters(modelData, 0, 0.0423f, IndexNum, StartIndexLocation);
-    Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
-
-    Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &modelData->diffuseTexture);
-    CalculateDrawParameters(modelData, 0.0423f, 1.0f, IndexNum, StartIndexLocation);
     Renderer::get_instance().GetDeviceContext()->DrawIndexed(IndexNum, StartIndexLocation, 0);
 }
 
@@ -1540,8 +1523,6 @@ void SkinnedMeshModel::DrawTownLoD(ModelData* modelData, int LoD)
 
 void SkinnedMeshModel::DrawBoundingBox(ModelData* modelData)
 {
-    if (Renderer::get_instance().GetRenderMode() == RenderMode::SKINNED_MESH_SHADOW) return;
-
     Renderer::get_instance().SetFillMode(D3D11_FILL_WIREFRAME);
 
     int numBoundingBox = modelData->boundingBoxes.getSize();

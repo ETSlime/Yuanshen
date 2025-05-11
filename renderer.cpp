@@ -8,7 +8,6 @@
 #include "Renderer.h"
 #include "LightManager.h"
 #include "sprite.h"
-#include "ShaderManager.h"
 
 //*****************************************************************************
 // マクロ定義
@@ -21,12 +20,6 @@
 
 Renderer::Renderer()
 {
-	for (int i = 0; i < LIGHT_MAX; i++)
-	{
-		g_ShadowDSV[i] = NULL;
-		g_ShadowMapSRV[i] = NULL;
-	}
-
 	g_RenderMode = RenderMode::OBJ;
 }
 
@@ -49,14 +42,50 @@ void Renderer::SetDepthEnable( BOOL Enable )
 		g_ImmediateContext->OMSetDepthStencilState(g_DepthStateEnable, NULL);
 		g_ImmediateContext->OMSetRenderTargets(1, &g_RenderTargetView, g_SceneDepthStencilView);
 	}
-		
 	else
 	{
 		g_ImmediateContext->OMSetDepthStencilState(g_DepthStateDisable, NULL);
 		g_ImmediateContext->OMSetRenderTargets(1, &g_RenderTargetView, nullptr);
 	}
-		
+}
 
+void Renderer::SetDepthForParticle(void)
+{
+	g_ImmediateContext->OMSetDepthStencilState(g_DepthStateParticle, 0);
+	g_ImmediateContext->OMSetRenderTargets(1, &g_RenderTargetView, g_SceneDepthStencilView);
+}
+
+void Renderer::SetDepthMode(DepthMode mode)
+{
+	ID3D11DepthStencilState* depthState = nullptr;
+	ID3D11DepthStencilView* depthView = nullptr;
+
+	switch (mode)
+	{
+	case DepthMode::Enable:
+		// 深度テスト・書き込みどちらも有効（3Dモデル描画用）
+		depthState = g_DepthStateEnable;
+		depthView = g_SceneDepthStencilView;
+		break;
+
+	case DepthMode::Particle:
+		// 深度テストは有効、書き込みは無効（パーティクル描画用）
+		depthState = g_DepthStateParticle;
+		depthView = g_SceneDepthStencilView;
+		break;
+
+	case DepthMode::Disable:
+		// 深度テスト無効、DSVもバインドしない（UI描画などに使用）
+		depthState = g_DepthStateDisable;
+		depthView = nullptr;
+		break;
+	}
+
+	// 深度ステンシルステートを設定
+	g_ImmediateContext->OMSetDepthStencilState(depthState, 0);
+
+	// レンダーターゲットと深度ビューのバインド
+	g_ImmediateContext->OMSetRenderTargets(1, &g_RenderTargetView, depthView);
 }
 
 
@@ -314,34 +343,7 @@ void Renderer::SetLightBuffer(const LIGHT_CBUFFER& lightBuffer)
 	g_ImmediateContext->UpdateSubresource(g_LightBuffer, 0, NULL, &lightBuffer, 0, 0);
 }
 
-//void Renderer::SetLightEnable(BOOL flag)
-//{
-//	// フラグを更新する
-//	//g_Light.Enable = flag;
-//	LightManager::get_instance().SetLightEnable(flag);
-//	//SetLightBuffer();
-//}
 
-//void Renderer::SetLight(int index, LightData* pLight)
-//{
-//	g_Light.Position[index] = XMFLOAT4(pLight->Position.x, pLight->Position.y, pLight->Position.z, 0.0f);
-//	g_Light.Direction[index] = XMFLOAT4(pLight->Direction.x, pLight->Direction.y, pLight->Direction.z, 0.0f);
-//	g_Light.Diffuse[index] = pLight->Diffuse;
-//	g_Light.Ambient[index] = pLight->Ambient;
-//	g_Light.Flags[index].Type = pLight->Type;
-//	g_Light.Flags[index].OnOff = pLight->Enable;
-//	g_Light.Attenuation[index].x = pLight->Attenuation;
-//
-//	//g_Light.LightViewProj = pLight->LightViewProj;
-//
-//	SetLightBuffer();
-//}
-
-void Renderer::SetLightProjView(LightViewProjBuffer *lightBuffer)
-{
-	lightBuffer->ProjView[4] = lightBuffer->ProjView[lightBuffer->LightIndex];
-	g_ImmediateContext->UpdateSubresource(g_LightProjViewBuffer, 0, NULL, lightBuffer, 0, 0);
-}
 
 void Renderer::SetFogBuffer(void)
 {
@@ -384,81 +386,21 @@ void Renderer::SetShaderCamera(XMFLOAT3 pos)
 	g_ImmediateContext->UpdateSubresource(g_CameraPosBuffer, 0, NULL, &tmp, 0, 0);
 }
 
-void Renderer::SetRenderShadowMap(int lightIdx)
-{
-	g_RenderMode = RenderMode::OBJ_SHADOW;
-
-	ID3D11ShaderResourceView* nullSRV[1] = { nullptr };
-	g_ImmediateContext->PSSetShaderResources(1, 1, nullSRV);
-
-	g_ImmediateContext->OMSetRenderTargets(0, nullptr, g_ShadowDSV[lightIdx]);
-
-
-	g_ImmediateContext->VSSetShader(g_DepthVertexShader, nullptr, 0);
-	g_ImmediateContext->PSSetShader(nullptr, nullptr, 0);
-	
-	//SetLightViewProjBuffer(lightIdx);
-
-}
-
-void Renderer::SetRenderSkinnedMeshShadowMap(int lightIdx)
-{
-	g_RenderMode = RenderMode::SKINNED_MESH_SHADOW;
-
-
-	ID3D11ShaderResourceView* nullSRV[1] = { nullptr };
-	g_ImmediateContext->PSSetShaderResources(1, 1, nullSRV);
-
-	g_ImmediateContext->OMSetRenderTargets(0, nullptr, g_ShadowDSV[lightIdx]);
-
-
-	g_ImmediateContext->VSSetShader(g_DepthSkinnedMeshVertexShader, nullptr, 0);
-	g_ImmediateContext->PSSetShader(nullptr, nullptr, 0);
-
-	//SetLightViewProjBuffer(lightIdx);
-
-}
-
-void Renderer::SetRenderInstanceShadowMap(int lightIdx)
-{
-	g_RenderMode = RenderMode::INSTANCE_SHADOW;
-
-
-	ID3D11ShaderResourceView* nullSRV[1] = { nullptr };
-	g_ImmediateContext->PSSetShaderResources(1, 1, nullSRV);
-
-	g_ImmediateContext->OMSetRenderTargets(0, nullptr, g_ShadowDSV[lightIdx]);
-
-	//SetLightViewProjBuffer(lightIdx);
-
-}
-
-void Renderer::SetRenderMainPass(void)
-{
-
-}
-
 void Renderer::SetRenderSkinnedMeshModel(void)
 {
 	g_RenderMode = RenderMode::SKINNED_MESH;
 
 	ResetRenderTarget();
 
-	//g_ImmediateContext->VSSetShader(g_SkinnedMeshVertexShader, nullptr, 0);
 	g_ImmediateContext->VSSetShader(m_SkinnedModelShaderSet.vs, nullptr, 0);
-	//g_ImmediateContext->PSSetShader(g_SkinnedMeshPixelShader, nullptr, 0);
 	g_ImmediateContext->PSSetShader(m_SkinnedModelShaderSet.ps, nullptr, 0);
-	g_ImmediateContext->VSSetConstantBuffers(11, 1, &g_BoneMatrixBuffer);
-	g_ImmediateContext->PSSetConstantBuffers(11, 1, &g_BoneMatrixBuffer);
-
-	//g_ImmediateContext->PSSetShaderResources(1, LIGHT_MAX, g_ShadowMapSRV);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_BONE_MATRIX_ARRAY, g_BoneMatrixBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_BONE_MATRIX_ARRAY, g_BoneMatrixBuffer);
 }
 
 void Renderer::SetRenderInstance(void)
 {
 	g_RenderMode = RenderMode::INSTANCE;
-
-	//g_ImmediateContext->PSSetShaderResources(1, LIGHT_MAX, g_ShadowMapSRV);
 }
 
 void Renderer::SetRenderVFX(void)
@@ -484,8 +426,6 @@ void Renderer::SetRenderUI(void)
 
 void Renderer::SetStaticModelInputLayout(void)
 {
-	//g_ImmediateContext->IASetInputLayout(g_VertexLayout);
-
 	g_ImmediateContext->IASetInputLayout(m_StaticModelShaderSet.inputLayout);
 }
 
@@ -496,13 +436,11 @@ void Renderer::SetUIInputLayout(void)
 
 void Renderer::SetSkinnedMeshInputLayout(void)
 {
-	//g_ImmediateContext->IASetInputLayout(g_SkinnedMeshVertexLayout);
 	g_ImmediateContext->IASetInputLayout(m_SkinnedModelShaderSet.inputLayout);
 }
 
 void Renderer::SetVFXInputLayout(void)
 {
-	//g_ImmediateContext->IASetInputLayout(g_VFXVertexLayout);
 	g_ImmediateContext->IASetInputLayout(m_VFXShaderSet.inputLayout);
 }
 
@@ -514,19 +452,11 @@ void Renderer::SetRenderObject(void)
 
 	g_ImmediateContext->VSSetShader(m_StaticModelShaderSet.vs, NULL, 0);
 	g_ImmediateContext->PSSetShader(m_StaticModelShaderSet.ps, NULL, 0);
-	//g_ImmediateContext->PSSetShaderResources(1, LIGHT_MAX, g_ShadowMapSRV);
 }
-
-
 
 void Renderer::ResetRenderTarget(void)
 {
 	g_ImmediateContext->OMSetRenderTargets(1, &g_RenderTargetView, g_SceneDepthStencilView);
-}
-
-void Renderer::ClearShadowDSV(int lightIdx)
-{
-	g_ImmediateContext->ClearDepthStencilView(g_ShadowDSV[lightIdx], D3D11_CLEAR_DEPTH, 1.0f, 0);
 }
 
 void Renderer::SetMainPassViewport(void)
@@ -540,18 +470,6 @@ void Renderer::SetMainPassViewport(void)
 	vp.TopLeftX = 0;
 	vp.TopLeftY = 0;
 	g_ImmediateContext->RSSetViewports(1, &vp);
-}
-
-void Renderer::SetShadowPassViewport(void)
-{
-	D3D11_VIEWPORT shadowVP;
-	shadowVP.Width = (FLOAT)SHADOWMAP_SIZE;
-	shadowVP.Height = (FLOAT)SHADOWMAP_SIZE;
-	shadowVP.MinDepth = 0.0f;
-	shadowVP.MaxDepth = 1.0f;
-	shadowVP.TopLeftX = 0;
-	shadowVP.TopLeftY = 0;
-	g_ImmediateContext->RSSetViewports(1, &shadowVP);
 }
 
 void Renderer::SetShadersets(void)
@@ -608,6 +526,8 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	if( FAILED( hr ) )
 		return hr;
 
+	m_ShaderResourceBinder.Initialize(g_ImmediateContext);
+
 	//デバッグ文字出力用設定
 #if defined(_DEBUG) && defined(DEBUG_DISP_TEXTOUT)
 	hr = g_SwapChain->ResizeBuffers(0, SCREEN_WIDTH, SCREEN_HEIGHT, DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG_GDI_COMPATIBLE); // N.B. the GDI compatible flag
@@ -620,43 +540,6 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	g_SwapChain->GetBuffer( 0, __uuidof( ID3D11Texture2D ), ( LPVOID* )&pBackBuffer );
 	g_D3DDevice->CreateRenderTargetView( pBackBuffer, NULL, &g_RenderTargetView );
 	pBackBuffer->Release();
-
-
-
-	for (UINT i = 0; i < LIGHT_MAX; i++)
-	{
-		//ステンシル用テクスチャー作成
-		ID3D11Texture2D* depthTexture = NULL;
-		D3D11_TEXTURE2D_DESC td;
-		ZeroMemory(&td, sizeof(td));
-		td.Width = static_cast<UINT>(SHADOWMAP_SIZE);
-		td.Height = static_cast<UINT>(SHADOWMAP_SIZE);
-		td.MipLevels = 1;
-		td.ArraySize = 1;
-		td.Format = DXGI_FORMAT_R32_TYPELESS;
-		td.SampleDesc = sd.SampleDesc;
-		td.Usage = D3D11_USAGE_DEFAULT;
-		td.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
-		td.CPUAccessFlags = 0;
-		td.MiscFlags = 0;
-		g_D3DDevice->CreateTexture2D(&td, NULL, &depthTexture);
-
-		//ステンシルターゲット作成
-		D3D11_DEPTH_STENCIL_VIEW_DESC dsvd;
-		ZeroMemory(&dsvd, sizeof(dsvd));
-		dsvd.Format = DXGI_FORMAT_D32_FLOAT;
-		dsvd.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-		dsvd.Flags = 0;
-		g_D3DDevice->CreateDepthStencilView(depthTexture, &dsvd, &g_ShadowDSV[i]);
-
-
-		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-		srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
-		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-		srvDesc.Texture2D.MostDetailedMip = 0;
-		srvDesc.Texture2D.MipLevels = 1;
-		g_D3DDevice->CreateShaderResourceView(depthTexture, &srvDesc, &g_ShadowMapSRV[i]);
-	}
 
 
 	D3D11_TEXTURE2D_DESC sceneDepthDesc = {};
@@ -793,15 +676,19 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	depthStencilDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
 	depthStencilDesc.StencilEnable = FALSE;
 
-	g_D3DDevice->CreateDepthStencilState( &depthStencilDesc, &g_DepthStateEnable );//深度有効ステート
+	//深度Test有効ステート
+	g_D3DDevice->CreateDepthStencilState( &depthStencilDesc, &g_DepthStateEnable);
 
-	//depthStencilDesc.DepthEnable = FALSE;
-	depthStencilDesc.DepthWriteMask	= D3D11_DEPTH_WRITE_MASK_ZERO;
-	g_D3DDevice->CreateDepthStencilState( &depthStencilDesc, &g_DepthStateDisable );//深度無効ステート
+	//深度Write無効（パーティクル用）
+	depthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	g_D3DDevice->CreateDepthStencilState(&depthStencilDesc, &g_DepthStateParticle);
+
+	//深度Test無効ステート
+	depthStencilDesc.DepthEnable = FALSE;
+	g_D3DDevice->CreateDepthStencilState( &depthStencilDesc, &g_DepthStateDisable);
 
 	// 深度ステンシルステート設定
 	SetDepthEnable(TRUE);
-
 
 
 	// サンプラーステート設定
@@ -819,10 +706,10 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	samplerDesc.MinLOD = 0;
 	samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
 
-	ID3D11SamplerState* samplerState = NULL;
-	g_D3DDevice->CreateSamplerState( &samplerDesc, &samplerState );
+	g_D3DDevice->CreateSamplerState( &samplerDesc, &g_SamplerState);
+	m_ShaderResourceBinder.BindSampler(ShaderStage::PS, SLOT_SAMPLER_DEFAULT, g_SamplerState);
 
-	g_ImmediateContext->PSSetSamplers( 0, 1, &samplerState );
+	ZeroMemory(&samplerDesc, sizeof(samplerDesc));
 
 	// shadow map sampler
 	samplerDesc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
@@ -837,10 +724,8 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	samplerDesc.MinLOD = 0;
 	samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
 
-	ID3D11SamplerState* samplerStateShadow = NULL;
-	g_D3DDevice->CreateSamplerState(&samplerDesc, &samplerStateShadow);
-
-	g_ImmediateContext->PSSetSamplers(1, 1, &samplerStateShadow);
+	g_D3DDevice->CreateSamplerState(&samplerDesc, &g_SamplerStateShadow);
+	m_ShaderResourceBinder.BindSampler(ShaderStage::PS, SLOT_SAMPLER_SHADOW, g_SamplerStateShadow);
 
 
 	ZeroMemory(&samplerDesc, sizeof(samplerDesc));
@@ -856,156 +741,8 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	samplerDesc.MinLOD = 0;
 	samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
 
-	ID3D11SamplerState* samplerStateOpacity = NULL;
-	g_D3DDevice->CreateSamplerState(&samplerDesc, &samplerStateOpacity);
-
-	g_ImmediateContext->PSSetSamplers(2, 1, &samplerStateOpacity);
-
-	// 頂点シェーダコンパイル・生成
-	ID3DBlob* pErrorBlob2;
-	ID3DBlob* pVSBlob2 = NULL;
-	hr = D3DX11CompileFromFile("DepthMap.hlsl", NULL, NULL, "VS", "vs_4_0", 0, 0, NULL, &pVSBlob2, &pErrorBlob2, NULL);
-	if (FAILED(hr))
-	{
-		MessageBox(NULL, (char*)pErrorBlob2->GetBufferPointer(), "VS", MB_OK | MB_ICONERROR);
-	}
-
-	g_D3DDevice->CreateVertexShader(pVSBlob2->GetBufferPointer(), pVSBlob2->GetBufferSize(), NULL, &g_DepthVertexShader);
-
-	pVSBlob2->Release();
-
-	hr = D3DX11CompileFromFile("DepthMap.hlsl", NULL, NULL, "SkinnedMeshVertexShaderPolygon", "vs_4_0", 0, 0, NULL, &pVSBlob2, &pErrorBlob2, NULL);
-	if (FAILED(hr))
-	{
-		MessageBox(NULL, (char*)pErrorBlob2->GetBufferPointer(), "SkinnedMeshVertexShaderPolygon", MB_OK | MB_ICONERROR);
-	}
-
-	g_D3DDevice->CreateVertexShader(pVSBlob2->GetBufferPointer(), pVSBlob2->GetBufferSize(), NULL, &g_DepthSkinnedMeshVertexShader);
-
-	pVSBlob2->Release();
-
-	ID3DBlob* pErrorBlob3;
-	ID3DBlob* pVSBlob3 = NULL;
-	hr = D3DX11CompileFromFile("shader.hlsl", NULL, NULL, "SkinnedMeshVertexShaderPolygon", "vs_4_0", 0, 0, NULL, &pVSBlob3, &pErrorBlob3, NULL);
-	if (FAILED(hr))
-	{
-		MessageBox(NULL, (char*)pErrorBlob3->GetBufferPointer(), "VS", MB_OK | MB_ICONERROR);
-	}
-
-	g_D3DDevice->CreateVertexShader(pVSBlob3->GetBufferPointer(), pVSBlob3->GetBufferSize(), NULL, &g_SkinnedMeshVertexShader);
-
-
-	ID3DBlob* pErrorBlob;
-	ID3DBlob* pVSBlob = NULL;
-	DWORD shFlag = D3DCOMPILE_ENABLE_STRICTNESS;
-
-#if defined(_DEBUG) && defined(DEBUG_SHADER)
-	shFlag = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#endif
-
-	hr = D3DX11CompileFromFile( "shader.hlsl", NULL, NULL, "VertexShaderPolygon", "vs_4_0", shFlag, 0, NULL, &pVSBlob, &pErrorBlob, NULL );
-	if( FAILED(hr) )
-	{
-		MessageBox( NULL , (char*)pErrorBlob->GetBufferPointer(), "VS", MB_OK | MB_ICONERROR );
-	}
-
-	g_D3DDevice->CreateVertexShader( pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), NULL, &g_VertexShader );
-
-
-	// 入力レイアウト生成
-	D3D11_INPUT_ELEMENT_DESC layout[] =
-	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,		0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,		0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT,	0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,			0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TANGENT",  0, DXGI_FORMAT_R32G32B32_FLOAT,  0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
-	};
-	UINT numElements = ARRAYSIZE( layout );
-
-	g_D3DDevice->CreateInputLayout( layout,
-		numElements,
-		pVSBlob->GetBufferPointer(),
-		pVSBlob->GetBufferSize(),
-		&g_VertexLayout );
-
-	pVSBlob->Release();
-
-	D3D11_INPUT_ELEMENT_DESC skinnedMeshLayout[] =
-	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(SKINNED_VERTEX_3D, Position), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(SKINNED_VERTEX_3D, Normal), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(SKINNED_VERTEX_3D, Tangent), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(SKINNED_VERTEX_3D, Bitangent), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(SKINNED_VERTEX_3D, Diffuse), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(SKINNED_VERTEX_3D, TexCoord), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "BLENDWEIGHT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(SKINNED_VERTEX_3D, Weights), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "BLENDINDICES", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(SKINNED_VERTEX_3D, BoneIndices), D3D11_INPUT_PER_VERTEX_DATA, 0 }
-	};
-	numElements = ARRAYSIZE(skinnedMeshLayout);
-
-	g_D3DDevice->CreateInputLayout(skinnedMeshLayout,
-		numElements,
-		pVSBlob3->GetBufferPointer(),
-		pVSBlob3->GetBufferSize(),
-		&g_SkinnedMeshVertexLayout);
-
-	pVSBlob3->Release();
-
-	// ピクセルシェーダコンパイル・生成
-	ID3DBlob* pPSBlob = NULL;
-	hr = D3DX11CompileFromFile( "shader.hlsl", NULL, NULL, "PixelShaderPolygon", "ps_4_0", shFlag, 0, NULL, &pPSBlob, &pErrorBlob, NULL );
-	if( FAILED(hr) )
-	{
-		MessageBox( NULL , (char*)pErrorBlob->GetBufferPointer(), "PS", MB_OK | MB_ICONERROR );
-	}
-
-	g_D3DDevice->CreatePixelShader( pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), NULL, &g_PixelShader );
-	
-	pPSBlob->Release();
-
-	hr = D3DX11CompileFromFile("shader.hlsl", NULL, NULL, "SkinnedMeshPixelShader", "ps_4_0", shFlag, 0, NULL, &pPSBlob, &pErrorBlob, NULL);
-	if (FAILED(hr))
-	{
-		MessageBox(NULL, (char*)pErrorBlob->GetBufferPointer(), "PS", MB_OK | MB_ICONERROR);
-	}
-
-	g_D3DDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), NULL, &g_SkinnedMeshPixelShader);
-
-	pPSBlob->Release();
-
-	ID3DBlob* pErrorBlobVFX = NULL;
-	ID3DBlob* pVSBlobVFX = NULL, *pPSBlobVFX = NULL;
-
-	hr = D3DX11CompileFromFile("VFX.hlsl", NULL, NULL, "VS", "vs_4_0", 0, 0, NULL, &pVSBlobVFX, &pErrorBlobVFX, NULL);
-	if (FAILED(hr))
-	{
-		MessageBox(NULL, (char*)pErrorBlobVFX->GetBufferPointer(), "VS", MB_OK | MB_ICONERROR);
-	}
-
-	g_D3DDevice->CreateVertexShader(pVSBlobVFX->GetBufferPointer(), pVSBlobVFX->GetBufferSize(), NULL, &g_VFXVertexShader);
-
-	hr = D3DX11CompileFromFile("VFX.hlsl", NULL, NULL, "PS", "ps_4_0", shFlag, 0, NULL, &pPSBlobVFX, &pErrorBlobVFX, NULL);
-	if (FAILED(hr))
-	{
-		MessageBox(NULL, (char*)pErrorBlobVFX->GetBufferPointer(), "PS", MB_OK | MB_ICONERROR);
-	}
-
-	g_D3DDevice->CreatePixelShader(pPSBlobVFX->GetBufferPointer(), pPSBlobVFX->GetBufferSize(), NULL, &g_VFXPixelShader);
-
-	D3D11_INPUT_ELEMENT_DESC VFXLayout[] =
-	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 20, D3D11_INPUT_PER_VERTEX_DATA, 0 }
-	};
-	numElements = ARRAYSIZE(VFXLayout);
-
-	g_D3DDevice->CreateInputLayout(VFXLayout,
-		numElements,
-		pVSBlobVFX->GetBufferPointer(),
-		pVSBlobVFX->GetBufferSize(),
-		&g_VFXVertexLayout);
+	g_D3DDevice->CreateSamplerState(&samplerDesc, &g_SamplerStateOpacity);
+	m_ShaderResourceBinder.BindSampler(ShaderStage::PS, SLOT_SAMPLER_OPACITY, g_SamplerStateOpacity);
 
 	// 定数バッファ生成
 	D3D11_BUFFER_DESC hBufferDesc;
@@ -1018,81 +755,61 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 
 	//ワールドマトリクス
 	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_WorldBuffer);
-	g_ImmediateContext->VSSetConstantBuffers(0, 1, &g_WorldBuffer);
-	g_ImmediateContext->PSSetConstantBuffers(0, 1, &g_WorldBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_WORLD_MATRIX, g_WorldBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_WORLD_MATRIX, g_WorldBuffer);
 
 	//ビューマトリクス
 	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_ViewBuffer);
-	g_ImmediateContext->VSSetConstantBuffers(1, 1, &g_ViewBuffer);
-	g_ImmediateContext->PSSetConstantBuffers(1, 1, &g_ViewBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_VIEW_MATRIX, g_ViewBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_VIEW_MATRIX, g_ViewBuffer);
 
 	//プロジェクションマトリクス
 	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_ProjectionBuffer);
-	g_ImmediateContext->VSSetConstantBuffers(2, 1, &g_ProjectionBuffer);
-	g_ImmediateContext->PSSetConstantBuffers(2, 1, &g_ProjectionBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_PROJECTION_MATRIX, g_ProjectionBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_PROJECTION_MATRIX, g_ProjectionBuffer);
 
 	//マテリアル情報
 	hBufferDesc.ByteWidth = sizeof(MATERIAL_CBUFFER);
 	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_MaterialBuffer);
-	g_ImmediateContext->VSSetConstantBuffers(3, 1, &g_MaterialBuffer);
-	g_ImmediateContext->PSSetConstantBuffers(3, 1, &g_MaterialBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_MATERIAL, g_MaterialBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_MATERIAL, g_MaterialBuffer);
 
 	//ライト情報
 	hBufferDesc.ByteWidth = sizeof(LIGHT_CBUFFER);
 	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_LightBuffer);
-	g_ImmediateContext->VSSetConstantBuffers(4, 1, &g_LightBuffer);
-	g_ImmediateContext->PSSetConstantBuffers(4, 1, &g_LightBuffer);
-	hBufferDesc.ByteWidth = sizeof(LightViewProjBuffer);
-	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_LightProjViewBuffer);
-	g_ImmediateContext->VSSetConstantBuffers(8, 1, &g_LightProjViewBuffer);
-	g_ImmediateContext->PSSetConstantBuffers(8, 1, &g_LightProjViewBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_LIGHT, g_LightBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_LIGHT, g_LightBuffer);
 
 	//フォグ情報
 	hBufferDesc.ByteWidth = sizeof(FOG_CBUFFER);
 	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_FogBuffer);
-	g_ImmediateContext->VSSetConstantBuffers(5, 1, &g_FogBuffer);
-	g_ImmediateContext->PSSetConstantBuffers(5, 1, &g_FogBuffer);
 
 	//縁取り
 	hBufferDesc.ByteWidth = sizeof(FUCHI);
 	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_FuchiBuffer);
-	g_ImmediateContext->VSSetConstantBuffers(6, 1, &g_FuchiBuffer);
-	g_ImmediateContext->PSSetConstantBuffers(6, 1, &g_FuchiBuffer);
 
 	//カメラ
 	hBufferDesc.ByteWidth = sizeof(XMFLOAT4);
 	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_CameraPosBuffer);
-	g_ImmediateContext->VSSetConstantBuffers(7, 1, &g_CameraPosBuffer);
-	g_ImmediateContext->PSSetConstantBuffers(7, 1, &g_CameraPosBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_CAMERA_POS, g_CameraPosBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_CAMERA_POS, g_CameraPosBuffer);
 
 	hBufferDesc.ByteWidth = sizeof(BoneMatrices);
 	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_BoneMatrixBuffer);
 
+
 	hBufferDesc.ByteWidth = sizeof(LIGHTMODE_CBUFFER);
 	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_LightModeBuffer);
-	g_ImmediateContext->VSSetConstantBuffers(10, 1, &g_LightModeBuffer);
-	g_ImmediateContext->PSSetConstantBuffers(10, 1, &g_LightModeBuffer);
-
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_LIGHT_MODE, g_LightModeBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_LIGHT_MODE, g_LightModeBuffer);
+	
 	hBufferDesc.ByteWidth = sizeof(RenderProgressBuffer);
 	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_RenderProgressBuffer);
-	g_ImmediateContext->VSSetConstantBuffers(13, 1, &g_RenderProgressBuffer);
-	g_ImmediateContext->PSSetConstantBuffers(13, 1, &g_RenderProgressBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_RENDER_PROGRESS, g_RenderProgressBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_RENDER_PROGRESS, g_RenderProgressBuffer);
 
 	// 入力レイアウト設定
 	g_ImmediateContext->IASetInputLayout(m_ShaderManager.GetInputLayout(VertexLayoutID::Static));
-
-	// シェーダ設定
-	g_ImmediateContext->VSSetShader( g_VertexShader, NULL, 0 );
-	g_ImmediateContext->PSSetShader( g_PixelShader, NULL, 0 );
-
-	////ライト初期化
-	//ZeroMemory(&g_Light, sizeof(LIGHT_CBUFFER));
-	//g_Light.Direction[0] = XMFLOAT4(1.0f, -1.0f, 1.0f, 0.0f);
-	//g_Light.Diffuse[0] = XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f);
-	//g_Light.Ambient[0] = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-	//g_Light.Flags[0].Type = LIGHT_TYPE_DIRECTIONAL;
-	//SetLightBuffer();
-
 
 	//マテリアル初期化
 	MATERIAL material;
@@ -1111,57 +828,46 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 void Renderer::Uninit(void)
 {
 	// オブジェクト解放
-	if (g_DepthStateEnable)		g_DepthStateEnable->Release();
-	if (g_DepthStateDisable)	g_DepthStateDisable->Release();
-	if (g_BlendStateNone)		g_BlendStateNone->Release();
-	if (g_BlendStateAlphaBlend)	g_BlendStateAlphaBlend->Release();
-	if (g_BlendStateAdd)		g_BlendStateAdd->Release();
-	if (g_BlendStateSubtract)	g_BlendStateSubtract->Release();
-	if (g_RasterStateCullOff)	g_RasterStateCullOff->Release();
-	if (g_RasterStateCullCW)	g_RasterStateCullCW->Release();
-	if (g_RasterStateCullCCW)	g_RasterStateCullCCW->Release();
-	if (g_RasterizerLayer0)		g_RasterizerLayer0->Release();
-	if (g_RasterizerLayer1)		g_RasterizerLayer1->Release();
-	if (g_RasterizerLayer2)		g_RasterizerLayer2->Release();
-	if (g_RasterizerLayer3)		g_RasterizerLayer3->Release();
+	SafeRelease(&g_DepthStateEnable);
+	SafeRelease(&g_DepthStateDisable);
+	SafeRelease(&g_DepthStateParticle);
 
-	if (g_WorldBuffer)				g_WorldBuffer->Release();
-	if (g_ViewBuffer)				g_ViewBuffer->Release();
-	if (g_ProjectionBuffer)			g_ProjectionBuffer->Release();
-	if (g_MaterialBuffer)			g_MaterialBuffer->Release();
-	if (g_LightBuffer)				g_LightBuffer->Release();
-	if (g_FogBuffer)				g_FogBuffer->Release();
-	if (g_FuchiBuffer)				g_FuchiBuffer->Release();
-	if (g_CameraPosBuffer)			g_CameraPosBuffer->Release();
-	if (g_LightProjViewBuffer)		g_LightProjViewBuffer->Release();
-	if (g_BoneMatrixBuffer)			g_BoneMatrixBuffer->Release();
-	if (g_LightModeBuffer)			g_LightModeBuffer->Release();
-	if (g_RenderProgressBuffer)		g_RenderProgressBuffer->Release();
+	SafeRelease(&g_BlendStateNone);
+	SafeRelease(&g_BlendStateAlphaBlend);
+	SafeRelease(&g_BlendStateAdd);
+	SafeRelease(&g_BlendStateSubtract);
+
+	SafeRelease(&g_RasterStateCullOff);
+	SafeRelease(&g_RasterStateCullCW);
+	SafeRelease(&g_RasterStateCullCCW);
+	SafeRelease(&g_RasterizerLayer0);
+	SafeRelease(&g_RasterizerLayer1);
+	SafeRelease(&g_RasterizerLayer2);
+	SafeRelease(&g_RasterizerLayer3);
 
 
-	if (g_VertexLayout)			g_VertexLayout->Release();
-	if (g_VertexShader)			g_VertexShader->Release();
-	if (g_DepthVertexShader)	g_DepthVertexShader->Release();
-	if (g_PixelShader)			g_PixelShader->Release();
+	SafeRelease(&g_WorldBuffer);
+	SafeRelease(&g_ViewBuffer);
+	SafeRelease(&g_ProjectionBuffer);
+	SafeRelease(&g_MaterialBuffer);
+	SafeRelease(&g_LightBuffer);
+	SafeRelease(&g_FogBuffer);
+	SafeRelease(&g_FuchiBuffer);
+	SafeRelease(&g_CameraPosBuffer);
+	SafeRelease(&g_LightProjViewBuffer);
+	SafeRelease(&g_BoneMatrixBuffer);
+	SafeRelease(&g_LightModeBuffer);
+	SafeRelease(&g_RenderProgressBuffer);
 
-	if (g_SkinnedMeshVertexLayout)			g_SkinnedMeshVertexLayout->Release();
-	if (g_SkinnedMeshVertexShader)			g_SkinnedMeshVertexShader->Release();
-	if (g_SkinnedMeshPixelShader)			g_SkinnedMeshPixelShader->Release();
-	if (g_DepthSkinnedMeshVertexShader)		g_DepthSkinnedMeshVertexShader->Release();
-
-	if (g_VFXVertexShader)			g_VFXVertexShader->Release();
-	if (g_VFXPixelShader)			g_VFXPixelShader->Release();
-	if (g_VFXVertexLayout)			g_VFXVertexLayout->Release();
+	SafeRelease(&g_SamplerState);
+	SafeRelease(&g_SamplerStateShadow);
+	SafeRelease(&g_SamplerStateOpacity);
 
 	if (g_ImmediateContext)		g_ImmediateContext->ClearState();
-	if (g_RenderTargetView)		g_RenderTargetView->Release();
-	if (g_SwapChain)			g_SwapChain->Release();
-	if (g_ImmediateContext)		g_ImmediateContext->Release();
-	if (g_D3DDevice)			g_D3DDevice->Release();
-
-	for (int i = 0; i < LIGHT_MAX; i++)
-		if (g_ShadowDSV[i])	g_ShadowDSV[i]->Release();
-	if (g_SceneDepthStencilView) g_SceneDepthStencilView->Release();
+	SafeRelease(&g_RenderTargetView);
+	SafeRelease(&g_SwapChain);
+	SafeRelease(&g_ImmediateContext);
+	SafeRelease(&g_D3DDevice);
 }
 
 
@@ -1256,4 +962,9 @@ RenderMode Renderer::GetRenderMode(void)
 void Renderer::SetRenderMode(RenderMode mode)
 {
 	g_RenderMode = mode;
+}
+
+void Renderer::BindViewBuffer(ShaderStage stage)
+{
+	m_ShaderResourceBinder.BindConstantBuffer(stage, SLOT_CB_VIEW_MATRIX, g_ViewBuffer);
 }

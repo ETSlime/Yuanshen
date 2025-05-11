@@ -58,6 +58,15 @@ struct LIGHT
     int3 Dummy; //16byte境界用
 };
 
+struct CascadeData
+{
+    float4x4 lightViewProj;
+    float4x4 lightView;
+    float4x4 lightProj;
+    float splitDepth;
+    float3 padding; // 16バイトのアライメントを維持するため
+};
+
 // マトリクスバッファ
 cbuffer WorldBuffer : register(b0)
 {
@@ -86,13 +95,7 @@ cbuffer LightBuffer : register(b4)
 
 cbuffer CB_CascadeData : register(b8)
 {
-    matrix lightViewProj;
-    matrix lightView;
-    matrix lightProj;
-    float splitDepth;
-    float padding0;
-    float padding1;
-    float padding2;
+    CascadeData g_CascadeData;
 };
 
 cbuffer BoneTransformBuffer : register(b11)
@@ -147,7 +150,7 @@ void VS(in float3 inPosition : POSITION0,
 						  out float4 outPosition : SV_POSITION)
 {    
     float4 worldPosition = mul(float4(inPosition, 1.0f), WorldBuffer.world);
-    outPosition = mul(worldPosition, lightViewProj);
+    outPosition = mul(worldPosition, g_CascadeData.lightViewProj);
 }
 
 void SkinnedMeshVertexShaderPolygon(SkinnedMeshVertexInputType input,
@@ -175,14 +178,16 @@ void SkinnedMeshVertexShaderPolygon(SkinnedMeshVertexInputType input,
     worldPosition = mul(worldPosition, WorldBuffer.world); // Apply world transformation
 
     // Calculate shadow map coordinates for each light source
-    outPosition = mul(worldPosition, lightViewProj);
+    outPosition = mul(worldPosition, g_CascadeData.lightViewProj);
 }
 
-
+//*****************************************************************************
+// グローバル変数
+//*****************************************************************************
+SamplerState g_SamplerState : register(s0);
 //=============================================================================
 // ピクセルシェーダ
 //=============================================================================
-float DummyPS() : SV_Depth
+void DummyPS()
 {
-    return 1.0f;
 }

@@ -15,8 +15,8 @@
 // ì«Ç›çûÇﬁÉÇÉfÉãñº
 #define MODEL_BANYAN_PATH			"data/MODEL/Environment/Banyan/Big_Banyan_121.obj"
 #define	MODEL_ENVIRONMENT_PATH		"data/MODEL/Environment/"
+#define	MODEL_FIELD_PATH			"data/MODEL/Environment/Land.obj"
 #define	MODEL_TOWN_PATH				"data/MODEL/Environment/Knight"
-#define	MODEL_FIELD					"data/MODEL/Environment/Land.obj"
 #define	MODEL_TREE_NAME				"Tree.fbx"
 #define	MODEL_FIELD_NAME			"Land.fbx"
 #define MODEL_BONFIRE_PATH			"data/MODEL/Environment/bonfire.obj"

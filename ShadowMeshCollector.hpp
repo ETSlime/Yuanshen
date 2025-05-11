@@ -7,7 +7,7 @@
 #pragma once
 #include "ShadowMeshCollector.h"
 #include "GameObject.h"
-
+#include "Environment.h"
 //*****************************************************************************
 // É}ÉNÉçíËã`
 //*****************************************************************************
@@ -32,7 +32,7 @@ inline void CollectShadowMeshFromModel<ModelInstance>(
     const ModelInstance& modelInstance,
     SimpleArray<StaticRenderData>& out)
 {
-    if (!modelInstance.pModel || modelInstance.isInstanced) return;
+    if (!modelInstance.pModel || modelInstance.instanceAttribute.isInstanced) return;
 
     const auto& parts = modelInstance.pModel->GetMeshParts();
     for (const auto& part : parts)
@@ -45,6 +45,7 @@ inline void CollectShadowMeshFromModel<ModelInstance>(
         data.startIndexLocation = part.StartIndex;
         data.indexFormat = DXGI_FORMAT_R32_UINT;
         data.worldMatrix = modelInstance.transform.mtxWorld;
+        data.enableAlphaTest = modelInstance.enableAlphaTest;
         out.push_back(std::move(data));
     }
 }
@@ -55,21 +56,23 @@ inline void CollectShadowMeshFromModel<ModelInstance>(
     const ModelInstance& modelInstance,
     SimpleArray<InstancedRenderData>& out)
 {
-    if (!modelInstance.pModel || !modelInstance.isInstanced) return;
+    if (!modelInstance.pModel || !modelInstance.instanceAttribute.isInstanced) return;
 
     const auto& parts = modelInstance.pModel->GetMeshParts();
     for (const auto& part : parts)
     {
         InstancedRenderData data = {};
-        data.vertexBuffer = part.VertexBuffer;
-        data.indexBuffer = part.IndexBuffer;
-        data.stride = sizeof(VERTEX_3D);
+        data.vertexBuffer = modelInstance.instanceAttribute.vertexBuffer;
+        data.indexBuffer = modelInstance.instanceAttribute.indexBuffer;
+        data.stride = sizeof(InstanceVertex);
+        data.instanceStride = sizeof(InstanceData);
         data.indexCount = part.IndexNum;
         data.startIndexLocation = part.StartIndex;
         data.indexFormat = DXGI_FORMAT_R32_UINT;
         data.worldMatrix = modelInstance.transform.mtxWorld;
-        data.instanceBuffer = modelInstance.instanceBuffer;
-        data.instanceCount = modelInstance.instanceCount;
+        data.instanceBuffer = modelInstance.instanceAttribute.instanceBuffer;
+        data.instanceCount = modelInstance.instanceAttribute.instanceCount;
+        data.enableAlphaTest = modelInstance.enableAlphaTest;
         out.push_back(std::move(data));
     }
 }
@@ -95,6 +98,7 @@ inline void CollectShadowMeshFromModel<SkinnedMeshModelInstance>(
         data.indexFormat = DXGI_FORMAT_R32_UINT;
         data.worldMatrix = modelInstance.transform.mtxWorld;
         data.pBoneMatrices = boneMatrices;
+        data.enableAlphaTest = modelInstance.enableAlphaTest;
         out.push_back(std::move(data));
     }
 }

@@ -9,8 +9,9 @@
 
 
 bool ShaderLoader::LoadShaderSet(ID3D11Device* device,
-    const char* vsPath, const char* psPath,
-    const char* vsEntry, const char* psEntry,
+    const char* vsPath, const char* vsEntry,
+    const char* psPath, const char* psEntry,
+    const char* gsPath, const char* gsEntry,
     const D3D11_INPUT_ELEMENT_DESC* layoutDesc,
     UINT numElements,
     ShaderSet& outShaderSet)
@@ -34,13 +35,17 @@ bool ShaderLoader::LoadShaderSet(ID3D11Device* device,
     if (!CompileAndCreatePixelShader(device, psPath, psEntry, &outShaderSet.ps))
         return false;
 
+    if (gsPath && !CompileAndCreateGeometryShader(device, gsPath, gsEntry, &outShaderSet.gs))
+        return false;
+
     return true;
 }
 
 
 bool ShaderLoader::LoadShaderSetWithoutLayoutCreation(ID3D11Device* device,
-    const char* vsPath, const char* psPath,
-    const char* vsEntry, const char* psEntry,
+    const char* vsPath, const char* vsEntry, 
+    const char* psPath, const char* psEntry,
+    const char* gsPath, const char* gsEntry,
     ShaderSet& outShaderSet)
 {
     ID3DBlob* vsBlob = nullptr;
@@ -50,6 +55,9 @@ bool ShaderLoader::LoadShaderSetWithoutLayoutCreation(ID3D11Device* device,
     vsBlob->Release();
 
     if (!CompileAndCreatePixelShader(device, psPath, psEntry, &outShaderSet.ps))
+        return false;
+
+    if (gsPath && !CompileAndCreateGeometryShader(device, gsPath, gsEntry, &outShaderSet.gs))
         return false;
 
     return true;
@@ -268,5 +276,29 @@ bool ShaderLoader::CompileAndCreatePixelShader(
 
     HRESULT hr = device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, outPS);
     psBlob->Release();
+    return SUCCEEDED(hr);
+}
+
+bool ShaderLoader::CompileAndCreateGeometryShader(
+    ID3D11Device* device, 
+    const char* path, 
+    const char* entry, 
+    ID3D11GeometryShader** outGS)
+{
+    ID3DBlob* gsBlob = nullptr;
+
+    // HLSL ファイルをコンパイル（GS モデルで）
+    if (!CompileShaderFromFile(path, entry, SHADER_MODEL_GS, &gsBlob))
+        return false;
+
+    HRESULT hr = device->CreateGeometryShader(
+        gsBlob->GetBufferPointer(),
+        gsBlob->GetBufferSize(),
+        nullptr,
+        outGS
+    );
+
+    gsBlob->Release();
+
     return SUCCEEDED(hr);
 }

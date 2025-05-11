@@ -28,6 +28,7 @@
 #include "GameSystem.h"
 #include "PauseModal.h"
 #include "CursorManager.h"
+#include "ShaderResourceBinder.h"
 #include "imgui/imgui_impl_win32.h"
 
 //*****************************************************************************
@@ -72,6 +73,7 @@ ShadowMapRenderer& shadowMapRenderer = ShadowMapRenderer::get_instance();
 Scene& scene = Scene::get_instance();
 UIManager& uiManager = UIManager::get_instance();
 CursorManager& cursorManager = CursorManager::get_instance();
+ShaderResourceBinder& shaderResourceBinder = ShaderResourceBinder::get_instance();
 
 #ifdef _DEBUG
 int		g_CountFPS;							// FPSカウンタ
@@ -354,6 +356,8 @@ void Uninit(void)
 //=============================================================================
 void Update(void)
 {
+	shaderResourceBinder.Reset();
+
 	timer.Update();
 
 	// 入力の更新処理
@@ -380,68 +384,11 @@ void Draw(void)
 	// バックバッファクリア
 	renderer.Clear();
 
-
 	// シャドウマップの描画
 	gameSystem.RenderShadowPass();
 
 	// メインパス描画
 	gameSystem.Draw();
-
-	//const DoubleLinkedList<Light*>& lightList = lightManager.GetLightList();
-	//int lightIdx = 0;
-	//for (const auto& light : lightList)
-	//{
-	//	if (light->GetLightData().Enable == FALSE) continue;
-	//	if (lightIdx >= LIGHT_MAX) continue;
-
-	//	renderer.ClearShadowDSV(lightIdx);
-	//	lightIdx++;
-	//}
-
-	//renderer.SetShadowPassViewport();
-
-	//// obj model shadow map
-	//renderer.SetModelInputLayout();
-	//lightIdx = 0;
-	//for (const auto& light : lightList)
-	//{
-	//	if (light->GetLightData().Enable == FALSE) continue;
-	//	if (lightIdx >= LIGHT_MAX) continue;
-
-	//	renderer.SetRenderShadowMap(lightIdx);
-	//	ground->Draw();
-
-	//	lightIdx++;
-	//}
-
-	//// skinned mesh model shadow map
-	//renderer.SetSkinnedMeshInputLayout();
-	//lightIdx = 0;
-	//for (const auto& light : lightList)
-	//{
-	//	if (light->GetLightData().Enable == FALSE) continue;
-	//	if (lightIdx >= LIGHT_MAX) continue;
-
-	//	renderer.SetRenderSkinnedMeshShadowMap(lightIdx);
-	//	player->Draw();
-	//	enemyManager.Draw();
-	//	ground->Draw();
-
-	//	lightIdx++;
-	//}
-
-	//// instance shadow map
-	//lightIdx = 0;
-	//for (const auto& light : lightList)
-	//{
-	//	if (light->GetLightData().Enable == FALSE) continue;
-	//	if (lightIdx >= LIGHT_MAX) continue;
-
-	//	renderer.SetRenderInstanceShadowMap(lightIdx);
-	//	ground->Draw();
-
-	//	lightIdx++;
-	//}
 
 #ifdef _DEBUG
 	// 深度テストを無効に
@@ -505,4 +452,9 @@ float GetRandFloat(float min, float max)
 	static std::mt19937 g_mt(std::random_device{}());
 	std::uniform_real_distribution<float> dist(min, max);
 	return dist(g_mt);
+}
+
+float Lerp(float a, float b, float t)
+{
+	return a + (b - a) * t;
 }

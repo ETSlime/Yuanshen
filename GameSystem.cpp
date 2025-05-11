@@ -7,10 +7,13 @@
 #include "GameSystem.h"
 #include "input.h"
 #include "PauseModal.h"
-#include "debugproc.h"
+#include "Debugproc.h"
+#include "EffectSystem.h"
 
 void GameSystem::Init(void)
 {
+    m_effectSystem.Initialize(m_renderer.GetDevice(), m_renderer.GetDeviceContext()); // エフェクトシステムの初期化
+
     m_player = new Player(); // プレイヤーの初期化
 
     m_ground = new Ground(); // 地面の初期化
@@ -19,7 +22,7 @@ void GameSystem::Init(void)
 
     m_uiManager.Init(); // UIManagerの初期化
 
-    //m_enemyManager.Init(m_player); // エネミーの初期化
+    m_enemyManager.Init(m_player); // エネミーの初期化
 
     m_cursorManager.Init(); // カーソルマネージャの初期化
 }
@@ -33,6 +36,8 @@ void GameSystem::Uninit(void)
     SAFE_DELETE(m_skybox); // Skyboxの解放
 
     m_uiManager.Uninit(); // UIManagerの解放
+
+    m_effectSystem.Shutdown();
 }
 
 void GameSystem::Update(void)
@@ -89,11 +94,8 @@ void GameSystem::Draw(void)
     m_renderer.SetUIInputLayout(); // モデルの入力レイアウトを設定
     m_renderer.SetRenderUI(); // UIの描画を設定
     // 深度テストを無効に
-    m_renderer.SetDepthEnable(FALSE);
+    m_renderer.SetDepthMode(DepthMode::Disable);
     m_uiManager.Draw();
-    // 深度テストを有効に
-    m_renderer.SetDepthEnable(TRUE);
-    m_renderer.SetCullingMode(CULL_MODE_BACK); // カリングモードを有効に
     // ライティングを有効に
     //m_lightManager.SetLightEnable(TRUE);
 }
@@ -207,6 +209,7 @@ void GameSystem::UpdateGame(void)
     m_ground->Update(); // 地面の更新処理
     m_skybox->Update(); // Skyboxの更新処理
     m_enemyManager.Update(); // エネミーの更新処理
+    m_effectSystem.Update(); // エフェクトの更新処理
 }
 
 void GameSystem::UpdateResult(void)
@@ -223,7 +226,10 @@ void GameSystem::DrawTitle(void)
 void GameSystem::DrawGame(void)
 {
     // スカイボックスの描画
-    m_skybox->Draw(XMLoadFloat4x4(&m_camera.GetViewMatrix()), XMLoadFloat4x4(&m_camera.GetProjMatrix()));
+    //m_skybox->Draw(XMLoadFloat4x4(&m_camera.GetViewMatrix()), XMLoadFloat4x4(&m_camera.GetProjMatrix()));
+
+    m_renderer.SetDepthMode(DepthMode::Enable); // 深度テストを有効に
+    m_renderer.SetCullingMode(CULL_MODE_BACK); // カリングモードを有効に
 
     m_renderer.SetStaticModelInputLayout(); // モデルの入力レイアウトを設定
     m_renderer.SetRenderObject(); // モデルの描画を設定
@@ -252,6 +258,11 @@ void GameSystem::DrawGame(void)
     m_renderer.SetVFXInputLayout(); // VFXの入力レイアウトを設定
     m_renderer.SetRenderVFX(); // VFXの描画を設定
     m_player->DrawEffect(); // プレイヤーのエフェクト描画
+
+    m_renderer.SetDepthMode(DepthMode::Particle); // パーティクルの深度設定
+    m_effectSystem.Draw(m_camera.GetViewProjMtx()); // エフェクトの描画
+    m_renderer.SetBlendState(BLEND_MODE_ALPHABLEND); // ブレンドステートを設定
+
     //m_renderer.SetCullingMode(CULL_MODE_BACK);
 
     //SetOffScreenRender();

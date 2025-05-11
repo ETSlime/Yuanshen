@@ -3,8 +3,9 @@
 //*****************************************************************************
 
 #define LIGHT_MAX_NUM   5
+#define LIGHT_MAX_NUM_CASCADE 4
 #define SCREEN_WIDTH    1920
-#define SHADOWMAP_SIZE  SCREEN_WIDTH * 3.5
+#define SHADOWMAP_SIZE  2048
 
 struct WorldMatrixBuffer
 {
@@ -52,11 +53,13 @@ struct MATERIAL
     //float Dummy[1]; //16byte境界用
 };
 
-struct LightViewProjBuffer
+struct CascadeData
 {
-    matrix ViewProj[5];
-    int LightIndex;
-    int padding[3];
+    float4x4 lightViewProj;
+    float4x4 lightView;
+    float4x4 lightProj;
+    float splitDepth;
+    float3 padding; // 16バイトのアライメントを維持するため
 };
 
 // マトリクスバッファ
@@ -85,9 +88,20 @@ cbuffer LightBuffer : register(b4)
     LIGHT Light;
 }
 
-cbuffer ProjViewBuffer : register(b8)
+cbuffer CB_CascadeDataMainPass : register(b6)
 {
-    //LightViewProjBuffer lightViewProj;
+    CascadeData g_CascadeArray[4];
+    float4 g_CascadeSplits;
+}
+
+cbuffer CB_CascadeData : register(b8)
+{
+    CascadeData g_CascadeData;
+};
+
+cbuffer CameraPosBuffer : register(b7)
+{
+    float4 CameraPos;
 }
 
 struct VS_INPUT
@@ -109,8 +123,8 @@ struct VS_INPUT
 struct VS_OUTPUT
 {
     float4 Position : SV_POSITION;  // 出力位置 (クリップ空間)
-    float2 TexCoord : TEXCOORD;     // テクスチャ座標
-    float4 ShadowCoord[LIGHT_MAX_NUM] : TEXCOORD1; // 影計算用座標
+    float2 TexCoord : TEXCOORD; // テクスチャ座標
+    float4 ShadowCoord[LIGHT_MAX_NUM_CASCADE] : TEXCOORD1; // 影計算用座標
     float3 Normal : NORMAL;         // 出力法線
     float3 Tangent : TANGENT;
     float4 WorldPos : POSITION1;
@@ -129,6 +143,20 @@ Texture2D g_TranslucencyMap : register(t13);
 SamplerState g_SamplerState : register(s0); // サンプラーステート
 SamplerComparisonState g_ShadowSampler : register(s1);
 SamplerState g_SamplerStateOpacity : register(s2);
+
+
+float3 RotateByQuaternion(float3 v, float4 q)
+{
+    // q = (x, y, z, w)
+    float3 u = q.xyz;
+    float s = q.w;
+
+    return 2.0f * dot(u, v) * u
+         + (s * s - dot(u, u)) * v
+         + 2.0f * s * cross(u, v);
+}
+
+
 //=============================================================================
 // 頂点シェーダ
 //=============================================================================
@@ -141,8 +169,8 @@ VS_OUTPUT VS(VS_INPUT input)
     VS_OUTPUT output;
     
      // クォータニオンを使用して回転を適用
-    float4 q = input.Rotation;
-    float3 rotatedPosition = input.Position + 2.0 * cross(q.xyz, cross(q.xyz, input.Position) + q.w * input.Position);
+    //float4 q = input.Rotation;
+    float3 rotatedPosition = RotateByQuaternion(input.Position, input.Rotation);//input.Position + 2.0 * cross(q.xyz, cross(q.xyz, input.Position) + q.w * input.Position);
     
      // スケールを適用
     rotatedPosition *= input.Scale;
@@ -154,9 +182,9 @@ VS_OUTPUT VS(VS_INPUT input)
     output.Position = mul(output.WorldPos, WorldViewProjection);
 
     // 影計算用のライト空間変換
-    for (int i = 0; i < LIGHT_MAX_NUM; ++i)
+    for (int i = 0; i < LIGHT_MAX_NUM_CASCADE; ++i)
     {
-        output.ShadowCoord[i] = mul(float4(finalPosition, 1.0f), Light.LightViewProj[i]);
+        output.ShadowCoord[i] = mul(float4(finalPosition, 1.0f), g_CascadeArray[i].lightViewProj);
     }
 
     // 出力テクスチャ座標と法線
@@ -188,19 +216,6 @@ float3 GetBumpNormal(float2 uv, float3 normal, float3 tangent)
 //=============================================================================
 // ピクセルシェーダ
 //=============================================================================
-//float GetShadowFactor(float4 shadowPos)
-//{
-//    float2 shadowUV = shadowPos.xy / shadowPos.w;
-//    shadowUV = shadowUV * 0.5 + 0.5; 
-
-//    float shadowDepth = g_ShadowMap[0].SampleCmpLevelZero(g_ShadowSampler, shadowUV).r;
-
-//    float currentDepth = shadowPos.z / shadowPos.w;
-
-//    float bias = 0.005;
-
-//    return (currentDepth - bias > shadowDepth) ? 0.3 : 1.0;
-//}
 
 float4 PS(VS_OUTPUT input) : SV_TARGET
 {
@@ -330,8 +345,8 @@ VS_OUTPUT VSShadow(VS_INPUT input)
     VS_OUTPUT output;
 
      // クォータニオンを使用して回転を適用
-    float4 q = input.Rotation;
-    float3 rotatedPosition = input.Position + 2.0 * cross(q.xyz, cross(q.xyz, input.Position) + q.w * input.Position);
+    //float4 q = input.Rotation;
+    float3 rotatedPosition = RotateByQuaternion(input.Position, input.Rotation);//input.Position + 2.0 * cross(q.xyz, cross(q.xyz, input.Position) + q.w * input.Position);
 
      // スケールを適用
     rotatedPosition *= input.Scale;
@@ -340,8 +355,7 @@ VS_OUTPUT VSShadow(VS_INPUT input)
     float3 finalPosition = rotatedPosition + input.OffsetPosition;
 
     // 影計算用のライト空間変換
-    output.Position = mul(float4(finalPosition, 1.0f), Light.LightViewProj[0]);
-
+    output.Position = mul(float4(finalPosition, 1.0f), g_CascadeData.lightViewProj);
     return output;
 }
 //=============================================================================

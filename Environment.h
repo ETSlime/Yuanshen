@@ -117,14 +117,14 @@ struct EnvironmentObject
 {
     EnvironmentObjectType type;
     EnvironmentObjAttributes attributes;
-	GameObject<ModelInstance>* model = nullptr;
+	GameObject<ModelInstance>* modelGO = nullptr;
 	Transform transform;
 
     char* modelPath = nullptr;
-    char* texturePath = nullptr;
+    char* extDiffuseTexPath = nullptr;
     int indexCount;
     int instanceCount;
-    bool externTexPath = false;
+    bool useExtDiffuseTex = false;
 
     ID3D11ShaderResourceView* externDiffuseTextureSRV = nullptr;
     ID3D11Buffer* vertexBuffer = nullptr;
@@ -137,8 +137,8 @@ struct EnvironmentObject
     ~EnvironmentObject()
 	{
 		SAFE_DELETE_ARRAY(modelPath);
-		SAFE_DELETE_ARRAY(texturePath);
-        SAFE_DELETE(model);
+		SAFE_DELETE_ARRAY(extDiffuseTexPath);
+        SAFE_DELETE(modelGO);
         SAFE_DELETE(instanceData);
 
         SafeRelease(&vertexBuffer);
@@ -201,7 +201,7 @@ public:
 
     void Update(void);
     void Draw(void);
-    bool GenerateRandomInstances(EnvironmentObjectType type, const SkinnedMeshModel* fieldModel, int clusterCount = 45);
+    bool GenerateRandomInstances(EnvironmentObjectType type, const Model* fieldModel, int clusterCount = 45);
     bool GenerateInstanceByParams(const InstanceParams& params, const SkinnedMeshModel* fieldModel);
 
 private:
@@ -224,9 +224,7 @@ private:
     bool LoadEnvironmentObj(EnvironmentObject* obj);
     void LoadShaders(EnvironmentObject* obj);
 
-    void CompileShaders(void);
-
-    OctreeNode* GenerateOctree(const SimpleArray<Triangle*>& triangles, BOUNDING_BOX boundingBox);
+    OctreeNode* GenerateOctree(const SimpleArray<Triangle*>* triangles, BOUNDING_BOX boundingBox);
 
     SimpleArray<EnvironmentObject*> environmentObjects;
 
@@ -238,15 +236,10 @@ private:
     ID3D11ShaderResourceView* shadowMapSRV;
     ID3D11ShaderResourceView* noiseTextureSRV;
 
-    ID3D11InputLayout* instanceInputLayout;
-    ID3D11VertexShader* grassVertexShader;
-    ID3D11PixelShader* grassPixelShader;
-    ID3D11VertexShader* treeVertexShader;
-    ID3D11PixelShader* treePixelShader;
-    ID3D11VertexShader* shadowVertexShader;
+    ShaderSet grassShaderSet;
+    ShaderSet treeShaderSet;
 
-    ID3D11SamplerState* samplerState;
-    ID3D11SamplerState* shadowSamplerState;
-    XMFLOAT4X4 lightViewProjectionMatrix;
     float time;
+
+    ShaderResourceBinder& m_ShaderResourceBinder = ShaderResourceBinder::get_instance();
 };

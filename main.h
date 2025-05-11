@@ -84,6 +84,7 @@ char* GetDebugStr(void);
 bool GetWindowActive(void);
 int GetRand(int min, int max);
 float GetRandFloat(float min, float max);
+float Lerp(float a, float b, float t);
 
 // Declare additional functions for releasing interfaces, 
 // and macros for error-handling and retrieving the module's base address.
