@@ -106,34 +106,39 @@ Ground::Ground()
 	//bonfireGO->GetModel()->SetDrawBoundingBox(true);
 	//groundGO.push_back(bonfireGO);
 
-	//ParticleEffectParams params;
-	//params.type = EffectType::Smoke;
-	//params.position = XMFLOAT3(14582.0f, -2424.0f, -19485.0f);
-	//params.scale = 111.0f;
-	//params.acceleration = XMFLOAT3(0.0f, 15.0f, 0.0f);
-	//params.spawnRateMin = 2.0f;
-	//params.spawnRateMax = 5.0f;
-	//params.lifeMin = 3.0f;
-	//params.lifeMax = 6.0f;
-	//EffectSystem::get_instance().SpawnParticleEffect(params);
-
-	FireBallEffectParams params;
+	ParticleEffectParams params;
 	params.type = EffectType::Smoke;
 	params.position = XMFLOAT3(14582.0f, -2424.0f, -19485.0f);
 	params.scale = 111.0f;
-	params.lifeMin = 0.5f;
-	params.lifeMax = 0.5f;
-	params.spawnRateMin = 50.0f;
-	params.spawnRateMax = 50.0f;
-	params.acceleration = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	params.tilesX = 7;
-	params.tilesY = 7;
-	params.coneAngleDegree = 25.0f;
-	params.coneRadius = 0.6f;
-	params.coneLength = 5.0f;
-	params.frameLerpCurve = 1.0f;
-	params.rotationSpeed = 0.5f;
+	params.acceleration = XMFLOAT3(0.0f, 15.0f, 0.0f);
+	params.spawnRateMin = 2.0f;
+	params.spawnRateMax = 5.0f;
+	params.lifeMin = 3.0f;
+	params.lifeMax = 6.0f;
+	params.startColor = XMFLOAT4(0.6f, 0.6f, 0.6f, 0.5f); // âåêF
+	//EffectSystem::get_instance().SpawnParticleEffect(params);
 
+	//FireBallEffectParams fireparams;
+	//fireparams.type = EffectType::FireBall;
+	//fireparams.position = XMFLOAT3(14582.0f, -2424.0f, -19485.0f);
+	//fireparams.scale = 111.0f;
+	//fireparams.lifeMin = 10.5f;
+	//fireparams.lifeMax = 10.5f;
+	//fireparams.spawnRateMin = 50.0f;
+	//fireparams.spawnRateMax = 50.0f;
+	//fireparams.acceleration = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	//fireparams.startColor = XMFLOAT4(1.2f, 0.5f, 0.0f, 1.0f);
+	//fireparams.endColor = XMFLOAT4(0.2f, 0.0f, 0.0f, 0.0f);
+	//fireparams.tilesX = 7;
+	//fireparams.tilesY = 7;
+	//fireparams.coneAngleDegree = 25.0f;
+	//fireparams.coneRadius = 0.6f;
+	//fireparams.coneLength = 5.0f;
+	//fireparams.frameLerpCurve = 1.0f;
+	//fireparams.rotationSpeed = 0.5f;
+	params.type = EffectType::FireBall;
+	EffectSystem::get_instance().SpawnParticleEffect(params);
+	
 	//GameObject<ModelInstance>* banyanGO = new GameObject<ModelInstance>();
 	//banyanGO->Instantiate(MODEL_BANYAN_PATH);
 	//banyanGO->SetPosition(XMFLOAT3(-12280.0f, -2254.0f, -4650.0f));

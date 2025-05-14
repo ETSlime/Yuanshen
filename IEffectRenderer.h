@@ -15,11 +15,15 @@
 
 enum class EffectType
 {
+    None,
+
+    Particle_Start,
     Fire,
     FireBall,
     Smoke,
+    Particle_End,
+
     SoftBody,
-    None,
 };
 
 class IEffectRenderer

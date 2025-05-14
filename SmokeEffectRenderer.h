@@ -8,21 +8,7 @@
 #include "ParticleEffectRendererBase.h"
 #include "SimpleArray.h"
 
-//*********************************************************
-// 構造体
-//*********************************************************
 
-// パーティクルデータ
-struct SmokeParticle
-{
-    XMFLOAT3 position;
-    XMFLOAT3 velocity;
-    float size;
-    float life;
-    float lifeRemaining;
-    XMFLOAT4 color;
-    float rotation;
-};
 
 class SmokeEffectRenderer : public ParticleEffectRendererBase
 {
@@ -34,7 +20,6 @@ public:
     bool UseDrawIndirect() const override { return true; }
 
 private:
-    virtual bool CreateParticleBuffer(void) override;
     virtual void DispatchComputeShader(void) override; // パーティクル更新（Dispatch）
     virtual void DrawParticles(void) override;
 

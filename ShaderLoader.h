@@ -37,16 +37,25 @@ enum class ShaderSetID : uint64_t
 enum class ParticleShaderGroup : uint64_t
 {
     None,
-
     BillboardSimple,
     BillboardFlipbook,
     BillboardSoftParticle,
     BillboardFlipbookSoft,
+    Count,
+};
+
+enum class ParticleComputeGroup : uint64_t
+{
+    None,
+    BasicBillboard,          // BillboardSimple
+    FlipbookAnimated,        // BillboardFlipbook
+    FlipbookWithSoft,        // BillboardFlipbookSoft
 };
 
 // コンピュートパスの種類を管理する列挙型
 enum class ComputePassType : uint64_t
 {
+    None,
     Update,
     Emit,
     Sort,
@@ -66,7 +75,8 @@ enum class VertexLayoutID : uint64_t
     Debug,
 
     //VertexIDOnly
-    ParticleBillboard,
+    ParticleSimple,
+    ParticleFlipbook,
     FireEffect,
     SmokeEffect,
     FireBallEffect,
@@ -103,7 +113,30 @@ struct ComputeShaderSet
     const char* path = nullptr;
     const char* entry = nullptr;
 
-    VertexLayoutID layoutID = VertexLayoutID::Static;
+    ComputePassType pass = ComputePassType::None;
+    uint64_t shaderSetID = 0;
+};
+
+struct ComputeShaderSetKey
+{
+    uint64_t shaderID;
+    ComputePassType pass;
+};
+
+struct ShaderSetKeyHash
+{
+    size_t operator()(const ComputeShaderSetKey& k) const
+    {
+        return (static_cast<size_t>(k.shaderID) << 8) ^ static_cast<size_t>(k.pass);
+    }
+};
+
+struct EqualShaderSetKey
+{
+    bool operator()(const ComputeShaderSetKey& a, const ComputeShaderSetKey& b) const
+    {
+        return a.shaderID == b.shaderID && a.pass == b.pass;
+    }
 };
 
 
@@ -136,7 +169,13 @@ public:
         const char* vsEntry, const char* psEntry, const char* psAlphaEntry,
         ShadowShaderSet& outShaderSet);
 
-    static bool CompileShaderFromFile(const char* fileName, const char* entryPoint, const char* target, ID3DBlob** blobOut);
+    // ComputerShaderSet
+    static bool LoadComputerShaderSet(ID3D11Device* device, ComputeShaderSet& outShaderSet);
+
+    // D3DX11CompileFromFile をそのまま使う（非推奨・キャッシュあり）
+    static bool CompileShaderFromFileLegacy(const char* fileName, const char* entryPoint, const char* target, ID3DBlob** blobOut);
+    // 内部で fread → D3DCompile（最新版・キャッシュ対策済み）
+    static bool CompileShaderFromFile(const char* fileName, const char* entryPoint, const char* target, ID3DBlob** blobOut, ID3DBlob** errorBlob = nullptr);
 
     // 空のピクセルシェーダーを読み込む関数
     static bool LoadEmptyPixelShader(ID3D11Device* device, ID3D11PixelShader** outPixelShader, const char* fileName, const char* entryPoint);
@@ -148,4 +187,5 @@ private:
     static bool CompileAndCreateVertexShader(ID3D11Device* device, const char* path, const char* entry, ID3D11VertexShader** outVS, ID3DBlob** outVSBlob);
     static bool CompileAndCreatePixelShader(ID3D11Device* device, const char* path, const char* entry, ID3D11PixelShader** outPS);
     static bool CompileAndCreateGeometryShader(ID3D11Device* device, const char* path, const char* entry, ID3D11GeometryShader** outGS);
+    static bool CompileAndCreateComputeShader(ID3D11Device* device, const char* path, const char* entry, ID3D11ComputeShader** outCS);
 };

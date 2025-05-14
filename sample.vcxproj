@@ -178,6 +178,7 @@
     <ClInclude Include="OctreeNode.h" />
     <ClInclude Include="offScreenRender.h" />
     <ClInclude Include="ParticleEffectRendererBase.h" />
+    <ClInclude Include="ParticleStructs.h" />
     <ClInclude Include="PauseModal.h" />
     <ClInclude Include="Player.h" />
     <ClInclude Include="Scene.h" />

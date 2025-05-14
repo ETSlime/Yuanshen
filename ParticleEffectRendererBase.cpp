@@ -6,8 +6,17 @@
 //=============================================================================
 #include "ParticleEffectRendererBase.h"
 #include "EffectSystem.h"
-
-bool ParticleEffectRendererBase::s_pipelineBound = false;
+#include "ParticleStructs.h"
+//*****************************************************************************
+// グローバル変数
+//*****************************************************************************
+HashMap<uint64_t, bool, HashUInt64, EqualUInt64> ParticleEffectRendererBase::s_pipelineBoundMap(
+    MAX_EFFECT_NUM,
+    HashUInt64(),
+    EqualUInt64()
+);
+ParticleEffectRendererBase::CreateBufferFunc 
+ParticleEffectRendererBase::s_bufferFactoryTable[static_cast<UINT>(ParticleShaderGroup::Count)] = {};
 
 bool ParticleEffectRendererBase::Initialize(ID3D11Device* device, ID3D11DeviceContext* context)
 {
@@ -16,6 +25,12 @@ bool ParticleEffectRendererBase::Initialize(ID3D11Device* device, ID3D11DeviceCo
 
     if (!m_device || !m_context)
         return false;
+
+    EffectType type = GetEffectType();
+    m_shaderGroup = GetShaderGroupForEffect(type);
+    m_computeGroup = GetComputeGroupForEffect(type);
+
+    RegisterarticleBufferFactories();
 
     // パーティクルバッファ作成
     if (!CreateParticleBuffer())
@@ -76,6 +91,10 @@ void ParticleEffectRendererBase::Shutdown(void)
 
 void ParticleEffectRendererBase::Update(void)
 {
+#ifdef _DEBUG
+    LoadShaders();
+#endif // DEBUG
+
     // 旧SRVバインドを解除
     UnbindAllShaderSRVs();
 
@@ -272,6 +291,17 @@ void ParticleEffectRendererBase::InitializeFreeList(void)
     m_context->UpdateSubresource(m_freeListBuffer, 0, nullptr, ids.data(), 0, 0);
 }
 
+bool ParticleEffectRendererBase::CreateParticleBuffer(void)
+{
+    const int groupIndex = static_cast<int>(m_shaderGroup);
+    if (s_bufferFactoryTable[groupIndex])
+    {
+        s_bufferFactoryTable[groupIndex](this);
+        return m_particleBuffer != nullptr;
+    }
+    return false;
+}
+
 void ParticleEffectRendererBase::DrawParticles(void)
 {
     if (UseDrawIndirect())
@@ -439,6 +469,8 @@ void ParticleEffectRendererBase::ConfigureEffect(const ParticleEffectParams& par
     m_position = params.position;
     m_acceleration = params.acceleration;
     m_maxParticles = params.numParticles;
+    m_startColor = params.startColor;
+    m_endColor = params.endColor;
     SetSpawnRateRange(params.spawnRateMin, params.spawnRateMax);
     SetLifeRange(params.lifeMin, params.lifeMax);
 }
@@ -446,7 +478,7 @@ void ParticleEffectRendererBase::ConfigureEffect(const ParticleEffectParams& par
 void ParticleEffectRendererBase::SetupPipeline(void)
 {
     // すでに設定済みならスキップ
-    if (s_pipelineBound)
+    if (s_pipelineBoundMap[TO_UINT64(m_shaderGroup)])
         return;
 
     m_context->IASetInputLayout(m_shaderSet.inputLayout);
@@ -460,27 +492,24 @@ void ParticleEffectRendererBase::SetupPipeline(void)
 
     m_renderer.SetBlendState(m_blendMode);
 
-    s_pipelineBound = true;
+    s_pipelineBoundMap[TO_UINT64(m_shaderGroup)] = true;
 }
 
-bool ParticleEffectRendererBase::LoadShaders(EffectType type)
+bool ParticleEffectRendererBase::LoadShaders(void)
 {
-    m_shaderGroup = GetShaderGroupForEffect(type);
-    ShaderSetID shaderSetID = GetShaderIDForEffect(type);
-
     bool loadShaders = true;
 
-    // コンピュートシェーダーチェック＆取得
-    loadShaders &= ShaderManager::get_instance().HasComputerShader(shaderSetID, ComputePassType::Update);
+    // UpdateCSチェック＆取得
+    loadShaders &= ShaderManager::get_instance().HasComputerShader(m_computeGroup, ComputePassType::Update);
     if (loadShaders)
-        m_updateParticlesCS = ShaderManager::get_instance().GetComputeShader(shaderSetID, ComputePassType::Update);
+        m_updateParticlesCS = ShaderManager::get_instance().GetComputeShader(m_computeGroup, ComputePassType::Update);
 
     if (UseDrawIndirect())
 	{
-		// Emitシェーダーチェック＆取得
-		loadShaders &= ShaderManager::get_instance().HasComputerShader(shaderSetID, ComputePassType::Emit);
+		// EmitCSチェック＆取得
+		loadShaders &= ShaderManager::get_instance().HasComputerShader(m_computeGroup, ComputePassType::Emit);
 		if (loadShaders)
-			m_emitParticlesCS = ShaderManager::get_instance().GetComputeShader(shaderSetID, ComputePassType::Emit);
+			m_emitParticlesCS = ShaderManager::get_instance().GetComputeShader(m_computeGroup, ComputePassType::Emit);
 	}
 
     // VS/GS/PSセットチェック＆取得
@@ -489,6 +518,128 @@ bool ParticleEffectRendererBase::LoadShaders(EffectType type)
         m_shaderSet = ShaderManager::get_instance().GetShaderSet(m_shaderGroup);
 
     return loadShaders;
+}
+
+bool ParticleEffectRendererBase::CreateBillboardSimpleBuffer(ParticleEffectRendererBase* self)
+{
+    HRESULT hr = S_OK;
+
+    SimpleArray<BillboardSimpleParticle> initData(self->m_maxParticles);
+    for (UINT i = 0; i < self->m_maxParticles; ++i)
+    {
+        initData[i].position = self->m_position;
+        initData[i].velocity = XMFLOAT3(0.0f, 0.3f + (i % 10) * 0.05f, 0.0f);
+        initData[i].size = 0.5f * self->m_scale;
+        initData[i].life = 0.0f; // 初期ライフは0
+        initData[i].lifeRemaining = 0.0f; // 残りライフ
+        initData[i].rotation = 0.0f; // 初期回転角度
+        initData[i].color = self->m_startColor;
+        initData[i].startColor = self->m_startColor;
+        initData[i].endColor = self->m_endColor;
+    }
+
+    // バッファ作成
+    D3D11_BUFFER_DESC bufferDesc = {};
+    bufferDesc.ByteWidth = sizeof(BillboardSimpleParticle) * self->m_maxParticles;
+    bufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    bufferDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+    bufferDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+    bufferDesc.StructureByteStride = sizeof(BillboardSimpleParticle);
+
+    D3D11_SUBRESOURCE_DATA subData = {};
+    subData.pSysMem = initData.data();
+
+    hr = self->m_device->CreateBuffer(&bufferDesc, &subData, &self->m_particleBuffer);
+    if (FAILED(hr))
+        return false;
+
+    // SRV作成
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+    srvDesc.Buffer.ElementWidth = self->m_maxParticles;
+    hr = self->m_device->CreateShaderResourceView(self->m_particleBuffer, &srvDesc, &self->m_particleSRV);
+    if (FAILED(hr))
+        return false;
+
+    // UAV作成
+    D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+    uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+    uavDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+    uavDesc.Buffer.NumElements = self->m_maxParticles;
+    hr = self->m_device->CreateUnorderedAccessView(self->m_particleBuffer, &uavDesc, &self->m_particleUAV);
+    if (FAILED(hr))
+        return false;
+
+    return true;
+}
+
+bool ParticleEffectRendererBase::CreateBillboardFlipbookBuffer(ParticleEffectRendererBase* self)
+{
+    HRESULT hr = S_OK;
+
+    // 初期パーティクル配列を生成（すべてゼロ寿命）
+    SimpleArray<BillboardFlipbookParticle> initData(self->m_maxParticles);
+    for (UINT i = 0; i < self->m_maxParticles; ++i)
+    {
+        initData[i].position = self->m_position;
+        initData[i].velocity = XMFLOAT3(0, 0, 0);
+        initData[i].life = 0.0f; // 初期ライフは0
+        initData[i].lifeRemaining = 0.0f; // 残りライフ
+        initData[i].rotation = 0.0f;
+        initData[i].size = 1.0f;
+        initData[i].color = self->m_startColor;
+        initData[i].startColor = self->m_startColor;
+        initData[i].endColor = self->m_endColor;
+        initData[i].frameIndex = 0.0f;
+        initData[i].frameSpeed = 0.0f;
+    }
+
+    // 構造化バッファの設定
+    D3D11_BUFFER_DESC bufferDesc = {};
+    bufferDesc.ByteWidth = sizeof(BillboardFlipbookParticle) * self->m_maxParticles;
+    bufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    bufferDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+    bufferDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+    bufferDesc.StructureByteStride = sizeof(BillboardFlipbookParticle);
+
+    D3D11_SUBRESOURCE_DATA subData = {};
+    subData.pSysMem = initData.data();
+
+    hr = self->m_device->CreateBuffer(&bufferDesc, &subData, &self->m_particleBuffer);
+    if (FAILED(hr))
+        return false;
+
+    // SRV（Shader Resource View）の作成
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+    srvDesc.Buffer.ElementWidth = self->m_maxParticles;
+
+    hr = self->m_device->CreateShaderResourceView(self->m_particleBuffer, &srvDesc, &self->m_particleSRV);
+    if (FAILED(hr)) return false;
+
+    // UAV（Unordered Access View）の作成
+    D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+    uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+    uavDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+    uavDesc.Buffer.NumElements = self->m_maxParticles;
+
+    hr = self->m_device->CreateUnorderedAccessView(self->m_particleBuffer, &uavDesc, &self->m_particleUAV);
+    if (FAILED(hr))
+        return false;
+
+    return true;
+}
+
+void ParticleEffectRendererBase::RegisterarticleBufferFactories()
+{
+    static bool initialized = false;
+    if (initialized) return;
+    initialized = true;
+
+    s_bufferFactoryTable[static_cast<UINT>(ParticleShaderGroup::BillboardSimple)] = &CreateBillboardSimpleBuffer;
+    s_bufferFactoryTable[static_cast<UINT>(ParticleShaderGroup::BillboardFlipbook)] = &CreateBillboardFlipbookBuffer;
 }
 
 void ParticleEffectRendererBase::UpdateParticleUpdateCB(void)
@@ -507,6 +658,8 @@ void ParticleEffectRendererBase::UpdateParticleUpdateCB(void)
         cb->lifeMax = m_lifeMax;
         cb->maxParticlesCount = m_maxParticles;
         cb->particlesToEmitThisFrame = m_particlesToEmitThisFrame;
+        cb->startColor = m_startColor;
+        cb->endColor = m_endColor;
         m_context->Unmap(m_cbParticleUpdate, 0);
     }
 }
@@ -569,22 +722,22 @@ ParticleShaderGroup ParticleEffectRendererBase::GetShaderGroupForEffect(EffectTy
         return ParticleShaderGroup::BillboardSimple;
 
     case EffectType::FireBall:
-        return ParticleShaderGroup::BillboardFlipbookSoft;
+        return ParticleShaderGroup::BillboardFlipbook;
     default:
         return ParticleShaderGroup::None;
     }
 }
 
-ShaderSetID ParticleEffectRendererBase::GetShaderIDForEffect(EffectType type)
+ParticleComputeGroup ParticleEffectRendererBase::GetComputeGroupForEffect(EffectType type)
 {
     switch (type)
     {
     case EffectType::Smoke:
-        return ShaderSetID::SmokeEffect;
+        return ParticleComputeGroup::BasicBillboard;
 
     case EffectType::FireBall:
-        return ShaderSetID::FireBallEffect;
+        return ParticleComputeGroup::FlipbookAnimated;
     default:
-        return ShaderSetID::None;
+        return ParticleComputeGroup::None;
     }
 }

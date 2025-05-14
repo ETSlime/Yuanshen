@@ -6,8 +6,9 @@
 //=============================================================================
 #pragma once
 #include "ShaderReloader.h"
-#include "ShaderLoader.h"
 #include "SingletonBase.h"
+#include "SimpleArray.h"
+#include "ShaderLoader.h"
 
 //*****************************************************************************
 // マクロ定義
@@ -41,28 +42,6 @@ struct ShadowShaderSourcePathSet
     VertexLayoutID layoutID = VertexLayoutID::Static;
 };
 
-struct ComputeShaderSetKey
-{
-    ShaderSetID id;
-    ComputePassType pass;
-};
-
-struct ShaderSetKeyHash 
-{
-    size_t operator()(const ComputeShaderSetKey& k) const
-    {
-        return (static_cast<size_t>(k.id) << 8) ^ static_cast<size_t>(k.pass);
-    }
-};
-
-struct EqualShaderSetKey
-{
-    bool operator()(const ComputeShaderSetKey& a, const ComputeShaderSetKey& b) const
-    {
-        return a.id == b.id && a.pass == b.pass;
-    }
-};
-
 // 前方宣言
 enum class EffectType;
 
@@ -73,13 +52,11 @@ public:
 
     void Init(ID3D11Device* device);
 
-    // シェーダーのソースファイルに変更があればリロードする
-    void ReloadAllIfChanged(ID3D11Device* device);
-
     const ShaderSet& GetShaderSet(ShaderSetID id) const;
     const ShaderSet& GetShaderSet(ParticleShaderGroup group) const;
     const ShadowShaderSet& GetShadowShaderSet(ShaderSetID id) const;
     const ComputeShaderSet& GetComputeShader(ShaderSetID id, ComputePassType pass) const;
+    const ComputeShaderSet& GetComputeShader(ParticleComputeGroup group, ComputePassType pass) const;
     ID3D11InputLayout* GetInputLayout(VertexLayoutID id) const;
     void SetSharedShadowPixelShader(ID3D11PixelShader* sharedPS);
 
@@ -87,6 +64,10 @@ public:
     bool HasShaderSet(ShaderSetID id) const;
     bool HasShaderSet(ParticleShaderGroup group) const;
     bool HasComputerShader(ShaderSetID id, ComputePassType pass) const;
+    bool HasComputerShader(ParticleComputeGroup group, ComputePassType pass) const;
+
+    // 毎フレーム呼び出し、変更されたシェーダーを検出してリロードキューに追加する
+    void CollectAndReloadShaders(ID3D11Device* device);
 
 private:
     
@@ -95,6 +76,7 @@ private:
     HashMap<uint64_t, ShaderSet, HashUInt64, EqualUInt64> m_particleShaderSets;
     HashMap<uint64_t, ShadowShaderSet, HashUInt64, EqualUInt64> m_shadowShaderSets;
     HashMap<ComputeShaderSetKey, ComputeShaderSet, ShaderSetKeyHash, EqualShaderSetKey> m_computeShaders;
+    HashMap<ComputeShaderSetKey, ComputeShaderSet, ShaderSetKeyHash, EqualShaderSetKey> m_particleComputeShaders;
 
     // シェーダーのソースファイルのパスを保持する
     HashMap<uint64_t, ShaderSourcePathSet, HashUInt64, EqualUInt64> m_shaderSourcePaths;
@@ -104,11 +86,15 @@ private:
     // InputLayoutを保持する
     HashMap<uint64_t, ID3D11InputLayout*, HashUInt64, EqualUInt64>m_inputLayouts;
 
+    SimpleArray<ShaderReloadEntry> m_shaderReloadEntries;
+
     ID3D11PixelShader* m_sharedShadowPS = nullptr;
     ShaderReloader m_reloader;
 
     void RegisterShaderSourcePaths(void);
-
+    void RegisterShaderReloadEntry(const char* path, const char* entry, const char* target, void** out, 
+        ShaderCreateFunc func, ShaderGroup shaderGroup, uint64_t shaderSetID, ShaderType shaderType, ComputePassType pass);
+    void SyncReloadedShaderToShaderSet(const ShaderReloadEntry& entry);
     void LoadAllShaders(ID3D11Device* device);
 
     void LoadSingleShaderSet(ID3D11Device* device, ShaderSetID id,
@@ -142,6 +128,9 @@ private:
         bool useReflection = true);
     
     void RegisterComputeShaderSource(ShaderSetID id, ComputePassType pass, 
+        const char* path, const char* entry);
+
+    void RegisterComputeShaderSource(ParticleComputeGroup group, ComputePassType pass,
         const char* path, const char* entry);
 
     void CreateInputLayouts(ID3D11Device* device);

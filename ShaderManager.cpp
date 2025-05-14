@@ -72,14 +72,14 @@ void ShaderManager::RegisterShaderSourcePaths(void)
         "Shaders/FireEffect.hlsl", "VS",
         "Shaders/FireEffect.hlsl", "PS",
         "Shaders/FireEffect.hlsl", "GS", false);
-    RegisterShaderSource(ParticleShaderGroup::BillboardFlipbook, VertexLayoutID::SmokeEffect,
-        "Shaders/SmokeEffect.hlsl", "VS",
-        "Shaders/SmokeEffect.hlsl", "PS",
-        "Shaders/SmokeEffect.hlsl", "GS", false);
-    RegisterShaderSource(ParticleShaderGroup::BillboardSimple, VertexLayoutID::FireBallEffect,
-        "Shaders/FireBallEffect.hlsl", "VS",
-        "Shaders/FireBallEffect.hlsl", "PS",
-        "Shaders/FireBallEffect.hlsl", "GS", false);
+    RegisterShaderSource(ParticleShaderGroup::BillboardFlipbook, VertexLayoutID::ParticleFlipbook,
+        "Shaders/ParticleBillboardFlipbook.hlsl", "VS",
+        "Shaders/ParticleBillboardFlipbook.hlsl", "PS",
+        "Shaders/ParticleBillboardFlipbook.hlsl", "GS", false);
+    RegisterShaderSource(ParticleShaderGroup::BillboardSimple, VertexLayoutID::ParticleSimple,
+        "Shaders/ParticleBillboardSimple.hlsl", "VS",
+        "Shaders/ParticleBillboardSimple.hlsl", "PS",
+        "Shaders/ParticleBillboardSimple.hlsl", "GS", false);
     RegisterShaderSource(ShaderSetID::UI, VertexLayoutID::UI,
         "Shaders/UI.hlsl", "VS",
         "Shaders/UI.hlsl", "PS");
@@ -98,10 +98,91 @@ void ShaderManager::RegisterShaderSourcePaths(void)
         nullptr, nullptr, false);
 
     //RegisterComputeShaderSource(ShaderSetID::FireEffect, "Shaders/FireEffect.hlsl", "CS");
-    RegisterComputeShaderSource(ShaderSetID::SmokeEffect, ComputePassType::Update,
-        "Shaders/SmokeEffect.hlsl", "UpdateCS");
-    RegisterComputeShaderSource(ShaderSetID::SmokeEffect, ComputePassType::Emit,
-        "Shaders/SmokeEffect.hlsl", "EmitCS");
+    RegisterComputeShaderSource(ParticleComputeGroup::BasicBillboard, ComputePassType::Update,
+        "Shaders/ParticleBillboardSimple.hlsl", "UpdateCS");
+    RegisterComputeShaderSource(ParticleComputeGroup::BasicBillboard, ComputePassType::Emit,
+        "Shaders/ParticleBillboardSimple.hlsl", "EmitCS");
+    RegisterComputeShaderSource(ParticleComputeGroup::FlipbookAnimated, ComputePassType::Update,
+        "Shaders/ParticleBillboardFlipbook.hlsl", "UpdateCS");
+    RegisterComputeShaderSource(ParticleComputeGroup::FlipbookAnimated, ComputePassType::Emit,
+        "Shaders/ParticleBillboardFlipbook.hlsl", "EmitCS");
+}
+
+void ShaderManager::RegisterShaderReloadEntry(const char* path, const char* entry, const char* target, void** outputShaderPtr, 
+    ShaderCreateFunc createFunc, ShaderGroup shaderGroup, uint64_t shaderSetID, ShaderType shaderType, ComputePassType pass)
+{
+    ShaderReloadEntry entryInfo;
+    entryInfo.path = path;
+    entryInfo.entry = entry;
+    entryInfo.target = target;
+    entryInfo.outputShaderPtr = outputShaderPtr;
+    entryInfo.createShaderFunc = createFunc;
+    entryInfo.shaderGroup = shaderGroup;
+    entryInfo.shaderSetID = shaderSetID;
+    entryInfo.shaderType = shaderType;
+    entryInfo.computePass = pass;
+
+    m_shaderReloadEntries.push_back(entryInfo);
+
+    // ファイルを監視リストに追加
+    m_reloader.WatchFile(path);
+}
+
+void ShaderManager::SyncReloadedShaderToShaderSet(const ShaderReloadEntry& entry)
+{
+    switch (entry.shaderGroup)
+    {
+    case ShaderGroup::Default:
+        switch (entry.shaderType)
+        {
+        case ShaderType::VS:
+            m_shaderSets[TO_UINT64(entry.shaderSetID)].vs = *(ID3D11VertexShader**)entry.outputShaderPtr;
+            break;
+        case ShaderType::PS:
+            m_shaderSets[TO_UINT64(entry.shaderSetID)].ps = *(ID3D11PixelShader**)entry.outputShaderPtr;
+            break;
+        case ShaderType::GS:
+            m_shaderSets[TO_UINT64(entry.shaderSetID)].gs = *(ID3D11GeometryShader**)entry.outputShaderPtr;
+            break;
+        }
+        break;
+
+    case ShaderGroup::Particle:
+        switch (entry.shaderType)
+        {
+        case ShaderType::VS:
+            m_particleShaderSets[TO_UINT64(entry.shaderSetID)].vs = *(ID3D11VertexShader**)entry.outputShaderPtr;
+            break;
+        case ShaderType::PS:
+            m_particleShaderSets[TO_UINT64(entry.shaderSetID)].ps = *(ID3D11PixelShader**)entry.outputShaderPtr;
+            break;
+        case ShaderType::GS:
+            m_particleShaderSets[TO_UINT64(entry.shaderSetID)].gs = *(ID3D11GeometryShader**)entry.outputShaderPtr;
+        }
+        break;
+
+    case ShaderGroup::Shadow:
+        switch (entry.shaderType)
+        {
+        case ShaderType::VS:
+            m_shadowShaderSets[TO_UINT64(entry.shaderSetID)].vs = *(ID3D11VertexShader**)entry.outputShaderPtr;
+            break;
+        case ShaderType::PS:
+            m_shadowShaderSets[TO_UINT64(entry.shaderSetID)].ps = *(ID3D11PixelShader**)entry.outputShaderPtr;
+            break;
+        case ShaderType::PS_ALPHA:
+            m_shadowShaderSets[TO_UINT64(entry.shaderSetID)].alphaPs = *(ID3D11PixelShader**)entry.outputShaderPtr;
+        }
+        break;
+
+    case ShaderGroup::Compute:
+        m_computeShaders[ComputeShaderSetKey({ entry.shaderSetID, entry.computePass })].cs = *(ID3D11ComputeShader**)entry.outputShaderPtr;
+        break;
+
+    case ShaderGroup::ParticleCompute:
+        m_particleComputeShaders[ComputeShaderSetKey({ entry.shaderSetID, entry.computePass })].cs = *(ID3D11ComputeShader**)entry.outputShaderPtr;
+        break;
+    }
 }
 
 
@@ -150,6 +231,13 @@ void ShaderManager::LoadAllShaders(ID3D11Device* device)
 
         set.layoutID = it.value.layoutID;
         m_shaderSets[TO_UINT64(id)] = set;
+
+#ifdef _DEBUG
+        REGISTER_SHADER_RELOAD_ENTRY((*this), ShaderGroup::Default, id, ShaderType::VS, ComputePassType::None, Vertex, info.vsPath, info.vsEntry, SHADER_MODEL_VS, &m_shaderSets[TO_UINT64(id)].vs);
+        REGISTER_SHADER_RELOAD_ENTRY((*this), ShaderGroup::Default, id, ShaderType::PS, ComputePassType::None, Pixel, info.psPath, info.psEntry, SHADER_MODEL_PS, &m_shaderSets[TO_UINT64(id)].ps);
+        REGISTER_SHADER_RELOAD_ENTRY((*this), ShaderGroup::Default, id, ShaderType::GS, ComputePassType::None, Geometry, info.gsPath, info.gsEntry, SHADER_MODEL_GS, &m_shaderSets[TO_UINT64(id)].gs);
+#endif // DEBUG
+
     }
 
     // シャドウマップ用シェーダーを全て読み込む
@@ -179,21 +267,37 @@ void ShaderManager::LoadAllShaders(ID3D11Device* device)
         }
 
         m_shadowShaderSets[TO_UINT64(id)] = shadowSet;
+
+#ifdef _DEBUG
+        REGISTER_SHADER_RELOAD_ENTRY((*this), ShaderGroup::Shadow, id, ShaderType::VS, ComputePassType::None, Vertex, info.vsPath, info.vsEntry, SHADER_MODEL_VS, &m_shadowShaderSets[TO_UINT64(id)].vs);
+        REGISTER_SHADER_RELOAD_ENTRY((*this), ShaderGroup::Shadow, id, ShaderType::PS, ComputePassType::None, Pixel, info.psPath, info.psEntry, SHADER_MODEL_PS, &m_shadowShaderSets[TO_UINT64(id)].ps);
+        REGISTER_SHADER_RELOAD_ENTRY((*this), ShaderGroup::Shadow, id, ShaderType::PS_ALPHA, ComputePassType::None, Pixel, info.psAlphaPath, info.psAlphaEntry, SHADER_MODEL_PS, &m_shadowShaderSets[TO_UINT64(id)].alphaPs);
+#endif // DEBUG
+
     }
 
     for (auto& it : m_computeShaders)
     {
-        const ComputeShaderSet& info = it.value;
+        ComputeShaderSet& shaderSet = it.value;
 
-        if (info.path && info.entry)
-        {
-            ID3DBlob* blob = nullptr;
-            if (ShaderLoader::CompileShaderFromFile(info.path, info.entry, SHADER_MODEL_CS, &blob))
-            {
-                device->CreateComputeShader(blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, &it.value.cs);
-                blob->Release();
-            }
-        }
+        ShaderLoader::LoadComputerShaderSet(device, shaderSet);
+
+#ifdef _DEBUG
+        REGISTER_SHADER_RELOAD_ENTRY((*this), ShaderGroup::Compute, it.value.shaderSetID, ShaderType::GS, it.value.pass, Compute, shaderSet.path, shaderSet.entry, SHADER_MODEL_CS, &shaderSet.cs);
+#endif // DEBUG
+
+    }
+
+    for (auto& it : m_particleComputeShaders)
+    {
+        ComputeShaderSet& shaderSet = it.value;
+
+        ShaderLoader::LoadComputerShaderSet(device, shaderSet);
+
+#ifdef _DEBUG
+        REGISTER_SHADER_RELOAD_ENTRY((*this), ShaderGroup::ParticleCompute, it.value.shaderSetID, ShaderType::GS, it.value.pass, Compute, shaderSet.path, shaderSet.entry, SHADER_MODEL_CS, &shaderSet.cs);
+#endif // DEBUG
+
     }
 
 
@@ -227,6 +331,13 @@ void ShaderManager::LoadAllShaders(ID3D11Device* device)
 
         set.layoutID = it.value.layoutID;
         m_particleShaderSets[TO_UINT64(group)] = set;
+
+#ifdef _DEBUG
+        REGISTER_SHADER_RELOAD_ENTRY((*this), ShaderGroup::Particle, group, ShaderType::VS, ComputePassType::None, Vertex, info.vsPath, info.vsEntry, SHADER_MODEL_VS, &m_particleShaderSets[TO_UINT64(group)].vs);
+        REGISTER_SHADER_RELOAD_ENTRY((*this), ShaderGroup::Particle, group, ShaderType::PS, ComputePassType::None, Pixel, info.psPath, info.psEntry, SHADER_MODEL_PS, &m_particleShaderSets[TO_UINT64(group)].ps);
+        REGISTER_SHADER_RELOAD_ENTRY((*this), ShaderGroup::Particle, group, ShaderType::GS, ComputePassType::None, Geometry, info.gsPath, info.gsEntry, SHADER_MODEL_GS, &m_particleShaderSets[TO_UINT64(group)].gs);
+#endif // DEBUG
+
     }
 }
 
@@ -249,8 +360,11 @@ void ShaderManager::LoadSingleShaderSet(ID3D11Device* device, ShaderSetID id,
     }
     m_shaderSets[TO_UINT64(id)] = set;
 
-    m_reloader.WatchFile(vsPath);
-    m_reloader.WatchFile(psPath);
+#ifdef _DEBUG
+    REGISTER_SHADER_RELOAD_ENTRY((*this), ShaderGroup::Default, id, ShaderType::VS, ComputePassType::None, Vertex, vsPath, vsEntry, SHADER_MODEL_VS, &set.vs);
+    REGISTER_SHADER_RELOAD_ENTRY((*this), ShaderGroup::Default, id, ShaderType::PS, ComputePassType::None, Pixel, psPath, psEntry, SHADER_MODEL_PS, &set.ps);
+    REGISTER_SHADER_RELOAD_ENTRY((*this), ShaderGroup::Default, id, ShaderType::GS, ComputePassType::None, Geometry, gsPath, gsEntry, SHADER_MODEL_GS, &set.gs);
+#endif // DEBUG
 }
 
 void ShaderManager::LoadShadowShaderSet(ID3D11Device* device, ShaderSetID id,
@@ -273,66 +387,11 @@ void ShaderManager::LoadShadowShaderSet(ID3D11Device* device, ShaderSetID id,
 
     m_shadowShaderSets[TO_UINT64(id)] = set;
 
-    m_reloader.WatchFile(vsPath);
-    m_reloader.WatchFile(psPath);
-    m_reloader.WatchFile(psAlphaPath);
-}
-
-void ShaderManager::ReloadAllIfChanged(ID3D11Device* device)
-{
-    // 通常シェーダーのリロード
-    for (const auto& it : m_shaderSourcePaths)
-    {
-        if (m_reloader.HasFileChanged(it.value.vsPath) || m_reloader.HasFileChanged(it.value.psPath))
-        {
-            ShaderSet set;
-            if (it.value.useReflection)
-            {
-                ShaderLoader::LoadShaderSet(device,
-                    it.value.vsPath, it.value.vsEntry,
-                    it.value.psPath, it.value.psEntry,
-                    it.value.gsPath, it.value.gsEntry,
-                    nullptr, 0, set);
-            }
-            else
-            {
-                ShaderLoader::LoadShaderSetWithoutLayoutCreation(device,
-                    it.value.vsPath, it.value.vsEntry,
-                    it.value.psPath, it.value.psEntry,
-                    it.value.gsPath, it.value.gsEntry,
-                    set);
-                set.inputLayout = m_inputLayouts[it.key];
-            }
-
-            m_shaderSets[it.key] = set;
-        }
-    }
-
-    // シャドウシェーダーのリロード
-    for (const auto& it : m_shadowShaderSourcePaths)
-    {
-        if (m_reloader.HasFileChanged(it.value.vsPath) ||
-            m_reloader.HasFileChanged(it.value.psPath) ||
-            m_reloader.HasFileChanged(it.value.psAlphaPath))
-        {
-            ShadowShaderSet set;
-            if (it.value.useReflection)
-            {
-                ShaderLoader::LoadShadowShaderSet(device,
-                    it.value.vsPath, it.value.psPath, it.value.psAlphaPath,
-                    it.value.vsEntry, it.value.psEntry, it.value.psAlphaEntry,
-                    nullptr, 0, set);
-            }
-            else
-            {
-                ShaderLoader::LoadShadowShaderSetWithoutLayoutCreation(device,
-                    it.value.vsPath, it.value.psPath, it.value.psAlphaPath,
-                    it.value.vsEntry, it.value.psEntry, it.value.psAlphaEntry,
-                    set);
-            }
-            m_shadowShaderSets[it.key] = set;
-        }
-    }
+#ifdef _DEBUG
+    REGISTER_SHADER_RELOAD_ENTRY((*this), ShaderGroup::Shadow, id, ShaderType::VS, ComputePassType::None, Vertex, vsPath, vsEntry, SHADER_MODEL_VS, &set.vs);
+    REGISTER_SHADER_RELOAD_ENTRY((*this), ShaderGroup::Shadow, id, ShaderType::PS, ComputePassType::None, Pixel, psPath, psEntry, SHADER_MODEL_PS, &set.ps);
+    REGISTER_SHADER_RELOAD_ENTRY((*this), ShaderGroup::Shadow, id, ShaderType::PS_ALPHA, ComputePassType::None, Pixel, psAlphaPath, psAlphaPath, SHADER_MODEL_PS, &set.alphaPs);
+#endif // DEBUG
 }
 
 void ShaderManager::RegisterShaderSource(ShaderSetID id, VertexLayoutID layoutID, 
@@ -366,8 +425,14 @@ void ShaderManager::RegisterShadowShaderSource(ShaderSetID id, VertexLayoutID la
 
 void ShaderManager::RegisterComputeShaderSource(ShaderSetID id, ComputePassType pass, const char* path, const char* entry)
 {
-    ComputeShaderSetKey key{ id, pass };
-    m_computeShaders[key] = ComputeShaderSet{ nullptr, path, entry };
+    ComputeShaderSetKey key{ TO_UINT64(id), pass };
+    m_computeShaders[key] = ComputeShaderSet{ nullptr, path, entry, pass, TO_UINT64(id) };
+}
+
+void ShaderManager::RegisterComputeShaderSource(ParticleComputeGroup group, ComputePassType pass, const char* path, const char* entry)
+{
+    ComputeShaderSetKey key{ TO_UINT64(group), pass };
+    m_particleComputeShaders[key] = ComputeShaderSet{ nullptr, path, entry, pass, TO_UINT64(group) };
 }
 
 
@@ -393,8 +458,228 @@ bool ShaderManager::HasShaderSet(ParticleShaderGroup group) const
 
 bool ShaderManager::HasComputerShader(ShaderSetID id, ComputePassType pass) const
 {
-    ComputeShaderSetKey key{ id, pass };
+    ComputeShaderSetKey key{ TO_UINT64(id), pass };
     return m_computeShaders.find(key) != m_computeShaders.end();
+}
+
+bool ShaderManager::HasComputerShader(ParticleComputeGroup group, ComputePassType pass) const
+{
+    ComputeShaderSetKey key{ TO_UINT64(group), pass };
+    return m_particleComputeShaders.find(key) != m_particleComputeShaders.end();
+}
+
+// シェーダーのソースファイルに変更があればリロードする
+void ShaderManager::CollectAndReloadShaders(ID3D11Device* device)
+{
+    HashMap<const char*, bool, CharPtrHash, CharPtrEquals> changedPaths;
+
+    // 最初に、各ファイルの変更を一度だけ確認、結果をキャッシュする
+    for (const auto& reloadEntry : m_shaderReloadEntries)
+    {
+        const char* path = reloadEntry.path;
+
+        // このフレームでまだこの path をチェックしていなければ
+        if (changedPaths.count(path) == 0 && m_reloader.HasFileChanged(path))
+        {
+            // 変更があった path を記録しておく
+            // 同じ path を使う PS/VS/GS すべてにこの結果が使える！
+            // これにより、VS で更新済みの timestamp によって PS がスキップされるバグを防ぐ
+            changedPaths[path] = true;
+        }
+    }
+
+    // 次に、blobレベルの変更を判断
+    for (const auto& reloadEntry : m_shaderReloadEntries)
+    {
+        // ファイル自体に変更なし → スキップ
+        if (changedPaths.count(reloadEntry.path) == 0)
+            continue;
+
+        const char* path = reloadEntry.path;
+        const char* entry = reloadEntry.entry;
+        const char* target = reloadEntry.target;
+
+        ID3DBlob* blob = nullptr;
+        if (!ShaderLoader::CompileShaderFromFile(path, entry, target, &blob))
+            continue;
+
+        if (m_reloader.HasShaderContentChanged(path, entry, blob->GetBufferPointer(), blob->GetBufferSize()))
+        {
+            void* newShader = nullptr;
+            if (reloadEntry.createShaderFunc(device, blob->GetBufferPointer(), blob->GetBufferSize(), &newShader) == S_OK)
+            {
+                // 共通ポインタ操作：ID3D11DeviceChild として release
+                SafeRelease((ID3D11DeviceChild**)reloadEntry.outputShaderPtr);
+                *(ID3D11DeviceChild**)reloadEntry.outputShaderPtr = static_cast<ID3D11DeviceChild*>(newShader);
+            }
+
+            SyncReloadedShaderToShaderSet(reloadEntry);
+        }
+        blob->Release();
+    }
+
+//    m_reloader.AdvanceFrame();
+//
+//    // 通常のシェーダー（VS/PS/GS）
+//    for (const auto& it : m_shaderSourcePaths)
+//    {
+//        if (m_reloader.HasFileChanged(it.value.vsPath) ||
+//            m_reloader.HasFileChanged(it.value.psPath) ||
+//            m_reloader.HasFileChanged(it.value.gsPath))
+//        {
+//            m_shaderReloadQueue.push_back({ ShaderType::Main, it.key });
+//        }
+//    }
+//
+//    // シャドウ用のシェーダー
+//    for (const auto& it : m_shadowShaderSourcePaths)
+//    {
+//        if (m_reloader.HasFileChanged(it.value.vsPath) ||
+//            m_reloader.HasFileChanged(it.value.psPath) ||
+//            m_reloader.HasFileChanged(it.value.psAlphaPath))
+//        {
+//            m_shaderReloadQueue.push_back({ ShaderType::Shadow, it.key });
+//        }
+//    }
+//
+//    // ComputeShader（エフェクト以外）
+//    for (const auto& it : m_computeShaders)
+//    {
+//        if (m_reloader.HasFileChanged(it.value.path))
+//        {
+//            m_shaderReloadQueue.push_back({ ShaderType::Compute, 0, it.key });
+//        }
+//    }
+//
+//    // パーティクル用の ComputeShader
+//    for (const auto& it : m_particleComputeShaders)
+//    {
+//        if (m_reloader.HasFileChanged(it.value.path))
+//        {
+//            m_shaderReloadQueue.push_back({ ShaderType::ParticleCompute, 0, it.key });
+//        }
+//    }
+//
+//    // パーティクル描画用の Vertex / Geometry / Pixel シェーダー
+//    for (const auto& it : m_particleShaderSourcePaths)
+//    {
+//        if (m_reloader.HasFileChanged(it.value.vsPath) ||
+//            m_reloader.HasFileChanged(it.value.psPath) ||
+//            m_reloader.HasFileChanged(it.value.gsPath))
+//        {
+//            m_shaderReloadQueue.push_back({ ShaderType::Particle, it.key });
+//        }
+//    }
+//}
+//
+//void ShaderManager::ApplyShaderHotReload(ID3D11Device* device)
+//{
+//    for (const auto& task : m_shaderReloadQueue)
+//    {
+//        switch (task.type)
+//        {
+//        case ShaderType::Main:
+//        {
+//            // 通常シェーダー（VS / PS / GS）の再読み込み
+//            const auto& info = m_shaderSourcePaths[task.key];
+//            ShaderSet set;
+//
+//            if (info.useReflection)
+//            {
+//                ShaderLoader::LoadShaderSet(device, info.vsPath, info.vsEntry,
+//                    info.psPath, info.psEntry, info.gsPath, info.gsEntry, nullptr, 0, set);
+//            }
+//            else
+//            {
+//                ShaderLoader::LoadShaderSetWithoutLayoutCreation(device,
+//                    info.vsPath, info.vsEntry, info.psPath, info.psEntry, info.gsPath, info.gsEntry, set);
+//                set.inputLayout = m_inputLayouts[task.key];
+//            }
+//
+//            set.layoutID = info.layoutID;
+//            m_shaderSets[task.key] = set;
+//        }
+//        break;
+//
+//        case ShaderType::Shadow:
+//        {
+//            // シャドウ専用シェーダーの再読み込み
+//            const auto& info = m_shadowShaderSourcePaths[task.key];
+//            ShadowShaderSet set;
+//
+//            if (info.useReflection)
+//            {
+//                ShaderLoader::LoadShadowShaderSet(device,
+//                    info.vsPath, info.psPath, info.psAlphaPath,
+//                    info.vsEntry, info.psEntry, info.psAlphaEntry,
+//                    nullptr, 0, set);
+//            }
+//            else
+//            {
+//                ShaderLoader::LoadShadowShaderSetWithoutLayoutCreation(device,
+//                    info.vsPath, info.psPath, info.psAlphaPath,
+//                    info.vsEntry, info.psEntry, info.psAlphaEntry, set);
+//            }
+//
+//            m_shadowShaderSets[task.key] = set;
+//        }
+//        break;
+//
+//        case ShaderType::Compute:
+//        {
+//            // 通常 ComputeShader の再読み込み
+//            auto it = m_computeShaders.find(task.csKey);
+//            if (it != m_computeShaders.end())
+//            {
+//                ShaderLoader::LoadComputerShaderSet(device, it->value);
+//            }
+//        }
+//        break;
+//
+//        case ShaderType::ParticleCompute:
+//        {
+//            // パーティクルエフェクト用 ComputeShader の再読み込み
+//            auto it = m_particleComputeShaders.find(task.csKey);
+//            if (it != m_particleComputeShaders.end())
+//            {
+//                ShaderLoader::LoadComputerShaderSet(device, it->value);
+//            }
+//        }
+//        break;
+//
+//        case ShaderType::Particle:
+//        {
+//            // パーティクル描画用の VS/GS/PS シェーダーの再読み込み
+//            const auto& info = m_particleShaderSourcePaths[task.key];
+//            ShaderSet set;
+//
+//            if (info.useReflection)
+//            {
+//                ShaderLoader::LoadShaderSet(device,
+//                    info.vsPath, info.vsEntry,
+//                    info.psPath, info.psEntry,
+//                    info.gsPath, info.gsEntry,
+//                    nullptr, 0, set);
+//            }
+//            else
+//            {
+//                ShaderLoader::LoadShaderSetWithoutLayoutCreation(device,
+//                    info.vsPath, info.vsEntry,
+//                    info.psPath, info.psEntry,
+//                    info.gsPath, info.gsEntry,
+//                    set);
+//                set.inputLayout = m_inputLayouts[task.key];
+//            }
+//
+//            set.layoutID = info.layoutID;
+//            m_particleShaderSets[task.key] = set;
+//        }
+//        break;
+//        }
+//    }
+//
+//    // 処理済みのタスクをクリア
+//    m_shaderReloadQueue.clear();
 }
 
 const ShaderSet& ShaderManager::GetShaderSet(ShaderSetID id) const
@@ -414,8 +699,14 @@ const ShadowShaderSet& ShaderManager::GetShadowShaderSet(ShaderSetID id) const
 
 const ComputeShaderSet& ShaderManager::GetComputeShader(ShaderSetID id, ComputePassType pass) const
 {
-    ComputeShaderSetKey key{ id, pass };
+    ComputeShaderSetKey key{ TO_UINT64(id), pass };
     return m_computeShaders.at(key);
+}
+
+const ComputeShaderSet& ShaderManager::GetComputeShader(ParticleComputeGroup group, ComputePassType pass) const
+{
+    ComputeShaderSetKey key{ TO_UINT64(group), pass };
+    return m_particleComputeShaders.at(key);
 }
 
 ID3D11InputLayout* ShaderManager::GetInputLayout(VertexLayoutID id) const

@@ -111,7 +111,15 @@ bool ShaderLoader::LoadShadowShaderSetWithoutLayoutCreation(ID3D11Device* device
     return true;
 }
 
-bool ShaderLoader::CompileShaderFromFile(const char* fileName, const char* entryPoint, const char* target, ID3DBlob** blobOut)
+bool ShaderLoader::LoadComputerShaderSet(ID3D11Device* device, ComputeShaderSet& outShaderSet)
+{
+    if (outShaderSet.path && !CompileAndCreateComputeShader(device, outShaderSet.path, outShaderSet.entry, &outShaderSet.cs))
+        return false;
+
+    return true;
+}
+
+bool ShaderLoader::CompileShaderFromFileLegacy(const char* fileName, const char* entryPoint, const char* target, ID3DBlob** blobOut)
 {
     DWORD shaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
 #if defined( _DEBUG )
@@ -141,6 +149,56 @@ bool ShaderLoader::CompileShaderFromFile(const char* fileName, const char* entry
     }
 
     return true;
+}
+
+bool ShaderLoader::CompileShaderFromFile(const char* fileName, const char* entryPoint, const char* target, ID3DBlob** blobOut, ID3DBlob** errorBlob)
+{
+    // ファイルをバイナリで開く
+    FILE* file = nullptr;
+    if (fopen_s(&file, fileName, "rb") != 0 || file == nullptr)
+        return false;
+
+    // ファイルサイズを取得
+    fseek(file, 0, SEEK_END);
+    long size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    if (size <= 0)
+    {
+        fclose(file);
+        return false;
+    }
+
+    // メモリ確保
+    char* buffer = new char[size];
+    if (fread(buffer, 1, size, file) != size)
+    {
+        delete[] buffer;
+        fclose(file);
+        return false;
+    }
+
+    fclose(file);
+
+    // フラグ設定（デバッグ時は最適化オフ）
+    UINT flags = D3DCOMPILE_ENABLE_STRICTNESS;
+#ifdef _DEBUG
+    flags |= D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+
+    // D3DCompile を使用してシェーダーをコンパイル
+    HRESULT hr = D3DCompile(
+        buffer, size,
+        fileName,                           // ソース名（警告/エラー表示用）
+        nullptr,                            // defines
+        nullptr,
+        entryPoint, target,
+        flags, 0,
+        blobOut, errorBlob
+    );
+
+    delete[] buffer;
+    return SUCCEEDED(hr);
 }
 
 bool ShaderLoader::LoadEmptyPixelShader(ID3D11Device* device, ID3D11PixelShader** outPixelShader, const char* fileName, const char* entryPoint)
@@ -260,8 +318,22 @@ bool ShaderLoader::CompileAndCreateVertexShader(
     if (!CompileShaderFromFile(path, entry, SHADER_MODEL_VS, outVSBlob))
         return false;
 
-    HRESULT hr = device->CreateVertexShader((*outVSBlob)->GetBufferPointer(), (*outVSBlob)->GetBufferSize(), nullptr, outVS);
-    return SUCCEEDED(hr);
+    ID3D11VertexShader* newVS = nullptr;
+    HRESULT hr = device->CreateVertexShader(
+        (*outVSBlob)->GetBufferPointer(), 
+        (*outVSBlob)->GetBufferSize(), 
+        nullptr, 
+        &newVS);
+
+    if (SUCCEEDED(hr))
+    {
+        SafeRelease(outVS); // 古い VS を解放
+        *outVS = newVS;
+        return true;
+    }
+
+    SafeRelease(&newVS); // 作ったけど使えなかった場合も解放
+    return false;
 }
 
 bool ShaderLoader::CompileAndCreatePixelShader(
@@ -274,9 +346,24 @@ bool ShaderLoader::CompileAndCreatePixelShader(
     if (!CompileShaderFromFile(path, entry, SHADER_MODEL_PS, &psBlob))
         return false;
 
-    HRESULT hr = device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, outPS);
+    ID3D11PixelShader* newPS = nullptr;
+    HRESULT hr = device->CreatePixelShader(
+        psBlob->GetBufferPointer(), 
+        psBlob->GetBufferSize(), 
+        nullptr, 
+        &newPS);
+
     psBlob->Release();
-    return SUCCEEDED(hr);
+
+    if (SUCCEEDED(hr))
+    {
+        SafeRelease(outPS); // 古い PS を解放
+        *outPS = newPS;
+        return true;
+    }
+
+    SafeRelease(&newPS);
+    return false;
 }
 
 bool ShaderLoader::CompileAndCreateGeometryShader(
@@ -291,14 +378,55 @@ bool ShaderLoader::CompileAndCreateGeometryShader(
     if (!CompileShaderFromFile(path, entry, SHADER_MODEL_GS, &gsBlob))
         return false;
 
+    ID3D11GeometryShader* newGS = nullptr;
     HRESULT hr = device->CreateGeometryShader(
         gsBlob->GetBufferPointer(),
         gsBlob->GetBufferSize(),
         nullptr,
-        outGS
-    );
+        &newGS);
 
     gsBlob->Release();
 
-    return SUCCEEDED(hr);
+    if (SUCCEEDED(hr))
+    {
+        SafeRelease(outGS); // 古い GS を解放
+        *outGS = newGS;
+        return true;
+    }
+
+    SafeRelease(&newGS);
+    return false;
+}
+
+bool ShaderLoader::CompileAndCreateComputeShader(
+    ID3D11Device* device, 
+    const char* path, 
+    const char* entry, 
+    ID3D11ComputeShader** outCS)
+{
+    ID3DBlob* blob = nullptr;
+
+    // .hlsl から CS をコンパイル
+    if (!CompileShaderFromFile(path, entry, SHADER_MODEL_CS, &blob))
+        return false;
+
+    // コンピュートシェーダーの作成
+    ID3D11ComputeShader* newCS = nullptr;
+    HRESULT hr = device->CreateComputeShader(
+        blob->GetBufferPointer(), 
+        blob->GetBufferSize(), 
+        nullptr, 
+        &newCS);
+
+    blob->Release();
+
+    if (SUCCEEDED(hr))
+    {
+        SafeRelease(outCS);
+        *outCS = newCS;
+        return true;
+    }
+
+    SafeRelease(&newCS);
+    return false;
 }

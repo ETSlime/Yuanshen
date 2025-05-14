@@ -254,6 +254,9 @@
     <ClInclude Include="FireBallEffectRenderer.h">
       <Filter>Effects</Filter>
     </ClInclude>
+    <ClInclude Include="ParticleStructs.h">
+      <Filter>Effects</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">

@@ -6,6 +6,7 @@
 //=============================================================================
 #include "EffectSystem.h"
 #include "SmokeEffectRenderer.h"
+#include "FireBallEffectRenderer.h"
 #include "FireEffectRenderer.h"
 
 void EffectSystem::Initialize(ID3D11Device* device, ID3D11DeviceContext* context)
@@ -40,66 +41,69 @@ void EffectSystem::Update(void)
 void EffectSystem::Draw(const XMMATRIX& viewProj)
 {
 	// 毎フレーム頭で分類クリア
-	m_fireEffects.clear();
-	m_smokeEffects.clear();
+	m_billboardSimpleEffects.clear();
+	m_billboardFlipbookEffects.clear();
 	m_softBodyEffects.clear();
 
 	// 分類処理
 	for (auto effect : m_allEffects)
 	{
-		switch (effect->GetEffectType())
+		EffectType type = effect->GetEffectType();
+		if (IsParticleEffectType(type))
 		{
-		case EffectType::Fire:
-			m_fireEffects.push_back(effect);
-			break;
-		case EffectType::Smoke:
-			m_smokeEffects.push_back(effect);
-			break;
-		case EffectType::SoftBody:
-			m_softBodyEffects.push_back(effect);
-			break;
-		default:
-			break;
+			auto* particle = dynamic_cast<ParticleEffectRendererBase*>(effect);
+			if (particle)
+			{
+				switch (particle->GetShaderGroupForEffect(type))
+				{
+				case ParticleShaderGroup::BillboardSimple:
+					m_billboardSimpleEffects.push_back(particle);
+					break;
+				case ParticleShaderGroup::BillboardFlipbook:
+					m_billboardFlipbookEffects.push_back(particle);
+					break;
+				default:
+					break;
+				}
+			}
+		}
+		else
+		{
+			switch (effect->GetEffectType())
+			{
+			case EffectType::SoftBody:
+				m_softBodyEffects.push_back(effect);
+				break;
+			default:
+				break;
+			}
+		}
+
+	}
+
+	// BillboardSimple
+	if (!m_billboardSimpleEffects.empty())
+	{
+		ParticleEffectRendererBase::ResetPipelineState(ParticleShaderGroup::BillboardSimple);
+		for (auto* effect : m_billboardSimpleEffects)
+		{
+			effect->SetupPipeline();
+			effect->Draw(viewProj);
+		}
+	}
+
+	// BillboardFlipbook
+	if (!m_billboardFlipbookEffects.empty())
+	{
+		ParticleEffectRendererBase::ResetPipelineState(ParticleShaderGroup::BillboardFlipbook);
+		for (auto* effect : m_billboardFlipbookEffects)
+		{
+			effect->SetupPipeline();
+			effect->Draw(viewProj);
 		}
 	}
 
 	EffectType lastType = EffectType::None; // 最初のダミー値
-
-	// ファイヤーフェークト描画
-	if (!m_fireEffects.empty())
-	{
-		if (lastType != EffectType::Fire)
-		{
-			m_context->GSSetShader(nullptr, nullptr, 0);
-			FireEffectRenderer::ResetPipelineState(); // クラス単位でリセット
-		}
-
-		for (auto fire : m_fireEffects)
-		{
-			fire->SetupPipeline();
-			fire->Draw(viewProj);
-		}
-
-		lastType = EffectType::Fire;
-	}
-
-	// スモークフェークト描画
-	if (!m_smokeEffects.empty())
-	{
-		if (lastType != EffectType::Smoke)
-		{
-			m_context->GSSetShader(nullptr, nullptr, 0);
-			SmokeEffectRenderer::ResetPipelineState(); // クラス単位でリセット
-		}
-
-		for (auto smoke : m_smokeEffects)
-		{
-			smoke->SetupPipeline();
-			smoke->Draw(viewProj);
-		}
-
-		lastType = EffectType::Smoke;
-	}
 
 	// ソフトボディフェークト描画
 	if (!m_softBodyEffects.empty())
@@ -144,6 +148,9 @@ ParticleEffectRendererBase* EffectSystem::SpawnParticleEffect(ParticleEffectPara
 		break;
 	case EffectType::Smoke:
 		effect = new SmokeEffectRenderer();
+		break;
+	case EffectType::FireBall:
+		effect = new FireBallEffectRenderer();
 		break;
 	default:
 		return nullptr; // 未対応タイプ

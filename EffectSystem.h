@@ -30,6 +30,8 @@ struct ParticleEffectParams
     float spawnRateMax = 15.0f;
     XMFLOAT3 acceleration = XMFLOAT3(0.0f, 0.0f, 0.0f);
     UINT numParticles = MAX_PARTICLES;
+    XMFLOAT4 startColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+    XMFLOAT4 endColor = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 
     virtual ~ParticleEffectParams() = default; // RTTI、dynamic_cast のため
 };
@@ -53,6 +55,11 @@ public:
     void Update(void);
     void Draw(const XMMATRIX& viewProj);
 
+    inline bool IsParticleEffectType(EffectType type)
+    {
+        return (type > EffectType::Particle_Start && type < EffectType::Particle_End);
+    }
+
     // エフェクト生成
     ParticleEffectRendererBase* SpawnParticleEffect(ParticleEffectParams params);
 
@@ -64,6 +71,8 @@ public:
 private:
 
     SimpleArray<IEffectRenderer*> m_allEffects;       // 全特效リスト
+    SimpleArray<IEffectRenderer*> m_billboardSimpleEffects;
+    SimpleArray<IEffectRenderer*> m_billboardFlipbookEffects;
     SimpleArray<IEffectRenderer*> m_fireEffects;      // ファイヤー
     SimpleArray<IEffectRenderer*> m_smokeEffects;     // スモーク
     SimpleArray<IEffectRenderer*> m_softBodyEffects;  // ソフトボディ

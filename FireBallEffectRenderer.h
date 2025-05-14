@@ -11,21 +11,6 @@
 // 構造体
 //*********************************************************
 
-// 火球用のパーティクルデータ（StructuredBuffer）
-struct FireBallParticle
-{
-    XMFLOAT3 position;              // 現在位置
-    float lifeRemaining;            // 残り寿命（秒）
-    float life;
-    XMFLOAT3 velocity;              // 速度
-    float rotation;                 // 回転角（ラジアン）
-
-    float size;                     // サイズ
-    float frameIndex;               // アニメーションの現在フレーム（float、小数対応）
-    float frameSpeed;              // 1秒あたり再生速度（補間対応用
-    XMFLOAT4 color;
-};
-
 struct CBFireBall
 {
     UINT tilesX = 7;
@@ -49,7 +34,6 @@ public:
     virtual void ConfigureEffect(const ParticleEffectParams& params) override;
 
 private:
-    virtual bool CreateParticleBuffer(void) override;
     virtual void DispatchComputeShader(void) override; // パーティクル更新（Dispatch）
     virtual void DrawParticles(void) override;
 

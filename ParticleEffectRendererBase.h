@@ -31,6 +31,9 @@ struct CBParticleUpdate
 
     UINT maxParticlesCount;
     UINT particlesToEmitThisFrame;
+
+    XMFLOAT4 startColor;
+    XMFLOAT4 endColor;
 };
 
 struct CBParticleDraw
@@ -76,9 +79,10 @@ public:
     const XMFLOAT3& GetPosition() const { return m_position; }
 
     ParticleShaderGroup GetShaderGroupForEffect(EffectType type);
-    ShaderSetID GetShaderIDForEffect(EffectType type);
+    ParticleComputeGroup GetComputeGroupForEffect(EffectType type);
 
-    static void ResetPipelineState(void) { s_pipelineBound = false; }  // パイプライン状態リセット
+    // パイプライン状態リセット
+    static void ResetPipelineState(ParticleShaderGroup group) { s_pipelineBoundMap[TO_UINT64(group)] = false; }
 
 protected:
 
@@ -100,7 +104,7 @@ protected:
     // アクティブなパーティクルリストを初期化する
     void InitializeFreeList(void);
 
-    virtual bool CreateParticleBuffer(void) = 0;  // パーティクルバッファを作成する
+    bool CreateParticleBuffer(void);  // パーティクルバッファを作成する
     virtual void DispatchComputeShader(void) = 0; // コンピュートシェーダーをディスパッチする
     virtual void DrawParticles(void); // パーティクルを描画する
     void DispatchEmitParticlesCS(void); // パーティクル発生用コンピュートシェーダーをディスパッチする
@@ -123,7 +127,16 @@ protected:
     // DrawInstancedIndirect用のインスタンス数を更新
     void UpdateDrawArgsInstanceCount(void);
     // シェーダーを読み込む
-    bool LoadShaders(EffectType type);
+    bool LoadShaders(void);
+
+    // 登録型関数ポインタ
+    using CreateBufferFunc = bool (*)(ParticleEffectRendererBase*);
+    static CreateBufferFunc s_bufferFactoryTable[static_cast<UINT>(ParticleShaderGroup::Count)];
+
+    // 内部ヘルパー
+    static bool CreateBillboardSimpleBuffer(ParticleEffectRendererBase* self);
+    static bool CreateBillboardFlipbookBuffer(ParticleEffectRendererBase* self);
+    void RegisterarticleBufferFactories();
 
     ID3D11Device* m_device = nullptr;
     ID3D11DeviceContext* m_context = nullptr;
@@ -144,6 +157,7 @@ protected:
     ID3D11Buffer* m_cbParticleEffect = nullptr; // 常量バッファ
 
     ParticleShaderGroup m_shaderGroup = ParticleShaderGroup::None;
+    ParticleComputeGroup m_computeGroup = ParticleComputeGroup::None;
     ComputeShaderSet m_updateParticlesCS; // コンピュートシェーダー
     ComputeShaderSet m_emitParticlesCS; // パーティクル発生用コンピュートシェーダー
     ShaderSet m_shaderSet; // VS/GS/PSセット
@@ -157,12 +171,13 @@ protected:
     float m_spawnRateMax = 0.0f; // 最大生成レート
     XMFLOAT3 m_acceleration = { 0.0f, 0.0f, 0.0f };
     XMFLOAT3 m_position = { 0.0f, 0.0f, 0.0f };
-
+    XMFLOAT4 m_startColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+    XMFLOAT4 m_endColor = { 0.0f, 0.0f, 0.0f, 0.0f };
     float m_accumulatedEmitCount = 0.0f; // 積算発生カウンタ（小数を保持）
     UINT m_particlesToEmitThisFrame = 0; // 今フレーム発生するパーティクル数
     UINT m_countBufferSizeBytes = sizeof(UINT);
 
-    static bool s_pipelineBound;
+    static HashMap<uint64_t, bool, HashUInt64, EqualUInt64> s_pipelineBoundMap;
 
     ShaderResourceBinder& m_shaderResourceBinder = ShaderResourceBinder::get_instance();
     Renderer& m_renderer = Renderer::get_instance();

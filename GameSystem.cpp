@@ -210,6 +210,10 @@ void GameSystem::UpdateGame(void)
     m_skybox->Update(); // Skyboxの更新処理
     m_enemyManager.Update(); // エネミーの更新処理
     m_effectSystem.Update(); // エフェクトの更新処理
+
+#ifdef _DEBUG
+    m_shaderManager.CollectAndReloadShaders(m_renderer.GetDevice());
+#endif // !_ DEBUG
 }
 
 void GameSystem::UpdateResult(void)

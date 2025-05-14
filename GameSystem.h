@@ -74,7 +74,8 @@ protected:
         , m_scene(Scene::get_instance())
         , m_shadowMapRenderer(ShadowMapRenderer::get_instance())
         , m_cursorManager(CursorManager::get_instance())
-        , m_effectSystem(EffectSystem::get_instance()) {}
+        , m_effectSystem(EffectSystem::get_instance())
+        , m_shaderManager(ShaderManager::get_instance()) {}
 
     // この行が絶対に必要！！
     // SingletonBase<GameSystem> が GameSystem の protected コンストラクタにアクセスできるようにするための特別な許可
@@ -107,6 +108,7 @@ private:
     ShadowMapRenderer& m_shadowMapRenderer;
     CursorManager& m_cursorManager;
     EffectSystem& m_effectSystem;
+    ShaderManager& m_shaderManager;
 
     // モードごとの更新と描画関数
     void UpdateTitle(void);

@@ -179,6 +179,26 @@ public:
         return buckets[index]->data.value; // Return the newly inserted node's value
     }
 
+    int count(const Key& key) const
+    {
+        unsigned int index = hashFunc(key) % size;
+        Node* current = buckets[index];
+        while (current != nullptr)
+        {
+            if (equalsFunc(current->data.key, key))
+            {
+                return 1;
+            }
+            current = current->next;
+        }
+        return 0;
+    }
+
+    bool contains(const Key& key) const 
+    { 
+        return count(key) != 0; 
+    }
+
     bool remove(const Key& key)
     {
         unsigned int index = hashFunc(key) % size;
