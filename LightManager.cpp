@@ -12,7 +12,7 @@
 LightManager::LightManager()
 {
 	memset(&m_CBuffer, 0, sizeof(m_CBuffer));
-	enableLight = true;
+	m_enableLight = true;
 }
 
 //=============================================================================
@@ -21,7 +21,7 @@ LightManager::LightManager()
 void LightManager::Update(void)
 {
 	memset(&m_CBuffer, 0, sizeof(m_CBuffer));
-	m_CBuffer.Enable = enableLight;
+	m_CBuffer.Enable = m_enableLight;
 
 	int index = 0;
 	for (Light* light : m_LightList)
@@ -49,7 +49,7 @@ void LightManager::Update(void)
 		index++;
 	}
 
-	renderer.SetLightBuffer(m_CBuffer);
+	m_renderer.SetLightBuffer(m_CBuffer);
 }
 
 void LightManager::AddLight(Light* light)
@@ -65,7 +65,7 @@ void LightManager::RemoveLight(Light* light)
 
 void LightManager::SetLightEnable(BOOL flag)
 {
-	enableLight = flag;
-	m_CBuffer.Enable = enableLight;
-	renderer.SetLightBuffer(m_CBuffer);
+	m_enableLight = flag;
+	m_CBuffer.Enable = m_enableLight;
+	m_renderer.SetLightBuffer(m_CBuffer);
 }

@@ -1,12 +1,15 @@
 //=============================================================================
 //
-// CursorManager処理 [CursorManager.h]
+// カーソルの種類・表示状態・位置を制御する入力補助クラス [CursorManager.h]
 // Author : 
+// ゲーム中のカーソル表示切替、種類設定、座標記録・復元を統括し、
+// UI専用モードや一時表示など多様な操作状態に対応する
 //
 //=============================================================================
 #pragma once
 #include "main.h"
 #include "SingletonBase.h"
+#include "InputManager.h"
 
 //*****************************************************************************
 // マクロ定義
@@ -87,4 +90,6 @@ private:
 
     // マウスの位置
     POINT m_lastCursorPos;
+
+	InputManager& m_inputManager = InputManager::get_instance();
 };

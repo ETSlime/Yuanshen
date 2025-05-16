@@ -1,6 +1,6 @@
 //=============================================================================
 //
-// ƒŒƒ“ƒ_ƒŠƒ“ƒOˆ— [CascadedShadowMap.cpp]
+// CascadedShadowMapˆ— [CascadedShadowMap.cpp]
 // Author : 
 //
 //=============================================================================
@@ -503,12 +503,12 @@ void CascadedShadowMap::ComputeCascadeMatrices(int cascadeIndex, float splitNear
 
 
 #ifdef _DEBUG
-    m_tempFrustumCenter[cascadeIndex] = frustumCenter;
-    m_tempInvViewProj = invViewProj;
-    for (int i = 0; i < 8; ++i)
-    {
-        m_tempSliceCorners[cascadeIndex][i] = sliceCorners[i];
-    }
+    //m_tempFrustumCenter[cascadeIndex] = frustumCenter;
+    //m_tempInvViewProj = invViewProj;
+    //for (int i = 0; i < 8; ++i)
+    //{
+    //    m_tempSliceCorners[cascadeIndex][i] = sliceCorners[i];
+    //}
 #endif // DEBUG
 
 }

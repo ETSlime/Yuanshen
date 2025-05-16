@@ -5,8 +5,8 @@
 //
 //=============================================================================
 #include "Hilichurl.h"
-#include "input.h"
-#include "debugproc.h"
+#include "InputManager.h"
+#include "Debugproc.h"
 #include "Player.h"
 //*****************************************************************************
 // É}ÉNÉçíËã`

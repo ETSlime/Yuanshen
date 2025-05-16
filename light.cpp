@@ -7,7 +7,6 @@
 #include "main.h"
 #include "Renderer.h"
 #include "Light.h"
-#include "input.h"
 #include "Skybox.h"
 //*****************************************************************************
 // マクロ定義
@@ -53,23 +52,6 @@ LIGHT_TYPE Light::GetType(void) const
 		m_LightData.Type <= static_cast<int>(LIGHT_TYPE::LIGHT_TYPE_NUM));
 	return static_cast<LIGHT_TYPE>(m_LightData.Type);
 }
-
-
-//=============================================================================
-// ライトの設定
-// Typeによってセットするメンバー変数が変わってくる
-//=============================================================================
-//void Light::SetLightData(int index, LIGHT *light)
-//{
-//	renderer.SetLight(index, light);
-//}
-//
-//
-//LIGHT *GetLightData(int index)
-//{
-//	return(&g_Light[index]);
-//}
-
 
 //=============================================================================
 // フォグの設定

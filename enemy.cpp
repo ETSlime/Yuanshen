@@ -6,16 +6,14 @@
 //=============================================================================
 #include "main.h"
 #include "Renderer.h"
-#include "model.h"
-#include "input.h"
-#include "debugproc.h"
+#include "Model.h"
+#include "InputManager.h"
+#include "Debugproc.h"
 #include "Enemy.h"
 #include "Camera.h"
 #include "MapEditor.h"
-#include "score.h"
 #include "Hilichurl.h"
 #include "Player.h"
-#include "sprite.h"
 #include "BehaviorTree.h"
 //*****************************************************************************
 // É}ÉNÉçíËã`

@@ -1,7 +1,9 @@
 //=============================================================================
 //
-// GameSystem処理 [GameSystem.h]
+// ゲーム進行・描画・システム状態を統括管理する中枢クラス [GameSystem.h]
 // Author : 
+// タイトル／ゲーム／リザルト各モードの状態遷移・更新・描画制御を行い、
+// プレイヤー／敵／UI／カメラ／エフェクトなど全主要サブシステムを統括する
 //
 //=============================================================================
 #pragma once
@@ -17,6 +19,7 @@
 #include "ShadowMapRenderer.h"
 #include "CursorManager.h"
 #include "EffectSystem.h"
+#include "InputManager.h"
 
 //*****************************************************************************
 // マクロ定義
@@ -38,7 +41,7 @@ public:
 
     // 初期化と更新
     void Init(void);
-    void Uninit(void);
+    void Shutdown(void);
     void Update(void);
     void Draw(void);
     void RenderShadowPass(void);
@@ -68,6 +71,7 @@ protected:
         : SingletonBase()
         , m_renderer(Renderer::get_instance())
         , m_lightManager(LightManager::get_instance())
+		, m_inputManager(InputManager::get_instance())
         , m_uiManager(UIManager::get_instance())
         , m_enemyManager(EnemyManager::get_instance())
         , m_camera(Camera::get_instance())
@@ -109,6 +113,7 @@ private:
     CursorManager& m_cursorManager;
     EffectSystem& m_effectSystem;
     ShaderManager& m_shaderManager;
+    InputManager& m_inputManager;
 
     // モードごとの更新と描画関数
     void UpdateTitle(void);

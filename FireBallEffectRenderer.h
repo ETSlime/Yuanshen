@@ -1,7 +1,9 @@
 //=============================================================================
 //
-// FireBallEffectRenderer 処理 [FireBallEffectRenderer.h]
+// 火球パーティクル専用の更新・描画処理クラス [FireBallEffectRenderer.h]
 // Author : 
+// 円錐状の放射／回転／初速／アニメーションなどをパラメータ指定で制御し、
+// Compute Shader + DrawIndirect による高効率な火球エフェクトを描画する
 //
 //=============================================================================
 #pragma once
@@ -22,6 +24,10 @@ struct CBFireBall
     float coneAngleDegree = 25.0f;
     float coneRadius = 0.6193843f;
     float coneLength = 5.0f;
+
+	float startSpeedMin = 0.0f;
+	float startSpeedMax = 0.0f;
+	XMFLOAT2 padding = XMFLOAT2(0.0f, 0.0f); // float4のサイズに合わせるためのパディング
 };
 
 class FireBallEffectRenderer : public ParticleEffectRendererBase
@@ -47,6 +53,9 @@ private:
     float m_spawnConeLength = 5.0f;         // コーンの高さ
     float m_rotationSpeed = 0.0f;
     float m_frameLerpCurve = 0.0f;
+
+	float m_startSpeedMin = 0.0f;           // 初速最小値
+	float m_startSpeedMax = 0.0f;           // 初速最大値
 
     UINT m_tilesX = 7;                      // テクスチャシート横枚数
     UINT m_tilesY = 7;                      // テクスチャシート縦枚数

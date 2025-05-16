@@ -21,7 +21,7 @@ void DebugProc::Init(HWND hwnd)
 	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
 }
 
-void DebugProc::Uninit()
+void DebugProc::Shutdown()
 {
 	ImGui_ImplDX11_Shutdown();
 	ImGui_ImplWin32_Shutdown();

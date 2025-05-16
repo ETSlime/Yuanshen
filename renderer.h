@@ -1,7 +1,9 @@
 //=============================================================================
 //
-// レンダリング処理 [Renderer.h]
+// 統合型レンダリングパイプラインの管理中枢 [Renderer.h]
 // Author : 
+// 各種モデル・スキンメッシュ・インスタンス・UI・VFX の描画と、
+// デバイス管理・シェーダ制御・描画状態の切替を一元的に扱う
 //
 //=============================================================================
 #pragma once
@@ -341,7 +343,7 @@ public:
 	Renderer();
 
 	HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow);
-	void Uninit(void);
+	void Shutdown(void);
 
 	void Clear(void);
 	void Present(void);
@@ -402,51 +404,51 @@ private:
 
 	void SetFogBuffer(void);
 
-	D3D_FEATURE_LEVEL       g_FeatureLevel = D3D_FEATURE_LEVEL_11_0;
+	D3D_FEATURE_LEVEL       m_FeatureLevel = D3D_FEATURE_LEVEL_11_0;
 
-	ID3D11Device* g_D3DDevice = NULL;
-	ID3D11DeviceContext* g_ImmediateContext = NULL;
-	IDXGISwapChain* g_SwapChain = NULL;
+	ID3D11Device* m_D3DDevice = NULL;
+	ID3D11DeviceContext* m_ImmediateContext = NULL;
+	IDXGISwapChain* m_SwapChain = NULL;
 
-	ID3D11RenderTargetView* g_RenderTargetView = NULL;
-	ID3D11DepthStencilView* g_SceneDepthStencilView = NULL;
+	ID3D11RenderTargetView* m_RenderTargetView = NULL;
+	ID3D11DepthStencilView* m_SceneDepthStencilView = NULL;
 
-	ID3D11Buffer* g_WorldBuffer = NULL;
-	ID3D11Buffer* g_ViewBuffer = NULL;
-	ID3D11Buffer* g_ProjectionBuffer = NULL;
-	ID3D11Buffer* g_MaterialBuffer = NULL;
-	ID3D11Buffer* g_LightBuffer = NULL;
-	ID3D11Buffer* g_FogBuffer = NULL;
-	ID3D11Buffer* g_FuchiBuffer = NULL;
-	ID3D11Buffer* g_CameraPosBuffer = NULL;
-	ID3D11Buffer* g_LightProjViewBuffer = NULL;
-	ID3D11Buffer* g_BoneMatrixBuffer = NULL;
-	ID3D11Buffer* g_LightModeBuffer = NULL;
-	ID3D11Buffer* g_RenderProgressBuffer = NULL;
+	ID3D11Buffer* m_WorldBuffer = NULL;
+	ID3D11Buffer* m_ViewBuffer = NULL;
+	ID3D11Buffer* m_ProjectionBuffer = NULL;
+	ID3D11Buffer* m_MaterialBuffer = NULL;
+	ID3D11Buffer* m_LightBuffer = NULL;
+	ID3D11Buffer* m_FogBuffer = NULL;
+	ID3D11Buffer* m_FuchiBuffer = NULL;
+	ID3D11Buffer* m_CameraPosBuffer = NULL;
+	ID3D11Buffer* m_LightProjViewBuffer = NULL;
+	ID3D11Buffer* m_BoneMatrixBuffer = NULL;
+	ID3D11Buffer* m_LightModeBuffer = NULL;
+	ID3D11Buffer* m_RenderProgressBuffer = NULL;
 
 
-	ID3D11DepthStencilState* g_DepthStateEnable = NULL;
-	ID3D11DepthStencilState* g_DepthStateDisable = NULL;
-	ID3D11DepthStencilState* g_DepthStateParticle = NULL;
+	ID3D11DepthStencilState* m_DepthStateEnable = NULL;
+	ID3D11DepthStencilState* m_DepthStateDisable = NULL;
+	ID3D11DepthStencilState* m_DepthStateParticle = NULL;
 
-	ID3D11BlendState* g_BlendStateNone = NULL;
-	ID3D11BlendState* g_BlendStateAlphaBlend = NULL;
-	ID3D11BlendState* g_BlendStateAdd = NULL;
-	ID3D11BlendState* g_BlendStateSubtract = NULL;
-	ID3D11BlendState* g_BlendStateSwordTrail = NULL;
-	BLEND_MODE				g_BlendStateParam;
+	ID3D11BlendState* m_BlendStateNone = NULL;
+	ID3D11BlendState* m_BlendStateAlphaBlend = NULL;
+	ID3D11BlendState* m_BlendStateAdd = NULL;
+	ID3D11BlendState* m_BlendStateSubtract = NULL;
+	ID3D11BlendState* m_BlendStateSwordTrail = NULL;
+	BLEND_MODE				m_BlendStateParam;
 
-	ID3D11SamplerState* g_SamplerState = NULL;
-	ID3D11SamplerState* g_SamplerStateShadow = NULL;
-	ID3D11SamplerState* g_SamplerStateOpacity = NULL;
+	ID3D11SamplerState* m_SamplerState = NULL;
+	ID3D11SamplerState* m_SamplerStateShadow = NULL;
+	ID3D11SamplerState* m_SamplerStateOpacity = NULL;
 
-	ID3D11RasterizerState* g_RasterStateCullOff = NULL;
-	ID3D11RasterizerState* g_RasterStateCullCW = NULL;
-	ID3D11RasterizerState* g_RasterStateCullCCW = NULL;
-	ID3D11RasterizerState* g_RasterizerLayer0 = NULL;
-	ID3D11RasterizerState* g_RasterizerLayer1 = NULL;
-	ID3D11RasterizerState* g_RasterizerLayer2 = NULL;
-	ID3D11RasterizerState* g_RasterizerLayer3 = NULL;
+	ID3D11RasterizerState* m_RasterStateCullOff = NULL;
+	ID3D11RasterizerState* m_RasterStateCullCW = NULL;
+	ID3D11RasterizerState* m_RasterStateCullCCW = NULL;
+	ID3D11RasterizerState* m_RasterizerLayer0 = NULL;
+	ID3D11RasterizerState* m_RasterizerLayer1 = NULL;
+	ID3D11RasterizerState* m_RasterizerLayer2 = NULL;
+	ID3D11RasterizerState* m_RasterizerLayer3 = NULL;
 
 	ShaderManager& m_ShaderManager = ShaderManager::get_instance();
 	ShaderResourceBinder& m_ShaderResourceBinder = ShaderResourceBinder::get_instance();
@@ -457,12 +459,12 @@ private:
 	ShaderSet m_VFXShaderSet;
 	ShaderSet m_UIShaderSet;
 
-	MATERIAL_CBUFFER	g_Material;
-	LIGHT_CBUFFER	g_Light;
-	FOG_CBUFFER		g_Fog;
+	MATERIAL_CBUFFER	m_Material;
+	LIGHT_CBUFFER	m_Light;
+	FOG_CBUFFER		m_Fog;
 
-	FUCHI			g_Fuchi;
-	RenderMode		g_RenderMode;
+	FUCHI			m_Fuchi;
+	RenderMode		m_RenderMode;
 
-	float g_ClearColor[4] = { 0.3f, 0.3f, 0.3f, 1.0f };	// 背景色
+	float m_ClearColor[4] = { 0.3f, 0.3f, 0.3f, 1.0f };	// 背景色
 };

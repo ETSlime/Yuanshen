@@ -127,7 +127,7 @@ void EffectSystem::Draw(const XMMATRIX& viewProj)
 	ClearAllEffectBindings();
 }
 
-ParticleEffectRendererBase* EffectSystem::SpawnParticleEffect(ParticleEffectParams params)
+ParticleEffectRendererBase* EffectSystem::SpawnParticleEffect(ParticleEffectParams& params)
 {
 	if (m_allEffects.getSize() >= MAX_EFFECT_NUM)
 		return nullptr; // Å‘å”‚É’B‚µ‚Ä‚¢‚éê‡‚Í¶¬‚µ‚È‚¢

@@ -1,7 +1,9 @@
 //=============================================================================
 //
-// EffectSystem処理 [EffectSystem.h]
+// パーティクルエフェクトの生成・管理・描画を統括する演出管理クラス [EffectSystem.h]
 // Author : 
+// 各種エフェクト（火炎・煙・ソフトボディ等）をパラメータ指定で生成し、
+// ランタイムでの更新／描画制御・一括管理・リソース解放を行う
 //
 //=============================================================================
 #pragma once
@@ -45,6 +47,9 @@ struct FireBallEffectParams : public ParticleEffectParams
     float coneLength = 5.0f;
     float frameLerpCurve = 1.0f;
     float rotationSpeed = 0.5f;
+
+	float startSpeedMin = 0.0f;
+	float startSpeedMax = 0.0f;
 };
 
 class EffectSystem : public SingletonBase<EffectSystem>
@@ -61,7 +66,7 @@ public:
     }
 
     // エフェクト生成
-    ParticleEffectRendererBase* SpawnParticleEffect(ParticleEffectParams params);
+    ParticleEffectRendererBase* SpawnParticleEffect(ParticleEffectParams& params);
 
     // 汎用特效削除
     void RemoveEffect(IEffectRenderer* effect);

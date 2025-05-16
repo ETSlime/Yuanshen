@@ -7,6 +7,7 @@
 //=============================================================================
 #include "GameObject.h"
 #include "SwordTrail.h"
+#include "InputManager.h"
 
 class Lumine : public GameObject<SkinnedMeshModelInstance>, public ISkinnedMeshModelChar
 {
@@ -69,4 +70,5 @@ private:
 	bool storeWeaponOnBack;
 	bool storeWeapon;
 	FBXLoader& fbxLoader = FBXLoader::get_instance();
+	InputManager& m_inputManager = InputManager::get_instance();
 };

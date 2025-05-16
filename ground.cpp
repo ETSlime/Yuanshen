@@ -7,7 +7,7 @@
 #include "main.h"
 #include "Renderer.h"
 #include "Model.h"
-#include "input.h"
+#include "InputManager.h"
 #include "Debugproc.h"
 #include "Ground.h"
 #include "CollisionManager.h"
@@ -21,7 +21,7 @@
 
 #define TREE_SIZE			(350.0f)
 #define FIELD_SIZE			(46850.0f)
-#define BONFIRE_SIZE		(20.0f)
+#define BONFIRE_SIZE		(12.0f)
 
 #define PLAYER_INIT_POS		XMFLOAT3(12582.0f, -2111.0f, -19485.0f)
 
@@ -63,7 +63,7 @@ Ground::Ground()
 	worldBB.minPoint = WORLD_MIN;
 	CollisionManager::get_instance().InitOctree(worldBB);
 
-	//town = new Town();
+	town = new Town();
 
 	XMMATRIX worldMatrix;
 
@@ -93,51 +93,52 @@ Ground::Ground()
 	//fieldGO->SetCastShadow(false);
 	//groundGO.push_back(fieldGO);
 
-	//GameObject<ModelInstance>* bonfireGO = new GameObject<ModelInstance>();
-	//bonfireGO->Instantiate(MODEL_BONFIRE_PATH);
-	//bonfireGO->SetScale(XMFLOAT3(BONFIRE_SIZE, BONFIRE_SIZE, BONFIRE_SIZE));
-	//bonfireGO->SetPosition(XMFLOAT3(12582.0f, -2011.0f, -19485.0f));
-	//bonfireGO->Update();
-	//bonfireGO->SetCastShadow(true);
-	//worldMatrix = bonfireGO->GetWorldMatrix();
-	//BOUNDING_BOX boundingBox = bonfireGO->GetCollider().bbox;
-	//bonfireGO->GetModel()->BuildTrianglesByBoundingBox(boundingBox);
-	//bonfireGO->GetModel()->BuildOctree();
-	//bonfireGO->GetModel()->SetDrawBoundingBox(true);
-	//groundGO.push_back(bonfireGO);
+	GameObject<ModelInstance>* bonfireGO = new GameObject<ModelInstance>();
+	bonfireGO->Instantiate(MODEL_BONFIRE_PATH);
+	bonfireGO->SetScale(XMFLOAT3(BONFIRE_SIZE, BONFIRE_SIZE, BONFIRE_SIZE));
+	bonfireGO->SetPosition(XMFLOAT3(12582.0f, -2051.0f, -19485.0f));
+	bonfireGO->Update();
+	bonfireGO->SetCastShadow(true);
+	worldMatrix = bonfireGO->GetWorldMatrix();
+	BOUNDING_BOX boundingBox = bonfireGO->GetCollider().bbox;
+	bonfireGO->GetModel()->BuildTrianglesByBoundingBox(boundingBox);
+	bonfireGO->GetModel()->BuildOctree();
+	bonfireGO->GetModel()->SetDrawBoundingBox(true);
+	groundGO.push_back(bonfireGO);
 
 	ParticleEffectParams params;
 	params.type = EffectType::Smoke;
-	params.position = XMFLOAT3(14582.0f, -2424.0f, -19485.0f);
-	params.scale = 111.0f;
+	params.position = XMFLOAT3(12282.0f, -1990.0f, -19485.0f);
+	params.scale = 250.0f;
 	params.acceleration = XMFLOAT3(0.0f, 15.0f, 0.0f);
 	params.spawnRateMin = 2.0f;
 	params.spawnRateMax = 5.0f;
 	params.lifeMin = 3.0f;
 	params.lifeMax = 6.0f;
-	params.startColor = XMFLOAT4(0.6f, 0.6f, 0.6f, 0.5f); // âåêF
-	//EffectSystem::get_instance().SpawnParticleEffect(params);
-
-	//FireBallEffectParams fireparams;
-	//fireparams.type = EffectType::FireBall;
-	//fireparams.position = XMFLOAT3(14582.0f, -2424.0f, -19485.0f);
-	//fireparams.scale = 111.0f;
-	//fireparams.lifeMin = 10.5f;
-	//fireparams.lifeMax = 10.5f;
-	//fireparams.spawnRateMin = 50.0f;
-	//fireparams.spawnRateMax = 50.0f;
-	//fireparams.acceleration = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	//fireparams.startColor = XMFLOAT4(1.2f, 0.5f, 0.0f, 1.0f);
-	//fireparams.endColor = XMFLOAT4(0.2f, 0.0f, 0.0f, 0.0f);
-	//fireparams.tilesX = 7;
-	//fireparams.tilesY = 7;
-	//fireparams.coneAngleDegree = 25.0f;
-	//fireparams.coneRadius = 0.6f;
-	//fireparams.coneLength = 5.0f;
-	//fireparams.frameLerpCurve = 1.0f;
-	//fireparams.rotationSpeed = 0.5f;
-	params.type = EffectType::FireBall;
+	params.startColor = XMFLOAT4(0.6f, 0.6f, 0.6f, 0.3f); // âåêF
 	EffectSystem::get_instance().SpawnParticleEffect(params);
+
+	FireBallEffectParams fireparams;
+	fireparams.type = EffectType::FireBall;
+	fireparams.position = XMFLOAT3(11882.0f, -1990.0f, -19485.0f);
+	fireparams.scale = 43.0f;
+	fireparams.lifeMin = 1.0f;
+	fireparams.lifeMax = 1.0f;
+	fireparams.spawnRateMin = 0.0f;
+	fireparams.spawnRateMax = 10.0f;
+	fireparams.acceleration = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	fireparams.startColor = XMFLOAT4(1.0f, 1.0f, 0.3f, 1.0f);
+	fireparams.endColor = XMFLOAT4(1.2f, 0.5f, 0.0f, 0.0f);
+	fireparams.tilesX = 7;
+	fireparams.tilesY = 7;
+	fireparams.coneAngleDegree = 25.0f;
+	fireparams.coneRadius = 0.6f;
+	fireparams.coneLength = 5.0f;
+	fireparams.frameLerpCurve = 1.0f;
+	fireparams.rotationSpeed = 0.0f;
+	fireparams.startSpeedMin = 2.0f;
+	fireparams.startSpeedMax = 3.0f;
+	EffectSystem::get_instance().SpawnParticleEffect(fireparams);
 	
 	//GameObject<ModelInstance>* banyanGO = new GameObject<ModelInstance>();
 	//banyanGO->Instantiate(MODEL_BANYAN_PATH);
@@ -145,17 +146,17 @@ Ground::Ground()
 	//banyanGO->SetScale(XMFLOAT3(50.0f, 50.0f, 50.0f));
 	//groundGO.push_back(banyanGO);
 
-	//InstanceParams params;
-	//params.type = EnvironmentObjectType::Bush_2;
-	//params.transformArray.push_back(InstanceTransformInfo(
-	//	12582.0f,
-	//	-19485.0f,
-	//	0.0f,
-	//	0.9f
-	//));
+	InstanceParams instanceParams;
+	instanceParams.type = EnvironmentObjectType::Bush_2;
+	instanceParams.transformArray.push_back(InstanceTransformInfo(
+		12882.0f,
+		-18385.0f,
+		0.5 * XM_PI,
+		0.3f
+	));
 
-	//environment = new Environment();
-	//environment->GenerateInstanceByParams(params, fieldGO->GetSkinnedMeshModel());
+	environment = new Environment();
+	environment->GenerateInstanceByParams(instanceParams, fieldGO->GetSkinnedMeshModel());
 	//environment->GenerateRandomInstances(EnvironmentObjectType::Shrubbery_1, fieldGO->GetSkinnedMeshModel(), 15);
 }
 

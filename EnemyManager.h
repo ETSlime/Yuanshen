@@ -1,7 +1,9 @@
 //=============================================================================
 //
-// EnemyManager処理 [EnemyManager.h]
+// エネミーたちのまとめ役ちゃん [EnemyManager.h]
 // Author : 
+// 敵キャラの生成・更新・描画・UI表示までぜーんぶお世話してくれる管理クラスですっ！
+// ダブルリンクリストで敵ちゃんたちをしっかり整列させてるお姉さんタイプかも…？
 //
 //=============================================================================
 #pragma once
@@ -22,11 +24,10 @@ public:
 	void Draw(void);
 	void DrawUI(EnemyUIType type);
 	void Update(void);
-	const DoubleLinkedList<Enemy*>* GetEnemy() { return &enemyList; }
-	Renderer& renderer = Renderer::get_instance();
+	const DoubleLinkedList<Enemy*>* GetEnemy() { return &m_enemyList; }
+	Renderer& m_renderer = Renderer::get_instance();
 private:
 
-	DoubleLinkedList<Enemy*> enemyList;
-	SimpleArray<MoveTable> moveTbls;
-	const Player* player;
+	DoubleLinkedList<Enemy*> m_enemyList;
+	const Player* m_player;
 };

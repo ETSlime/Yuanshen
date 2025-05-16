@@ -1,6 +1,6 @@
 #include "SkinnedMeshModel.h"
-#include "input.h"
-#include "debugproc.h"
+#include "InputManager.h"
+#include "Debugproc.h"
 #include "AnimStateMachine.h"
 #include "CollisionManager.h"
 //*****************************************************************************

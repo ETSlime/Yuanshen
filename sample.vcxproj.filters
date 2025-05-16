@@ -62,9 +62,6 @@
     <ClInclude Include="Timer.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="SingletonBase.h">
-      <Filter>Core</Filter>
-    </ClInclude>
     <ClInclude Include="Model.h">
       <Filter>Model</Filter>
     </ClInclude>
@@ -101,16 +98,7 @@
     <ClInclude Include="Town.h">
       <Filter>Scene</Filter>
     </ClInclude>
-    <ClInclude Include="Klee.h">
-      <Filter>Scene\Character</Filter>
-    </ClInclude>
     <ClInclude Include="Lumine.h">
-      <Filter>Scene\Character</Filter>
-    </ClInclude>
-    <ClInclude Include="Mitachurl.h">
-      <Filter>Scene\Character</Filter>
-    </ClInclude>
-    <ClInclude Include="Sigewinne.h">
       <Filter>Scene\Character</Filter>
     </ClInclude>
     <ClInclude Include="Player.h">
@@ -134,13 +122,7 @@
     <ClInclude Include="OctreeNode.h">
       <Filter>Collision</Filter>
     </ClInclude>
-    <ClInclude Include="offScreenRender.h">
-      <Filter>UI</Filter>
-    </ClInclude>
-    <ClInclude Include="score.h">
-      <Filter>UI</Filter>
-    </ClInclude>
-    <ClInclude Include="input.h">
+    <ClInclude Include="InputManager.h">
       <Filter>Utility</Filter>
     </ClInclude>
     <ClInclude Include="Debugproc.h">
@@ -230,12 +212,6 @@
     <ClInclude Include="ModelCacheLoader.h">
       <Filter>Model</Filter>
     </ClInclude>
-    <ClInclude Include="sprite.h">
-      <Filter>UI</Filter>
-    </ClInclude>
-    <ClInclude Include="FireEffectRenderer.h">
-      <Filter>Effects</Filter>
-    </ClInclude>
     <ClInclude Include="ShaderResourceBinder.h">
       <Filter>Core\Shader</Filter>
     </ClInclude>
@@ -256,6 +232,9 @@
     </ClInclude>
     <ClInclude Include="ParticleStructs.h">
       <Filter>Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="SingletonBase.h">
+      <Filter>Utility</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -301,19 +280,10 @@
     <ClCompile Include="Ground.cpp">
       <Filter>Scene</Filter>
     </ClCompile>
-    <ClCompile Include="Sigewinne.cpp">
-      <Filter>Scene\Character</Filter>
-    </ClCompile>
-    <ClCompile Include="Klee.cpp">
-      <Filter>Scene\Character</Filter>
-    </ClCompile>
     <ClCompile Include="Hilichurl.cpp">
       <Filter>Scene\Character</Filter>
     </ClCompile>
     <ClCompile Include="Lumine.cpp">
-      <Filter>Scene\Character</Filter>
-    </ClCompile>
-    <ClCompile Include="Mitachurl.cpp">
       <Filter>Scene\Character</Filter>
     </ClCompile>
     <ClCompile Include="Player.cpp">
@@ -328,13 +298,7 @@
     <ClCompile Include="CollisionManager.cpp">
       <Filter>Collision</Filter>
     </ClCompile>
-    <ClCompile Include="score.cpp">
-      <Filter>UI</Filter>
-    </ClCompile>
-    <ClCompile Include="offScreenRender.cpp">
-      <Filter>UI</Filter>
-    </ClCompile>
-    <ClCompile Include="input.cpp">
+    <ClCompile Include="InputManager.cpp">
       <Filter>Utility</Filter>
     </ClCompile>
     <ClCompile Include="Debugproc.cpp">
@@ -402,12 +366,6 @@
     </ClCompile>
     <ClCompile Include="ModelCacheLoader.cpp">
       <Filter>Model</Filter>
-    </ClCompile>
-    <ClCompile Include="sprite.cpp">
-      <Filter>UI</Filter>
-    </ClCompile>
-    <ClCompile Include="FireEffectRenderer.cpp">
-      <Filter>Effects</Filter>
     </ClCompile>
     <ClCompile Include="ShaderResourceBinder.cpp">
       <Filter>Core\Shader</Filter>

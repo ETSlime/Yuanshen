@@ -1,9 +1,11 @@
 #pragma once
 //=============================================================================
 //
-// モデル処理 [Player.h]
+// プレイヤー操作＆主役ちゃん管理クラス [Player.h]
 // Author : 
-//
+// プレイヤーの行動・移動・描画・エフェクトを一括で担当する主人公ちゃん管理クラスですっ！
+// SigewinneやKleeたちの切り替えもここで制御して、アクションキューで動きを可愛く整列します
+// 
 //=============================================================================
 #include "Sigewinne.h"
 #include "Klee.h"
@@ -11,6 +13,8 @@
 #include "Hilichurl.h"
 #include "Mitachurl.h"
 #include "LightManager.h"
+#include "InputManager.h"
+
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
@@ -52,8 +56,8 @@ private:
 
 	void UpdateActionQueue(void);
 	void HandlePlayerMove(Transform& transform);
-	Attributes attributes;
-	PlayerAttributes playerAttr;
+	Attributes m_attributes;
+	PlayerAttributes m_playerAttr;
 	Sigewinne* sigewinne;
 	Klee* klee;
 	Lumine* lumine;
@@ -61,12 +65,13 @@ private:
 	Hilichurl* hilichurl;
 	Mitachurl* mitachurl;
 
-	GameObject<SkinnedMeshModelInstance>* playerGO;
+	GameObject<SkinnedMeshModelInstance>* m_playerGO;
 
-	Light* light;
+	Light* m_light;
 
-	Renderer& renderer = Renderer::get_instance();
-	LightManager& lightMgr = LightManager::get_instance();
+	Renderer& m_renderer = Renderer::get_instance();
+	LightManager& m_lightMgr = LightManager::get_instance();
 
-	DebugProc& debugProc = DebugProc::get_instance();
+	DebugProc& m_debugProc = DebugProc::get_instance();
+	InputManager& m_inputManager = InputManager::get_instance();
 };

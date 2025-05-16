@@ -7,7 +7,6 @@
 #include "main.h"
 #include "Renderer.h"
 #include "LightManager.h"
-#include "sprite.h"
 
 //*****************************************************************************
 // マクロ定義
@@ -20,18 +19,18 @@
 
 Renderer::Renderer()
 {
-	g_RenderMode = RenderMode::OBJ;
+	m_RenderMode = RenderMode::OBJ;
 }
 
 ID3D11Device* Renderer::GetDevice( void )
 {
-	return g_D3DDevice;
+	return m_D3DDevice;
 }
 
 
 ID3D11DeviceContext* Renderer::GetDeviceContext( void )
 {
-	return g_ImmediateContext;
+	return m_ImmediateContext;
 }
 
 
@@ -39,20 +38,20 @@ void Renderer::SetDepthEnable( BOOL Enable )
 {
 	if (Enable)
 	{
-		g_ImmediateContext->OMSetDepthStencilState(g_DepthStateEnable, NULL);
-		g_ImmediateContext->OMSetRenderTargets(1, &g_RenderTargetView, g_SceneDepthStencilView);
+		m_ImmediateContext->OMSetDepthStencilState(m_DepthStateEnable, NULL);
+		m_ImmediateContext->OMSetRenderTargets(1, &m_RenderTargetView, m_SceneDepthStencilView);
 	}
 	else
 	{
-		g_ImmediateContext->OMSetDepthStencilState(g_DepthStateDisable, NULL);
-		g_ImmediateContext->OMSetRenderTargets(1, &g_RenderTargetView, nullptr);
+		m_ImmediateContext->OMSetDepthStencilState(m_DepthStateDisable, NULL);
+		m_ImmediateContext->OMSetRenderTargets(1, &m_RenderTargetView, nullptr);
 	}
 }
 
 void Renderer::SetDepthForParticle(void)
 {
-	g_ImmediateContext->OMSetDepthStencilState(g_DepthStateParticle, 0);
-	g_ImmediateContext->OMSetRenderTargets(1, &g_RenderTargetView, g_SceneDepthStencilView);
+	m_ImmediateContext->OMSetDepthStencilState(m_DepthStateParticle, 0);
+	m_ImmediateContext->OMSetRenderTargets(1, &m_RenderTargetView, m_SceneDepthStencilView);
 }
 
 void Renderer::SetDepthMode(DepthMode mode)
@@ -64,53 +63,53 @@ void Renderer::SetDepthMode(DepthMode mode)
 	{
 	case DepthMode::Enable:
 		// 深度テスト・書き込みどちらも有効（3Dモデル描画用）
-		depthState = g_DepthStateEnable;
-		depthView = g_SceneDepthStencilView;
+		depthState = m_DepthStateEnable;
+		depthView = m_SceneDepthStencilView;
 		break;
 
 	case DepthMode::Particle:
 		// 深度テストは有効、書き込みは無効（パーティクル描画用）
-		depthState = g_DepthStateParticle;
-		depthView = g_SceneDepthStencilView;
+		depthState = m_DepthStateParticle;
+		depthView = m_SceneDepthStencilView;
 		break;
 
 	case DepthMode::Disable:
 		// 深度テスト無効、DSVもバインドしない（UI描画などに使用）
-		depthState = g_DepthStateDisable;
+		depthState = m_DepthStateDisable;
 		depthView = nullptr;
 		break;
 	}
 
 	// 深度ステンシルステートを設定
-	g_ImmediateContext->OMSetDepthStencilState(depthState, 0);
+	m_ImmediateContext->OMSetDepthStencilState(depthState, 0);
 
 	// レンダーターゲットと深度ビューのバインド
-	g_ImmediateContext->OMSetRenderTargets(1, &g_RenderTargetView, depthView);
+	m_ImmediateContext->OMSetRenderTargets(1, &m_RenderTargetView, depthView);
 }
 
 
 void Renderer::SetBlendState(BLEND_MODE bm)
 {
-	g_BlendStateParam = bm;
+	m_BlendStateParam = bm;
 
 	float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-	switch (g_BlendStateParam)
+	switch (m_BlendStateParam)
 	{
 	case BLEND_MODE_NONE:
-		g_ImmediateContext->OMSetBlendState(g_BlendStateNone, blendFactor, 0xffffffff);
+		m_ImmediateContext->OMSetBlendState(m_BlendStateNone, blendFactor, 0xffffffff);
 		break;
 	case BLEND_MODE_ALPHABLEND:
-		g_ImmediateContext->OMSetBlendState(g_BlendStateAlphaBlend, blendFactor, 0xffffffff);
+		m_ImmediateContext->OMSetBlendState(m_BlendStateAlphaBlend, blendFactor, 0xffffffff);
 		break;
 	case BLEND_MODE_ADD:
-		g_ImmediateContext->OMSetBlendState(g_BlendStateAdd, blendFactor, 0xffffffff);
+		m_ImmediateContext->OMSetBlendState(m_BlendStateAdd, blendFactor, 0xffffffff);
 		break;
 	case BLEND_MODE_SUBTRACT:
-		g_ImmediateContext->OMSetBlendState(g_BlendStateSubtract, blendFactor, 0xffffffff);
+		m_ImmediateContext->OMSetBlendState(m_BlendStateSubtract, blendFactor, 0xffffffff);
 		break;
 	case BLEND_MODE_SWORDTRAIL:
-		g_ImmediateContext->OMSetBlendState(g_BlendStateSwordTrail, blendFactor, 0xffffffff);
+		m_ImmediateContext->OMSetBlendState(m_BlendStateSwordTrail, blendFactor, 0xffffffff);
 		break;
 	}
 }
@@ -120,13 +119,13 @@ void Renderer::SetCullingMode(CULL_MODE cm)
 	switch (cm)
 	{
 	case CULL_MODE_NONE:
-		g_ImmediateContext->RSSetState(g_RasterStateCullOff);
+		m_ImmediateContext->RSSetState(m_RasterStateCullOff);
 		break;
 	case CULL_MODE_FRONT:
-		g_ImmediateContext->RSSetState(g_RasterStateCullCW);
+		m_ImmediateContext->RSSetState(m_RasterStateCullCW);
 		break;
 	case CULL_MODE_BACK:
-		g_ImmediateContext->RSSetState(g_RasterStateCullCCW);
+		m_ImmediateContext->RSSetState(m_RasterStateCullCCW);
 		break;
 	}
 }
@@ -136,19 +135,19 @@ void Renderer::SetRenderLayer(RenderLayer layer)
 	switch (layer)
 	{
 	case RenderLayer::LAYER_0:
-		g_ImmediateContext->RSSetState(g_RasterizerLayer0);
+		m_ImmediateContext->RSSetState(m_RasterizerLayer0);
 		break;
 	case RenderLayer::LAYER_1:
-		g_ImmediateContext->RSSetState(g_RasterizerLayer1);
+		m_ImmediateContext->RSSetState(m_RasterizerLayer1);
 		break;
 	case RenderLayer::LAYER_2:
-		g_ImmediateContext->RSSetState(g_RasterizerLayer2);
+		m_ImmediateContext->RSSetState(m_RasterizerLayer2);
 		break;
 	case RenderLayer::LAYER_3:
-		g_ImmediateContext->RSSetState(g_RasterizerLayer3);
+		m_ImmediateContext->RSSetState(m_RasterizerLayer3);
 		break;
 	default:
-		g_ImmediateContext->RSSetState(g_RasterStateCullOff);
+		m_ImmediateContext->RSSetState(m_RasterStateCullOff);
 		break;
 	}
 }
@@ -161,14 +160,14 @@ void Renderer::SetFillMode(D3D11_FILL_MODE mode)
 	pRasterizerState->GetDesc(&rasterDesc);
 	rasterDesc.FillMode = mode;
 	ID3D11RasterizerState* newRasterizerState;
-	g_D3DDevice->CreateRasterizerState(&rasterDesc, &newRasterizerState);
-	g_ImmediateContext->RSSetState(newRasterizerState);
+	m_D3DDevice->CreateRasterizerState(&rasterDesc, &newRasterizerState);
+	m_ImmediateContext->RSSetState(newRasterizerState);
 
 }
 
 void Renderer::SetBoneMatrix(const XMMATRIX matrices[BONE_MAX]) const
 {
-	g_ImmediateContext->UpdateSubresource(g_BoneMatrixBuffer, 0, NULL, matrices, 0, 0);
+	m_ImmediateContext->UpdateSubresource(m_BoneMatrixBuffer, 0, NULL, matrices, 0, 0);
 }
 
 void Renderer::SetAlphaTestEnable(BOOL flag)
@@ -184,7 +183,7 @@ void Renderer::SetAlphaTestEnable(BOOL flag)
 	blendDesc.IndependentBlendEnable = FALSE;
 	blendDesc.RenderTarget[0].BlendEnable = TRUE;
 
-	switch (g_BlendStateParam)
+	switch (m_BlendStateParam)
 	{
 	case BLEND_MODE_NONE:
 		blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
@@ -226,8 +225,8 @@ void Renderer::SetAlphaTestEnable(BOOL flag)
 
 	float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 	ID3D11BlendState* blendState = NULL;
-	g_D3DDevice->CreateBlendState(&blendDesc, &blendState);
-	g_ImmediateContext->OMSetBlendState(blendState, blendFactor, 0xffffffff);
+	m_D3DDevice->CreateBlendState(&blendDesc, &blendState);
+	m_ImmediateContext->OMSetBlendState(blendState, blendFactor, 0xffffffff);
 
 	if (blendState != NULL)
 		blendState->Release();
@@ -246,16 +245,16 @@ void Renderer::SetWorldViewProjection2D( void )
 	worldBuffer.world = world;
 	worldBuffer.invWorld = invWorld;
 
-	g_ImmediateContext->UpdateSubresource(g_WorldBuffer, 0, NULL, &worldBuffer, 0, 0);
+	m_ImmediateContext->UpdateSubresource(m_WorldBuffer, 0, NULL, &worldBuffer, 0, 0);
 
 	XMMATRIX view;
 	view = XMMatrixTranspose(XMMatrixIdentity());
-	g_ImmediateContext->UpdateSubresource(g_ViewBuffer, 0, NULL, &view, 0, 0);
+	m_ImmediateContext->UpdateSubresource(m_ViewBuffer, 0, NULL, &view, 0, 0);
 
 	XMMATRIX worldViewProjection;
 	worldViewProjection = XMMatrixOrthographicOffCenterLH(0.0f, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0f, 0.0f, 1.0f);
 	worldViewProjection = XMMatrixTranspose(worldViewProjection);
-	g_ImmediateContext->UpdateSubresource(g_ProjectionBuffer, 0, NULL, &worldViewProjection, 0, 0);
+	m_ImmediateContext->UpdateSubresource(m_ProjectionBuffer, 0, NULL, &worldViewProjection, 0, 0);
 }
 
 
@@ -299,7 +298,7 @@ void Renderer::SetCurrentWorldMatrix(const XMMATRIX *WorldMatrix ) const
 	buffer.world = world;
 	buffer.invWorld = invWorld;
 
-	g_ImmediateContext->UpdateSubresource(g_WorldBuffer, 0, NULL, &buffer, 0, 0);
+	m_ImmediateContext->UpdateSubresource(m_WorldBuffer, 0, NULL, &buffer, 0, 0);
 }
 
 void Renderer::SetViewMatrix(const XMMATRIX *ViewMatrix ) const
@@ -308,7 +307,7 @@ void Renderer::SetViewMatrix(const XMMATRIX *ViewMatrix ) const
 	view = *ViewMatrix;
 	view = XMMatrixTranspose(view);
 
-	g_ImmediateContext->UpdateSubresource(g_ViewBuffer, 0, NULL, &view, 0, 0);
+	m_ImmediateContext->UpdateSubresource(m_ViewBuffer, 0, NULL, &view, 0, 0);
 }
 
 void Renderer::SetProjectionMatrix(const XMMATRIX *ProjectionMatrix ) const
@@ -317,65 +316,65 @@ void Renderer::SetProjectionMatrix(const XMMATRIX *ProjectionMatrix ) const
 	projection = *ProjectionMatrix;
 	projection = XMMatrixTranspose(projection);
 
-	g_ImmediateContext->UpdateSubresource(g_ProjectionBuffer, 0, NULL, &projection, 0, 0);
+	m_ImmediateContext->UpdateSubresource(m_ProjectionBuffer, 0, NULL, &projection, 0, 0);
 }
 
 void Renderer::SetMaterial( MATERIAL material )
 {
-	g_Material.Diffuse = material.Diffuse;
-	g_Material.Ambient = material.Ambient;
-	g_Material.Specular = material.Specular;
-	g_Material.Emission = material.Emission;
-	g_Material.Shininess = material.Shininess;
-	g_Material.noTexSampling = material.noTexSampling;
-	g_Material.lightMapSampling = material.lightMapSampling;
-	g_Material.normalMapSampling = material.normalMapSampling;
-	g_Material.bumpMapSampling = material.bumpMapSampling;
-	g_Material.opacityMapSampling = material.opacityMapSampling;
-	g_Material.reflectMapSampling = material.reflectMapSampling;
-	g_Material.translucencyMapSampling = material.translucencyMapSampling;
+	m_Material.Diffuse = material.Diffuse;
+	m_Material.Ambient = material.Ambient;
+	m_Material.Specular = material.Specular;
+	m_Material.Emission = material.Emission;
+	m_Material.Shininess = material.Shininess;
+	m_Material.noTexSampling = material.noTexSampling;
+	m_Material.lightMapSampling = material.lightMapSampling;
+	m_Material.normalMapSampling = material.normalMapSampling;
+	m_Material.bumpMapSampling = material.bumpMapSampling;
+	m_Material.opacityMapSampling = material.opacityMapSampling;
+	m_Material.reflectMapSampling = material.reflectMapSampling;
+	m_Material.translucencyMapSampling = material.translucencyMapSampling;
 
-	g_ImmediateContext->UpdateSubresource( g_MaterialBuffer, 0, NULL, &g_Material, 0, 0 );
+	m_ImmediateContext->UpdateSubresource( m_MaterialBuffer, 0, NULL, &m_Material, 0, 0 );
 }
 
 void Renderer::SetLightBuffer(const LIGHT_CBUFFER& lightBuffer)
 {
-	g_ImmediateContext->UpdateSubresource(g_LightBuffer, 0, NULL, &lightBuffer, 0, 0);
+	m_ImmediateContext->UpdateSubresource(m_LightBuffer, 0, NULL, &lightBuffer, 0, 0);
 }
 
 
 
 void Renderer::SetFogBuffer(void)
 {
-	g_ImmediateContext->UpdateSubresource(g_FogBuffer, 0, NULL, &g_Fog, 0, 0);
+	m_ImmediateContext->UpdateSubresource(m_FogBuffer, 0, NULL, &m_Fog, 0, 0);
 }
 
 void Renderer::SetFogEnable(BOOL flag)
 {
 	// フラグを更新する
-	g_Fog.Enable = flag;
+	m_Fog.Enable = flag;
 
 	SetFogBuffer();
 }
 
 void Renderer::SetFog(FOG* pFog)
 {
-	g_Fog.Fog.x = pFog->FogStart;
-	g_Fog.Fog.y = pFog->FogEnd;
-	g_Fog.FogColor = pFog->FogColor;
+	m_Fog.Fog.x = pFog->FogStart;
+	m_Fog.Fog.y = pFog->FogEnd;
+	m_Fog.FogColor = pFog->FogColor;
 
 	SetFogBuffer();
 }
 
 void Renderer::SetRenderProgress(RenderProgressBuffer renderProgress)
 {
-	g_ImmediateContext->UpdateSubresource(g_RenderProgressBuffer, 0, NULL, &renderProgress, 0, 0);
+	m_ImmediateContext->UpdateSubresource(m_RenderProgressBuffer, 0, NULL, &renderProgress, 0, 0);
 }
 
 void Renderer::SetFuchi(int flag)
 {
-	g_Fuchi.fuchi = flag;
-	g_ImmediateContext->UpdateSubresource(g_FuchiBuffer, 0, NULL, &g_Fuchi, 0, 0);
+	m_Fuchi.fuchi = flag;
+	m_ImmediateContext->UpdateSubresource(m_FuchiBuffer, 0, NULL, &m_Fuchi, 0, 0);
 }
 
 
@@ -383,80 +382,80 @@ void Renderer::SetShaderCamera(XMFLOAT3 pos)
 {
 	XMFLOAT4 tmp = XMFLOAT4( pos.x, pos.y, pos.z, 0.0f );
 
-	g_ImmediateContext->UpdateSubresource(g_CameraPosBuffer, 0, NULL, &tmp, 0, 0);
+	m_ImmediateContext->UpdateSubresource(m_CameraPosBuffer, 0, NULL, &tmp, 0, 0);
 }
 
 void Renderer::SetRenderSkinnedMeshModel(void)
 {
-	g_RenderMode = RenderMode::SKINNED_MESH;
+	m_RenderMode = RenderMode::SKINNED_MESH;
 
 	ResetRenderTarget();
 
-	g_ImmediateContext->VSSetShader(m_SkinnedModelShaderSet.vs, nullptr, 0);
-	g_ImmediateContext->PSSetShader(m_SkinnedModelShaderSet.ps, nullptr, 0);
-	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_BONE_MATRIX_ARRAY, g_BoneMatrixBuffer);
-	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_BONE_MATRIX_ARRAY, g_BoneMatrixBuffer);
+	m_ImmediateContext->VSSetShader(m_SkinnedModelShaderSet.vs, nullptr, 0);
+	m_ImmediateContext->PSSetShader(m_SkinnedModelShaderSet.ps, nullptr, 0);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_BONE_MATRIX_ARRAY, m_BoneMatrixBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_BONE_MATRIX_ARRAY, m_BoneMatrixBuffer);
 }
 
 void Renderer::SetRenderInstance(void)
 {
-	g_RenderMode = RenderMode::INSTANCE;
+	m_RenderMode = RenderMode::INSTANCE;
 }
 
 void Renderer::SetRenderVFX(void)
 {
-	g_RenderMode = RenderMode::VFX;
+	m_RenderMode = RenderMode::VFX;
 
 	XMMATRIX mtxWorld = XMMatrixIdentity();
 	SetCurrentWorldMatrix(&mtxWorld);
 
 	SetCullingMode(CULL_MODE_NONE);
 
-	g_ImmediateContext->VSSetShader(m_VFXShaderSet.vs, NULL, 0);
-	g_ImmediateContext->PSSetShader(m_VFXShaderSet.ps, NULL, 0);
+	m_ImmediateContext->VSSetShader(m_VFXShaderSet.vs, NULL, 0);
+	m_ImmediateContext->PSSetShader(m_VFXShaderSet.ps, NULL, 0);
 }
 
 void Renderer::SetRenderUI(void)
 {
-	g_RenderMode = RenderMode::UI;
+	m_RenderMode = RenderMode::UI;
 
-	g_ImmediateContext->VSSetShader(m_UIShaderSet.vs, NULL, 0);
-	g_ImmediateContext->PSSetShader(m_UIShaderSet.ps, NULL, 0);
+	m_ImmediateContext->VSSetShader(m_UIShaderSet.vs, NULL, 0);
+	m_ImmediateContext->PSSetShader(m_UIShaderSet.ps, NULL, 0);
 }
 
 void Renderer::SetStaticModelInputLayout(void)
 {
-	g_ImmediateContext->IASetInputLayout(m_StaticModelShaderSet.inputLayout);
+	m_ImmediateContext->IASetInputLayout(m_StaticModelShaderSet.inputLayout);
 }
 
 void Renderer::SetUIInputLayout(void)
 {
-	g_ImmediateContext->IASetInputLayout(m_UIShaderSet.inputLayout);
+	m_ImmediateContext->IASetInputLayout(m_UIShaderSet.inputLayout);
 }
 
 void Renderer::SetSkinnedMeshInputLayout(void)
 {
-	g_ImmediateContext->IASetInputLayout(m_SkinnedModelShaderSet.inputLayout);
+	m_ImmediateContext->IASetInputLayout(m_SkinnedModelShaderSet.inputLayout);
 }
 
 void Renderer::SetVFXInputLayout(void)
 {
-	g_ImmediateContext->IASetInputLayout(m_VFXShaderSet.inputLayout);
+	m_ImmediateContext->IASetInputLayout(m_VFXShaderSet.inputLayout);
 }
 
 void Renderer::SetRenderObject(void)
 {
-	g_RenderMode = RenderMode::OBJ;
+	m_RenderMode = RenderMode::OBJ;
 
 	ResetRenderTarget();
 
-	g_ImmediateContext->VSSetShader(m_StaticModelShaderSet.vs, NULL, 0);
-	g_ImmediateContext->PSSetShader(m_StaticModelShaderSet.ps, NULL, 0);
+	m_ImmediateContext->VSSetShader(m_StaticModelShaderSet.vs, NULL, 0);
+	m_ImmediateContext->PSSetShader(m_StaticModelShaderSet.ps, NULL, 0);
 }
 
 void Renderer::ResetRenderTarget(void)
 {
-	g_ImmediateContext->OMSetRenderTargets(1, &g_RenderTargetView, g_SceneDepthStencilView);
+	m_ImmediateContext->OMSetRenderTargets(1, &m_RenderTargetView, m_SceneDepthStencilView);
 }
 
 void Renderer::SetMainPassViewport(void)
@@ -469,7 +468,7 @@ void Renderer::SetMainPassViewport(void)
 	vp.MaxDepth = 1.0f;
 	vp.TopLeftX = 0;
 	vp.TopLeftY = 0;
-	g_ImmediateContext->RSSetViewports(1, &vp);
+	m_ImmediateContext->RSSetViewports(1, &vp);
 }
 
 void Renderer::SetShadersets(void)
@@ -519,26 +518,26 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 										0,
 										D3D11_SDK_VERSION,
 										&sd,
-										&g_SwapChain,
-										&g_D3DDevice,
-										&g_FeatureLevel,
-										&g_ImmediateContext );
+										&m_SwapChain,
+										&m_D3DDevice,
+										&m_FeatureLevel,
+										&m_ImmediateContext );
 	if( FAILED( hr ) )
 		return hr;
 
-	m_ShaderResourceBinder.Initialize(g_ImmediateContext);
+	m_ShaderResourceBinder.Initialize(m_ImmediateContext);
 
 	//デバッグ文字出力用設定
 #if defined(_DEBUG) && defined(DEBUG_DISP_TEXTOUT)
-	hr = g_SwapChain->ResizeBuffers(0, SCREEN_WIDTH, SCREEN_HEIGHT, DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG_GDI_COMPATIBLE); // N.B. the GDI compatible flag
+	hr = m_SwapChain->ResizeBuffers(0, SCREEN_WIDTH, SCREEN_HEIGHT, DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG_GDI_COMPATIBLE); // N.B. the GDI compatible flag
 	if (FAILED(hr))
 		return hr;
 #endif
 
 	// レンダーターゲットビュー生成、設定
 	ID3D11Texture2D* pBackBuffer = NULL;
-	g_SwapChain->GetBuffer( 0, __uuidof( ID3D11Texture2D ), ( LPVOID* )&pBackBuffer );
-	g_D3DDevice->CreateRenderTargetView( pBackBuffer, NULL, &g_RenderTargetView );
+	m_SwapChain->GetBuffer( 0, __uuidof( ID3D11Texture2D ), ( LPVOID* )&pBackBuffer );
+	m_D3DDevice->CreateRenderTargetView( pBackBuffer, NULL, &m_RenderTargetView );
 	pBackBuffer->Release();
 
 
@@ -553,13 +552,13 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	sceneDepthDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 
 	ID3D11Texture2D* sceneDepthTexture = nullptr;
-	g_D3DDevice->CreateTexture2D(&sceneDepthDesc, nullptr, &sceneDepthTexture);
+	m_D3DDevice->CreateTexture2D(&sceneDepthDesc, nullptr, &sceneDepthTexture);
 
 
 	D3D11_DEPTH_STENCIL_VIEW_DESC sceneDSVDesc = {};
 	sceneDSVDesc.Format = DXGI_FORMAT_D32_FLOAT;
 	sceneDSVDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-	g_D3DDevice->CreateDepthStencilView(sceneDepthTexture, &sceneDSVDesc, &g_SceneDepthStencilView);
+	m_D3DDevice->CreateDepthStencilView(sceneDepthTexture, &sceneDSVDesc, &m_SceneDepthStencilView);
 
 
 
@@ -570,13 +569,13 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	rd.CullMode = D3D11_CULL_NONE; 
 	rd.DepthClipEnable = TRUE; 
 	rd.MultisampleEnable = FALSE; 
-	g_D3DDevice->CreateRasterizerState( &rd, &g_RasterStateCullOff);
+	m_D3DDevice->CreateRasterizerState( &rd, &m_RasterStateCullOff);
 
 	rd.CullMode = D3D11_CULL_FRONT;
-	g_D3DDevice->CreateRasterizerState(&rd, &g_RasterStateCullCW);
+	m_D3DDevice->CreateRasterizerState(&rd, &m_RasterStateCullCW);
 
 	rd.CullMode = D3D11_CULL_BACK;
-	g_D3DDevice->CreateRasterizerState(&rd, &g_RasterStateCullCCW);
+	m_D3DDevice->CreateRasterizerState(&rd, &m_RasterStateCullCCW);
 
 	// カリングモード設定（CCW）
 	SetCullingMode(CULL_MODE_BACK);
@@ -590,19 +589,19 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 
 	// Layer 0
 	rd.DepthBias = DEPTHBIAS_LAYER_0;
-	g_D3DDevice->CreateRasterizerState(&rd, &g_RasterizerLayer0);
+	m_D3DDevice->CreateRasterizerState(&rd, &m_RasterizerLayer0);
 
 	// Layer 1
 	rd.DepthBias = DEPTHBIAS_LAYER_1;
-	g_D3DDevice->CreateRasterizerState(&rd, &g_RasterizerLayer1);
+	m_D3DDevice->CreateRasterizerState(&rd, &m_RasterizerLayer1);
 
 	// Layer 2
 	rd.DepthBias = DEPTHBIAS_LAYER_2;
-	g_D3DDevice->CreateRasterizerState(&rd, &g_RasterizerLayer2);
+	m_D3DDevice->CreateRasterizerState(&rd, &m_RasterizerLayer2);
 
 	// Layer 3
 	rd.DepthBias = DEPTHBIAS_LAYER_3;
-	g_D3DDevice->CreateRasterizerState(&rd, &g_RasterizerLayer3);
+	m_D3DDevice->CreateRasterizerState(&rd, &m_RasterizerLayer3);
 
 
 	// ブレンドステートの作成
@@ -618,7 +617,7 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
 	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
 	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-	g_D3DDevice->CreateBlendState( &blendDesc, &g_BlendStateAlphaBlend );
+	m_D3DDevice->CreateBlendState( &blendDesc, &m_BlendStateAlphaBlend );
 
 	blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
 	blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ZERO;
@@ -627,7 +626,7 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
 	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
 	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-	g_D3DDevice->CreateBlendState(&blendDesc, &g_BlendStateNone);
+	m_D3DDevice->CreateBlendState(&blendDesc, &m_BlendStateNone);
 
 	blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
 	blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ONE;
@@ -636,7 +635,7 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
 	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
 	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-	g_D3DDevice->CreateBlendState(&blendDesc, &g_BlendStateAdd);
+	m_D3DDevice->CreateBlendState(&blendDesc, &m_BlendStateAdd);
 
 	blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
 	blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ONE;
@@ -645,7 +644,7 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
 	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
 	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-	g_D3DDevice->CreateBlendState(&blendDesc, &g_BlendStateSubtract);
+	m_D3DDevice->CreateBlendState(&blendDesc, &m_BlendStateSubtract);
 
 	ZeroMemory(&blendDesc, sizeof(blendDesc));
 
@@ -662,7 +661,7 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
 
 	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-	g_D3DDevice->CreateBlendState(&blendDesc, &g_BlendStateSwordTrail);
+	m_D3DDevice->CreateBlendState(&blendDesc, &m_BlendStateSwordTrail);
 
 	// アルファブレンド設定
 	SetBlendState(BLEND_MODE_ALPHABLEND);
@@ -677,15 +676,15 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	depthStencilDesc.StencilEnable = FALSE;
 
 	//深度Test有効ステート
-	g_D3DDevice->CreateDepthStencilState( &depthStencilDesc, &g_DepthStateEnable);
+	m_D3DDevice->CreateDepthStencilState( &depthStencilDesc, &m_DepthStateEnable);
 
 	//深度Write無効（パーティクル用）
 	depthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
-	g_D3DDevice->CreateDepthStencilState(&depthStencilDesc, &g_DepthStateParticle);
+	m_D3DDevice->CreateDepthStencilState(&depthStencilDesc, &m_DepthStateParticle);
 
 	//深度Test無効ステート
 	depthStencilDesc.DepthEnable = FALSE;
-	g_D3DDevice->CreateDepthStencilState( &depthStencilDesc, &g_DepthStateDisable);
+	m_D3DDevice->CreateDepthStencilState( &depthStencilDesc, &m_DepthStateDisable);
 
 	// 深度ステンシルステート設定
 	SetDepthEnable(TRUE);
@@ -706,8 +705,8 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	samplerDesc.MinLOD = 0;
 	samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
 
-	g_D3DDevice->CreateSamplerState( &samplerDesc, &g_SamplerState);
-	m_ShaderResourceBinder.BindSampler(ShaderStage::PS, SLOT_SAMPLER_DEFAULT, g_SamplerState);
+	m_D3DDevice->CreateSamplerState( &samplerDesc, &m_SamplerState);
+	m_ShaderResourceBinder.BindSampler(ShaderStage::PS, SLOT_SAMPLER_DEFAULT, m_SamplerState);
 
 	ZeroMemory(&samplerDesc, sizeof(samplerDesc));
 
@@ -724,8 +723,8 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	samplerDesc.MinLOD = 0;
 	samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
 
-	g_D3DDevice->CreateSamplerState(&samplerDesc, &g_SamplerStateShadow);
-	m_ShaderResourceBinder.BindSampler(ShaderStage::PS, SLOT_SAMPLER_SHADOW, g_SamplerStateShadow);
+	m_D3DDevice->CreateSamplerState(&samplerDesc, &m_SamplerStateShadow);
+	m_ShaderResourceBinder.BindSampler(ShaderStage::PS, SLOT_SAMPLER_SHADOW, m_SamplerStateShadow);
 
 
 	ZeroMemory(&samplerDesc, sizeof(samplerDesc));
@@ -741,8 +740,8 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	samplerDesc.MinLOD = 0;
 	samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
 
-	g_D3DDevice->CreateSamplerState(&samplerDesc, &g_SamplerStateOpacity);
-	m_ShaderResourceBinder.BindSampler(ShaderStage::PS, SLOT_SAMPLER_OPACITY, g_SamplerStateOpacity);
+	m_D3DDevice->CreateSamplerState(&samplerDesc, &m_SamplerStateOpacity);
+	m_ShaderResourceBinder.BindSampler(ShaderStage::PS, SLOT_SAMPLER_OPACITY, m_SamplerStateOpacity);
 
 	// 定数バッファ生成
 	D3D11_BUFFER_DESC hBufferDesc;
@@ -754,62 +753,62 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	hBufferDesc.StructureByteStride = sizeof(float);
 
 	//ワールドマトリクス
-	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_WorldBuffer);
-	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_WORLD_MATRIX, g_WorldBuffer);
-	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_WORLD_MATRIX, g_WorldBuffer);
+	m_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &m_WorldBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_WORLD_MATRIX, m_WorldBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_WORLD_MATRIX, m_WorldBuffer);
 
 	//ビューマトリクス
-	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_ViewBuffer);
-	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_VIEW_MATRIX, g_ViewBuffer);
-	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_VIEW_MATRIX, g_ViewBuffer);
+	m_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &m_ViewBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_VIEW_MATRIX, m_ViewBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_VIEW_MATRIX, m_ViewBuffer);
 
 	//プロジェクションマトリクス
-	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_ProjectionBuffer);
-	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_PROJECTION_MATRIX, g_ProjectionBuffer);
-	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_PROJECTION_MATRIX, g_ProjectionBuffer);
+	m_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &m_ProjectionBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_PROJECTION_MATRIX, m_ProjectionBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_PROJECTION_MATRIX, m_ProjectionBuffer);
 
 	//マテリアル情報
 	hBufferDesc.ByteWidth = sizeof(MATERIAL_CBUFFER);
-	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_MaterialBuffer);
-	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_MATERIAL, g_MaterialBuffer);
-	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_MATERIAL, g_MaterialBuffer);
+	m_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &m_MaterialBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_MATERIAL, m_MaterialBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_MATERIAL, m_MaterialBuffer);
 
 	//ライト情報
 	hBufferDesc.ByteWidth = sizeof(LIGHT_CBUFFER);
-	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_LightBuffer);
-	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_LIGHT, g_LightBuffer);
-	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_LIGHT, g_LightBuffer);
+	m_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &m_LightBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_LIGHT, m_LightBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_LIGHT, m_LightBuffer);
 
 	//フォグ情報
 	hBufferDesc.ByteWidth = sizeof(FOG_CBUFFER);
-	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_FogBuffer);
+	m_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &m_FogBuffer);
 
 	//縁取り
 	hBufferDesc.ByteWidth = sizeof(FUCHI);
-	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_FuchiBuffer);
+	m_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &m_FuchiBuffer);
 
 	//カメラ
 	hBufferDesc.ByteWidth = sizeof(XMFLOAT4);
-	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_CameraPosBuffer);
-	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_CAMERA_POS, g_CameraPosBuffer);
-	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_CAMERA_POS, g_CameraPosBuffer);
+	m_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &m_CameraPosBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_CAMERA_POS, m_CameraPosBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_CAMERA_POS, m_CameraPosBuffer);
 
 	hBufferDesc.ByteWidth = sizeof(BoneMatrices);
-	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_BoneMatrixBuffer);
+	m_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &m_BoneMatrixBuffer);
 
 
 	hBufferDesc.ByteWidth = sizeof(LIGHTMODE_CBUFFER);
-	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_LightModeBuffer);
-	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_LIGHT_MODE, g_LightModeBuffer);
-	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_LIGHT_MODE, g_LightModeBuffer);
+	m_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &m_LightModeBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_LIGHT_MODE, m_LightModeBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_LIGHT_MODE, m_LightModeBuffer);
 	
 	hBufferDesc.ByteWidth = sizeof(RenderProgressBuffer);
-	g_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &g_RenderProgressBuffer);
-	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_RENDER_PROGRESS, g_RenderProgressBuffer);
-	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_RENDER_PROGRESS, g_RenderProgressBuffer);
+	m_D3DDevice->CreateBuffer(&hBufferDesc, NULL, &m_RenderProgressBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_RENDER_PROGRESS, m_RenderProgressBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_RENDER_PROGRESS, m_RenderProgressBuffer);
 
 	// 入力レイアウト設定
-	g_ImmediateContext->IASetInputLayout(m_ShaderManager.GetInputLayout(VertexLayoutID::Static));
+	m_ImmediateContext->IASetInputLayout(m_ShaderManager.GetInputLayout(VertexLayoutID::Static));
 
 	//マテリアル初期化
 	MATERIAL material;
@@ -825,49 +824,49 @@ HRESULT Renderer::Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 //=============================================================================
 // 終了処理
 //=============================================================================
-void Renderer::Uninit(void)
+void Renderer::Shutdown(void)
 {
 	// オブジェクト解放
-	SafeRelease(&g_DepthStateEnable);
-	SafeRelease(&g_DepthStateDisable);
-	SafeRelease(&g_DepthStateParticle);
+	SafeRelease(&m_DepthStateEnable);
+	SafeRelease(&m_DepthStateDisable);
+	SafeRelease(&m_DepthStateParticle);
 
-	SafeRelease(&g_BlendStateNone);
-	SafeRelease(&g_BlendStateAlphaBlend);
-	SafeRelease(&g_BlendStateAdd);
-	SafeRelease(&g_BlendStateSubtract);
+	SafeRelease(&m_BlendStateNone);
+	SafeRelease(&m_BlendStateAlphaBlend);
+	SafeRelease(&m_BlendStateAdd);
+	SafeRelease(&m_BlendStateSubtract);
 
-	SafeRelease(&g_RasterStateCullOff);
-	SafeRelease(&g_RasterStateCullCW);
-	SafeRelease(&g_RasterStateCullCCW);
-	SafeRelease(&g_RasterizerLayer0);
-	SafeRelease(&g_RasterizerLayer1);
-	SafeRelease(&g_RasterizerLayer2);
-	SafeRelease(&g_RasterizerLayer3);
+	SafeRelease(&m_RasterStateCullOff);
+	SafeRelease(&m_RasterStateCullCW);
+	SafeRelease(&m_RasterStateCullCCW);
+	SafeRelease(&m_RasterizerLayer0);
+	SafeRelease(&m_RasterizerLayer1);
+	SafeRelease(&m_RasterizerLayer2);
+	SafeRelease(&m_RasterizerLayer3);
 
 
-	SafeRelease(&g_WorldBuffer);
-	SafeRelease(&g_ViewBuffer);
-	SafeRelease(&g_ProjectionBuffer);
-	SafeRelease(&g_MaterialBuffer);
-	SafeRelease(&g_LightBuffer);
-	SafeRelease(&g_FogBuffer);
-	SafeRelease(&g_FuchiBuffer);
-	SafeRelease(&g_CameraPosBuffer);
-	SafeRelease(&g_LightProjViewBuffer);
-	SafeRelease(&g_BoneMatrixBuffer);
-	SafeRelease(&g_LightModeBuffer);
-	SafeRelease(&g_RenderProgressBuffer);
+	SafeRelease(&m_WorldBuffer);
+	SafeRelease(&m_ViewBuffer);
+	SafeRelease(&m_ProjectionBuffer);
+	SafeRelease(&m_MaterialBuffer);
+	SafeRelease(&m_LightBuffer);
+	SafeRelease(&m_FogBuffer);
+	SafeRelease(&m_FuchiBuffer);
+	SafeRelease(&m_CameraPosBuffer);
+	SafeRelease(&m_LightProjViewBuffer);
+	SafeRelease(&m_BoneMatrixBuffer);
+	SafeRelease(&m_LightModeBuffer);
+	SafeRelease(&m_RenderProgressBuffer);
 
-	SafeRelease(&g_SamplerState);
-	SafeRelease(&g_SamplerStateShadow);
-	SafeRelease(&g_SamplerStateOpacity);
+	SafeRelease(&m_SamplerState);
+	SafeRelease(&m_SamplerStateShadow);
+	SafeRelease(&m_SamplerStateOpacity);
 
-	if (g_ImmediateContext)		g_ImmediateContext->ClearState();
-	SafeRelease(&g_RenderTargetView);
-	SafeRelease(&g_SwapChain);
-	SafeRelease(&g_ImmediateContext);
-	SafeRelease(&g_D3DDevice);
+	if (m_ImmediateContext)		m_ImmediateContext->ClearState();
+	SafeRelease(&m_RenderTargetView);
+	SafeRelease(&m_SwapChain);
+	SafeRelease(&m_ImmediateContext);
+	SafeRelease(&m_D3DDevice);
 }
 
 
@@ -878,17 +877,17 @@ void Renderer::Uninit(void)
 void Renderer::Clear(void)
 {
 	// バックバッファクリア
-	g_ImmediateContext->ClearRenderTargetView( g_RenderTargetView, g_ClearColor );
-	g_ImmediateContext->ClearDepthStencilView( g_SceneDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	m_ImmediateContext->ClearRenderTargetView( m_RenderTargetView, m_ClearColor );
+	m_ImmediateContext->ClearDepthStencilView( m_SceneDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 }
 
 
 void Renderer::SetClearColor(float* color4)
 {
-	g_ClearColor[0] = color4[0];
-	g_ClearColor[1] = color4[1];
-	g_ClearColor[2] = color4[2];
-	g_ClearColor[3] = color4[3];
+	m_ClearColor[0] = color4[0];
+	m_ClearColor[1] = color4[1];
+	m_ClearColor[2] = color4[2];
+	m_ClearColor[3] = color4[3];
 }
 
 
@@ -897,7 +896,7 @@ void Renderer::SetClearColor(float* color4)
 //=============================================================================
 void Renderer::Present(void)
 {
-	g_SwapChain->Present( 0, 0 );
+	m_SwapChain->Present( 0, 0 );
 }
 
 
@@ -911,7 +910,7 @@ void Renderer::DebugTextOut(char* text, int x, int y)
 
 	//バックバッファからサーフェスを取得する
 	IDXGISurface1* pBackSurface = NULL;
-	hr = g_SwapChain->GetBuffer(0, __uuidof(IDXGISurface1), (void**)&pBackSurface);
+	hr = m_SwapChain->GetBuffer(0, __uuidof(IDXGISurface1), (void**)&pBackSurface);
 
 	if (SUCCEEDED(hr))
 	{
@@ -942,7 +941,7 @@ void Renderer::DebugTextOut(char* text, int x, int y)
 		pBackSurface->Release();
 
 		//レンダリングターゲットがリセットされるのでセットしなおす
-		g_ImmediateContext->OMSetRenderTargets(1, &g_RenderTargetView, g_SceneDepthStencilView);
+		m_ImmediateContext->OMSetRenderTargets(1, &m_RenderTargetView, m_SceneDepthStencilView);
 	}
 #endif
 }
@@ -951,20 +950,20 @@ void Renderer::SetLightModeBuffer(int mode)
 {
 	LIGHTMODE_CBUFFER md;
 	md.mode = mode;
-	g_ImmediateContext->UpdateSubresource(g_LightModeBuffer, 0, NULL, &md, 0, 0);
+	m_ImmediateContext->UpdateSubresource(m_LightModeBuffer, 0, NULL, &md, 0, 0);
 }
 
 RenderMode Renderer::GetRenderMode(void)
 {
-	return g_RenderMode;
+	return m_RenderMode;
 }
 
 void Renderer::SetRenderMode(RenderMode mode)
 {
-	g_RenderMode = mode;
+	m_RenderMode = mode;
 }
 
 void Renderer::BindViewBuffer(ShaderStage stage)
 {
-	m_ShaderResourceBinder.BindConstantBuffer(stage, SLOT_CB_VIEW_MATRIX, g_ViewBuffer);
+	m_ShaderResourceBinder.BindConstantBuffer(stage, SLOT_CB_VIEW_MATRIX, m_ViewBuffer);
 }

@@ -7,9 +7,9 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include "main.h"
 #include "Model.h"
-#include "camera.h"
-#include "input.h"
-#include "debugproc.h"
+#include "Camera.h"
+#include "InputManager.h"
+#include "Debugproc.h"
 #include "MapEditor.h"
 #include "ModelCacheLoader.h"
 

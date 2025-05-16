@@ -1,7 +1,9 @@
 //=============================================================================
 //
-// ライト処理 [light.h]
+// ライト一覧の登録・有効管理および定数バッファ生成 [light.h]
 // Author : 
+// 全ライトの追加／削除／更新を統括し、有効状態の制御とともに、
+// シェーダー向けの LIGHT_CBUFFER を構築・提供するマネージャクラス
 //
 //=============================================================================
 #pragma once
@@ -24,8 +26,8 @@ public:
 
 private:
 
-	bool enableLight;
+	bool m_enableLight;
 	DoubleLinkedList<Light*> m_LightList;
 	LIGHT_CBUFFER m_CBuffer;
-	Renderer& renderer = Renderer::get_instance();
+	Renderer& m_renderer = Renderer::get_instance();
 };

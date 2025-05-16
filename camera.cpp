@@ -5,7 +5,7 @@
 //
 //=============================================================================
 #include "main.h"
-#include "input.h"
+#include "InputManager.h"
 #include "Camera.h"
 #include "debugproc.h"
 #include "GameSystem.h"
@@ -35,32 +35,32 @@ static Renderer& renderer = Renderer::get_instance();
 //=============================================================================
 void Camera::Init(void)
 {
-	pos = { POS_X_CAM, POS_Y_CAM, POS_Z_CAM };
-	at  = { 0.0f, 0.0f, 0.0f };
-	up  = { 0.0f, 1.0f, 0.0f };
-	rot = { 0.0f, 0.0f, 0.0f };
-	fov = VIEW_ANGLE;
+	m_pos = { POS_X_CAM, POS_Y_CAM, POS_Z_CAM };
+	m_at  = { 0.0f, 0.0f, 0.0f };
+	m_up  = { 0.0f, 1.0f, 0.0f };
+	m_rot = { 0.0f, 0.0f, 0.0f };
+	m_fov = VIEW_ANGLE;
 
 	// 視点と注視点の距離を計算
 	float vx, vz;
-	vx = pos.x - at.x;
-	vz = pos.z - at.z;
-	len = sqrtf(vx * vx + vz * vz);
+	vx = m_pos.x - m_at.x;
+	vz = m_pos.z - m_at.z;
+	m_len = sqrtf(vx * vx + vz * vz);
 	
-	pos.x = at.x - sinf(rot.y) * len;
-	pos.z = at.z - cosf(rot.y) * len;
-	pos.y = at.y + sinf(rot.x) * len;
+	m_pos.x = m_at.x - sinf(m_rot.y) * m_len;
+	m_pos.z = m_at.z - cosf(m_rot.y) * m_len;
+	m_pos.y = m_at.y + sinf(m_rot.x) * m_len;
 
-	nearZ = VIEW_NEAR_Z;
-	farZ = VIEW_FAR_Z_SCENE;
+	m_nearZ = VIEW_NEAR_Z;
+	m_farZ = VIEW_FAR_Z_SCENE;
 
 	// ビューポートタイプの初期化
 	SetViewPort(g_ViewPortType);
 
 
 	// プロジェクションマトリックス設定
-	m_projScene = XMMatrixPerspectiveFovLH(VIEW_ANGLE, VIEW_ASPECT, nearZ, VIEW_FAR_Z_SCENE);
-	m_projSkybox = XMMatrixPerspectiveFovLH(VIEW_ANGLE, VIEW_ASPECT, nearZ, VIEW_FAR_Z_SKYBOX);
+	m_projScene = XMMatrixPerspectiveFovLH(VIEW_ANGLE, VIEW_ASPECT, m_nearZ, VIEW_FAR_Z_SCENE);
+	m_projSkybox = XMMatrixPerspectiveFovLH(VIEW_ANGLE, VIEW_ASPECT, m_nearZ, VIEW_FAR_Z_SKYBOX);
 
 	SetCameraType(CameraType::SCENE);
 }
@@ -69,7 +69,7 @@ void Camera::Init(void)
 //=============================================================================
 // カメラの終了処理
 //=============================================================================
-void Camera::Uninit(void)
+void Camera::Shutdown(void)
 {
 
 }
@@ -102,15 +102,15 @@ void Camera::Update(void)
 	static long prevMouseX = 0;
 	static long prevMouseY = 0;
 	// 元のカメラ距離を保存
-	static float originalDistance = len;
+	static float originalDistance = m_len;
 	static bool rotated = false;
 
 
-	if (IsMouseRecentered())
+	if (m_inputManager.IsMouseRecentered())
 	{
 		prevMouseX = GetMousePosX();
 		prevMouseY = GetMousePosY();
-		SetMouseRecentered(false);  // 次のフレームから有効
+		m_inputManager.SetMouseRecentered(false);  // 次のフレームから有効
 	}
 	else
 	{
@@ -126,143 +126,143 @@ void Camera::Update(void)
 		prevMouseY = currentMouseY;
 
 		// 水平方向の回転処理 (マウス左右移動)
-		rot.y += deltaX * MOUSE_SENSITIVITY * timer.GetScaledDeltaTime();
+		m_rot.y += deltaX * MOUSE_SENSITIVITY * m_timer.GetScaledDeltaTime();
 
 		// 水平方向の回転角度を -π 〜 π に正規化
-		if (rot.y > XM_PI)
-			rot.y -= XM_2PI;
-		if (rot.y < -XM_PI)
-			rot.y += XM_2PI;
+		if (m_rot.y > XM_PI)
+			m_rot.y -= XM_2PI;
+		if (m_rot.y < -XM_PI)
+			m_rot.y += XM_2PI;
 
 		// 垂直方向の回転処理 (マウス上下移動)
-		float desiredRotX = rot.x + deltaY * MOUSE_SENSITIVITY * timer.GetScaledDeltaTime();
+		float desiredRotX = m_rot.x + deltaY * MOUSE_SENSITIVITY * m_timer.GetScaledDeltaTime();
 		if (desiredRotX > MIN_VERTICAL_ANGLE && desiredRotX <= MAX_VERTICAL_ANGLE)
 		{
-			if (len < originalDistance && deltaY > 0)
+			if (m_len < originalDistance && deltaY > 0)
 			{
-				len += CAMERA_RETREAT_SPEED * timer.GetScaledDeltaTime();
-				if (len > originalDistance) len = originalDistance;
+				m_len += CAMERA_RETREAT_SPEED * m_timer.GetScaledDeltaTime();
+				if (m_len > originalDistance) m_len = originalDistance;
 			}
 			else
-				rot.x = desiredRotX;
+				m_rot.x = desiredRotX;
 		}
 		else if (desiredRotX <= MIN_VERTICAL_ANGLE)
 		{
 			// 地面に近づきすぎた場合の処理
 			if (deltaY < 0)
 			{
-				len -= CAMERA_APPROACH_SPEED * timer.GetScaledDeltaTime();
+				m_len -= CAMERA_APPROACH_SPEED * m_timer.GetScaledDeltaTime();
 				//if (len > MIN_CAMERA_DISTANCE)
 				//	rot.x += deltaY* MOUSE_SENSITIVITY * 0.3f;
-				if (len < MIN_CAMERA_DISTANCE)
-					len = MIN_CAMERA_DISTANCE;
+				if (m_len < MIN_CAMERA_DISTANCE)
+					m_len = MIN_CAMERA_DISTANCE;
 			}
-			else if (deltaY > 0 && len < originalDistance)
+			else if (deltaY > 0 && m_len < originalDistance)
 			{
 
-				len += CAMERA_RETREAT_SPEED * timer.GetScaledDeltaTime();
+				m_len += CAMERA_RETREAT_SPEED * m_timer.GetScaledDeltaTime();
 				//if (len < originalDistance)
 				//	rot.x -= deltaY * MOUSE_SENSITIVITY * 0.6f;
-				if (len > originalDistance)
-					len = originalDistance;
+				if (m_len > originalDistance)
+					m_len = originalDistance;
 			}
 		}
 		else if (desiredRotX > MAX_VERTICAL_ANGLE)
 		{
 			// 最大仰角を超えないように制限
-			rot.x = MAX_VERTICAL_ANGLE;
+			m_rot.x = MAX_VERTICAL_ANGLE;
 		}
 
 		// マウスホイールによるズーム処理
-		long wheelDelta = GetMouseZ();
+		long wheelDelta = m_inputManager.GetMouseZ();
 		if (wheelDelta != 0)
 		{
-			len -= wheelDelta * ZOOM_SENSITIVITY * timer.GetScaledDeltaTime();
+			m_len -= wheelDelta * ZOOM_SENSITIVITY * m_timer.GetScaledDeltaTime();
 
-			if (len < MIN_CAMERA_DISTANCE) len = MIN_CAMERA_DISTANCE;
-			if (len > MAX_CAMERA_DISTANCE) len = MAX_CAMERA_DISTANCE;
+			if (m_len < MIN_CAMERA_DISTANCE) m_len = MIN_CAMERA_DISTANCE;
+			if (m_len > MAX_CAMERA_DISTANCE) m_len = MAX_CAMERA_DISTANCE;
 
-			originalDistance = len;
+			originalDistance = m_len;
 		}
 
 
 		// マウス位置を中央に戻す
 		//if (rotated)
-		SetMousePosCenter();
+		m_inputManager.SetMousePosCenter();
 	}
 
 
 
 	// カメラ位置の更新
-	pos.x = at.x - sinf(rot.y) * cosf(rot.x) * len;
-	pos.z = at.z - cosf(rot.y) * cosf(rot.x) * len;
-	pos.y = at.y + sinf(rot.x) * len;
+	m_pos.x = m_at.x - sinf(m_rot.y) * cosf(m_rot.x) * m_len;
+	m_pos.z = m_at.z - cosf(m_rot.y) * cosf(m_rot.x) * m_len;
+	m_pos.y = m_at.y + sinf(m_rot.x) * m_len;
 
 	//if (!IsMouseRecentered())
 	//	SetMousePosCenter();
 
 #ifdef _DEBUG
-	if (GetKeyboardPress(DIK_Z))
+	if (m_inputManager.GetKeyboardPress(DIK_Z))
 	{// 視点旋回「左」
-		rot.y += VALUE_ROTATE_CAMERA;
-		if (rot.y > XM_PI)
+		m_rot.y += VALUE_ROTATE_CAMERA;
+		if (m_rot.y > XM_PI)
 		{
-			rot.y -= XM_2PI;
+			m_rot.y -= XM_2PI;
 		}
 
-		pos.x = at.x - sinf(rot.y) * len;
-		pos.z = at.z - cosf(rot.y) * len;
+		m_pos.x = m_at.x - sinf(m_rot.y) * m_len;
+		m_pos.z = m_at.z - cosf(m_rot.y) * m_len;
 	}
 
-	if (GetKeyboardPress(DIK_C))
+	if (m_inputManager.GetKeyboardPress(DIK_C))
 	{// 視点旋回「右」
-		rot.y -= VALUE_ROTATE_CAMERA;
-		if (rot.y < -XM_PI)
+		m_rot.y -= VALUE_ROTATE_CAMERA;
+		if (m_rot.y < -XM_PI)
 		{
-			rot.y += XM_2PI;
+			m_rot.y += XM_2PI;
 		}
 
-		pos.x = at.x - sinf(rot.y) * len;
-		pos.z = at.z - cosf(rot.y) * len;
+		m_pos.x = m_at.x - sinf(m_rot.y) * m_len;
+		m_pos.z = m_at.z - cosf(m_rot.y) * m_len;
 	}
 
-	if (GetKeyboardPress(DIK_Y))
+	if (m_inputManager.GetKeyboardPress(DIK_Y))
 	{// 視点移動「上」
-		pos.y += VALUE_MOVE_CAMERA;
+		m_pos.y += VALUE_MOVE_CAMERA;
 	}
 
-	if (GetKeyboardPress(DIK_N))
+	if (m_inputManager.GetKeyboardPress(DIK_N))
 	{// 視点移動「下」
-		pos.y -= VALUE_MOVE_CAMERA;
+		m_pos.y -= VALUE_MOVE_CAMERA;
 	}
 
-	if (GetKeyboardPress(DIK_Q))
+	if (m_inputManager.GetKeyboardPress(DIK_Q))
 	{// 注視点旋回「左」
-		rot.y -= VALUE_ROTATE_CAMERA;
-		if (rot.y < -XM_PI)
+		m_rot.y -= VALUE_ROTATE_CAMERA;
+		if (m_rot.y < -XM_PI)
 		{
-			rot.y += XM_2PI;
+			m_rot.y += XM_2PI;
 		}
 
-		at.x = pos.x + sinf(rot.y) * len;
-		at.z = pos.z + cosf(rot.y) * len;
+		m_at.x = m_pos.x + sinf(m_rot.y) * m_len;
+		m_at.z = m_pos.z + cosf(m_rot.y) * m_len;
 	}
 
-	if (GetKeyboardPress(DIK_E))
+	if (m_inputManager.GetKeyboardPress(DIK_E))
 	{// 注視点旋回「右」
-		rot.y += VALUE_ROTATE_CAMERA;
-		if (rot.y > XM_PI)
+		m_rot.y += VALUE_ROTATE_CAMERA;
+		if (m_rot.y > XM_PI)
 		{
-			rot.y -= XM_2PI;
+			m_rot.y -= XM_2PI;
 		}
 
-		at.x = pos.x + sinf(rot.y) * len;
-		at.z = pos.z + cosf(rot.y) * len;
+		m_at.x = m_pos.x + sinf(m_rot.y) * m_len;
+		m_at.z = m_pos.z + cosf(m_rot.y) * m_len;
 	}
 
-	if (GetKeyboardPress(DIK_LCONTROL))
+	if (m_inputManager.GetKeyboardPress(DIK_LCONTROL))
 	{
-		if (IsMouseLeftTriggered())
+		if (m_inputManager.IsMouseLeftTriggered())
 		{
 			isDragging = TRUE;
 			startX = GetMousePosX();
@@ -272,7 +272,7 @@ void Camera::Update(void)
 			deltaX = 0;
 			deltaY = 0;
 		}
-		else if (IsMouseLeftPressed() && isDragging == TRUE)
+		else if (m_inputManager.IsMouseLeftPressed() && isDragging == TRUE)
 		{
 			long newX = GetMousePosX();
 			long newY = GetMousePosY();
@@ -282,58 +282,58 @@ void Camera::Update(void)
 			currentY = newY;
 
 		}
-		else if (!IsMouseLeftPressed())
+		else if (!m_inputManager.IsMouseLeftPressed())
 		{
 			isDragging = FALSE;
 			deltaX = 0L;
 			deltaY = 0L;
 		}
 
-		rot.x -= deltaY * VALUE_ROTATE_CAMERA * 0.1f * timer.GetScaledDeltaTime();
-		rot.y -= deltaX * VALUE_ROTATE_CAMERA * 0.1f * timer.GetScaledDeltaTime();
-		if (rot.y < -XM_PI)
+		m_rot.x -= deltaY * VALUE_ROTATE_CAMERA * 0.1f * m_timer.GetScaledDeltaTime();
+		m_rot.y -= deltaX * VALUE_ROTATE_CAMERA * 0.1f * m_timer.GetScaledDeltaTime();
+		if (m_rot.y < -XM_PI)
 		{
-			rot.y += XM_2PI;
+			m_rot.y += XM_2PI;
 		}
-		else if (rot.y > XM_PI)
+		else if (m_rot.y > XM_PI)
 		{
-			rot.y -= XM_2PI;
+			m_rot.y -= XM_2PI;
 		}
 
-		pos.x = at.x - sinf(rot.y) * len;
-		pos.z = at.z - cosf(rot.y) * len;
-		pos.y = at.y + sinf(rot.x) * len;
+		m_pos.x = m_at.x - sinf(m_rot.y) * m_len;
+		m_pos.z = m_at.z - cosf(m_rot.y) * m_len;
+		m_pos.y = m_at.y + sinf(m_rot.x) * m_len;
 	}
 	
 
-	if (GetKeyboardPress(DIK_T))
+	if (m_inputManager.GetKeyboardPress(DIK_T))
 	{// 注視点移動「上」
-		at.y += VALUE_MOVE_CAMERA;
+		m_at.y += VALUE_MOVE_CAMERA;
 	}
 
-	if (GetKeyboardPress(DIK_B))
+	if (m_inputManager.GetKeyboardPress(DIK_B))
 	{// 注視点移動「下」
-		at.y -= VALUE_MOVE_CAMERA;
+		m_at.y -= VALUE_MOVE_CAMERA;
 	}
 
-	if (GetKeyboardPress(DIK_U))
+	if (m_inputManager.GetKeyboardPress(DIK_U))
 	{// 近づく
-		len -= VALUE_MOVE_CAMERA;
-		pos.x = at.x - sinf(rot.y) * len;
-		pos.z = at.z - cosf(rot.y) * len;
+		m_len -= VALUE_MOVE_CAMERA;
+		m_pos.x = m_at.x - sinf(m_rot.y) * m_len;
+		m_pos.z = m_at.z - cosf(m_rot.y) * m_len;
 	}
 
-	if (GetKeyboardPress(DIK_M))
+	if (m_inputManager.GetKeyboardPress(DIK_M))
 	{// 離れる
-		len += VALUE_MOVE_CAMERA;
-		pos.x = at.x - sinf(rot.y) * len;
-		pos.z = at.z - cosf(rot.y) * len;
+		m_len += VALUE_MOVE_CAMERA;
+		m_pos.x = m_at.x - sinf(m_rot.y) * m_len;
+		m_pos.z = m_at.z - cosf(m_rot.y) * m_len;
 	}
 
 	// カメラを初期に戻す
-	if (GetKeyboardPress(DIK_R))
+	if (m_inputManager.GetKeyboardPress(DIK_R))
 	{
-		Uninit();
+		Shutdown();
 		Init();
 	}
 
@@ -342,7 +342,7 @@ void Camera::Update(void)
 
 
 #ifdef _DEBUG	// デバッグ情報を表示する
-	debugProc.PrintDebugProc("Camera:ZC QE TB YN UM R\n");
+	m_debugProc.PrintDebugProc("Camera:ZC QE TB YN UM R\n");
 #endif
 }
 
@@ -354,15 +354,15 @@ void Camera::SetCamera(void)
 {
 	// ビューマトリックス設定
 	XMMATRIX mtxView;
-	mtxView = XMMatrixLookAtLH(XMLoadFloat3(&pos), XMLoadFloat3(&at), XMLoadFloat3(&up));
+	mtxView = XMMatrixLookAtLH(XMLoadFloat3(&m_pos), XMLoadFloat3(&m_at), XMLoadFloat3(&m_up));
 	renderer.SetViewMatrix(&mtxView);
-	XMStoreFloat4x4(&this->mtxView, mtxView);
+	XMStoreFloat4x4(&this->m_mtxView, mtxView);
 
 	XMMATRIX mtxInvView;
 	mtxInvView = XMMatrixInverse(nullptr, mtxView);
-	XMStoreFloat4x4(&this->mtxInvView, mtxInvView);
+	XMStoreFloat4x4(&this->m_mtxInvView, mtxInvView);
 
-	renderer.SetShaderCamera(pos);
+	renderer.SetShaderCamera(m_pos);
 }
 
 //=============================================================================
@@ -441,11 +441,11 @@ int Camera::GetViewPortType(void)
 void Camera::SetCameraAT(XMFLOAT3 pos)
 {
 	// カメラの注視点を引数の座標にしてみる
-	at = pos;
+	m_at = pos;
 
 	// カメラの視点をカメラのY軸回転に対応させている
-	pos.x = at.x - sinf(rot.y) * len;
-	pos.z = at.z - cosf(rot.y) * len;
+	pos.x = m_at.x - sinf(m_rot.y) * m_len;
+	pos.z = m_at.z - cosf(m_rot.y) * m_len;
 
 }
 
@@ -456,18 +456,18 @@ void Camera::SetCameraType(CameraType type)
 	switch (type)
 	{
 	case CameraType::SKYBOX:
-		farZ = VIEW_FAR_Z_SKYBOX;
-		XMStoreFloat4x4(&mtxProjection, m_projSkybox);
+		m_farZ = VIEW_FAR_Z_SKYBOX;
+		XMStoreFloat4x4(&m_mtxProjection, m_projSkybox);
 		break;
 	case CameraType::SCENE:
-		farZ = VIEW_FAR_Z_SCENE;
-		XMStoreFloat4x4(&mtxProjection, m_projScene);
+		m_farZ = VIEW_FAR_Z_SCENE;
+		XMStoreFloat4x4(&m_mtxProjection, m_projScene);
 		break;
 	default:
 		break;
 	}
 
-	XMMATRIX mtxProjection = XMLoadFloat4x4(&this->mtxProjection);
+	XMMATRIX mtxProjection = XMLoadFloat4x4(&this->m_mtxProjection);
 	renderer.SetProjectionMatrix(&mtxProjection);
 }
 

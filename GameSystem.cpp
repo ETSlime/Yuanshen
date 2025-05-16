@@ -5,7 +5,6 @@
 //
 //=============================================================================
 #include "GameSystem.h"
-#include "input.h"
 #include "PauseModal.h"
 #include "Debugproc.h"
 #include "EffectSystem.h"
@@ -27,7 +26,7 @@ void GameSystem::Init(void)
     m_cursorManager.Init(); // カーソルマネージャの初期化
 }
 
-void GameSystem::Uninit(void)
+void GameSystem::Shutdown(void)
 {
     SAFE_DELETE(m_player); // プレイヤーの解放
 
@@ -140,7 +139,7 @@ void GameSystem::ResumeGame(void)
     m_isPaused = false;
     m_cursorManager.EnterUIHidden(); // UI非表示モードに入る
     m_cursorManager.RememberCursorPosition(); // カーソル位置を保存
-    SetMouseRecentered(true); // カメラ用：次のフレームでマウス位置リセットを要求
+    m_inputManager.SetMouseRecentered(true); // カメラ用：次のフレームでマウス位置リセットを要求
 }
 
 void GameSystem::EnterDialogue(void)
@@ -170,7 +169,7 @@ void GameSystem::HandleInput(void)
 
 void GameSystem::HandlePauseInput(void)
 {
-    if (GetKeyboardTrigger(KEY_PAUSE) && m_mode == GameMode::GAME && !m_inDialogue)
+    if (m_inputManager.GetKeyboardTrigger(KEY_PAUSE) && m_mode == GameMode::GAME && !m_inDialogue)
     {
         // ゲームが一時停止中かどうかを確認
         if (IsPaused())
@@ -198,7 +197,7 @@ void GameSystem::UpdateGame(void)
     if (m_isPaused)
         return;
 
-    m_isAltDown = GetKeyboardPress(DIK_LALT) || GetKeyboardPress(DIK_RALT);
+    m_isAltDown = m_inputManager.GetKeyboardPress(DIK_LALT) || m_inputManager.GetKeyboardPress(DIK_RALT);
 
     if (m_isAltDown)
         m_cursorManager.OnEnterVisibleTemp();
@@ -230,7 +229,7 @@ void GameSystem::DrawTitle(void)
 void GameSystem::DrawGame(void)
 {
     // スカイボックスの描画
-    //m_skybox->Draw(XMLoadFloat4x4(&m_camera.GetViewMatrix()), XMLoadFloat4x4(&m_camera.GetProjMatrix()));
+    m_skybox->Draw(XMLoadFloat4x4(&m_camera.GetViewMatrix()), XMLoadFloat4x4(&m_camera.GetProjMatrix()));
 
     m_renderer.SetDepthMode(DepthMode::Enable); // 深度テストを有効に
     m_renderer.SetCullingMode(CULL_MODE_BACK); // カリングモードを有効に

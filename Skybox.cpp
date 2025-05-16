@@ -14,7 +14,7 @@
 constexpr float SKYBOX_SIZE = 100.0f;
 constexpr float CYCLE_DURATION = 3000.0f;
 
-float Skybox::blendFactor = 0.0f;
+float Skybox::s_blendFactor = 0.0f;
 
 static char* dayTextures[6] =
 {
@@ -39,7 +39,7 @@ Skybox::Skybox()
 	: m_device(Renderer::get_instance().GetDevice()), 
     m_context(Renderer::get_instance().GetDeviceContext())
 {
-    dayToNight = true;
+    m_dayToNight = true;
     m_timeOfDay = 0.0f;
     Initialize();
 }
@@ -49,11 +49,11 @@ Skybox::~Skybox()
     SafeRelease(&m_vertexBuffer);
     SafeRelease(&m_skyboxBuffer);
 
-    for (auto& srv : skyboxDaySRVs)
+    for (auto& srv : m_skyboxDaySRVs)
     {
         SafeRelease(&srv);
     }
-    for (auto& srv : skyboxNightSRVs)
+    for (auto& srv : m_skyboxNightSRVs)
     {
         SafeRelease(&srv);
     }
@@ -67,15 +67,15 @@ bool Skybox::Initialize()
 
     for (int i = 0; i < 6; ++i)
     {
-        skyboxDaySRVs[i] = TextureMgr::get_instance().CreateTexture(dayTextures[i]);
-        if (!skyboxDaySRVs[i])
+        m_skyboxDaySRVs[i] = TextureMgr::get_instance().CreateTexture(dayTextures[i]);
+        if (!m_skyboxDaySRVs[i])
             return false;
     }
 
     for (int i = 0; i < 6; ++i)
     {
-        skyboxNightSRVs[i] = TextureMgr::get_instance().CreateTexture(nightTextures[i]);
-        if (!skyboxNightSRVs[i])
+        m_skyboxNightSRVs[i] = TextureMgr::get_instance().CreateTexture(nightTextures[i]);
+        if (!m_skyboxNightSRVs[i])
             return false;
     }
 
@@ -97,13 +97,13 @@ bool Skybox::Initialize()
 
 void Skybox::Update(void)
 {
-    if (dayToNight)
+    if (m_dayToNight)
     {
         m_timeOfDay++;
         if (m_timeOfDay >= CYCLE_DURATION)
         {
             m_timeOfDay = CYCLE_DURATION;
-            dayToNight = false;
+            m_dayToNight = false;
         }
     }
     else
@@ -112,7 +112,7 @@ void Skybox::Update(void)
         if (m_timeOfDay <= 0.0f)
         {
             m_timeOfDay = 0.0f;
-            dayToNight = true;
+            m_dayToNight = true;
         }
     }
 
@@ -220,8 +220,8 @@ void Skybox::Draw(const XMMATRIX& viewMatrix, const XMMATRIX& projectionMatrix)
     SkyBoxBuffer* dataPtr = (SkyBoxBuffer*)mappedResource.pData;
     dataPtr->view = XMMatrixTranspose(view);
     dataPtr->projection = XMMatrixTranspose(projectionMatrix);
-    blendFactor = AdjustBlendFactor(m_timeOfDay / CYCLE_DURATION);
-    dataPtr->blendFactor = blendFactor;
+    s_blendFactor = AdjustBlendFactor(m_timeOfDay / CYCLE_DURATION);
+    dataPtr->blendFactor = s_blendFactor;
     m_context->Unmap(m_skyboxBuffer, 0);
 
     m_context->IASetInputLayout(m_shaderSet.inputLayout);
@@ -232,8 +232,8 @@ void Skybox::Draw(const XMMATRIX& viewMatrix, const XMMATRIX& projectionMatrix)
     m_context->PSSetShader(m_shaderSet.ps, nullptr, 0);
     m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_SKYBOX, m_skyboxBuffer);
     m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::PS, SLOT_CB_SKYBOX, m_skyboxBuffer);
-    m_ShaderResourceBinder.BindShaderResources(ShaderStage::PS, SLOT_TEX_SKYBOX_DAY, 6, skyboxDaySRVs);
-    m_ShaderResourceBinder.BindShaderResources(ShaderStage::PS, SLOT_TEX_SKYBOX_NIGHT, 6, skyboxNightSRVs);
+    m_ShaderResourceBinder.BindShaderResources(ShaderStage::PS, SLOT_TEX_SKYBOX_DAY, 6, m_skyboxDaySRVs);
+    m_ShaderResourceBinder.BindShaderResources(ShaderStage::PS, SLOT_TEX_SKYBOX_NIGHT, 6, m_skyboxNightSRVs);
 
 
     m_context->OMSetDepthStencilState(m_depthStencilState, 0);

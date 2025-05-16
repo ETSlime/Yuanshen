@@ -9,14 +9,14 @@
 
 EnemyManager::EnemyManager()
 {
-	player = nullptr;
+	m_player = nullptr;
 }
 
 void EnemyManager::Init(const Player* player)
 {
-	this->player = player;
+	m_player = player;
 	Transform trans;
-	trans.pos = XMFLOAT3(12937.0f, -2384.0f, -19485.0f);
+	trans.pos = XMFLOAT3(12937.0f, -2110.0f, -19485.0f);
 	trans.scl = HILICHURL_SIZE;
 	//for (int i = 0; i < 25; i++)
 	//{
@@ -70,21 +70,21 @@ void EnemyManager::SpawnEnemy(EnemyType enemyType, Transform trans, EnemyState i
 	else
 		enemy->SetRandomMove(false);
 
-	enemy->SetPlayer(player);
-	enemyList.push_back(enemy);
+	enemy->SetPlayer(m_player);
+	m_enemyList.push_back(enemy);
 }
 
 void EnemyManager::Draw(void)
 {
 	// カリング無効
-	renderer.SetCullingMode(CULL_MODE_NONE);
+	m_renderer.SetCullingMode(CULL_MODE_NONE);
 
-	Node<Enemy*>* cur = enemyList.getHead();
+	Node<Enemy*>* cur = m_enemyList.getHead();
 	while (cur != nullptr)
 	{
 		// モデル描画
 		if (cur->data->GetInstance()->renderProgress.progress < 1.0f)
-			renderer.SetRenderProgress(cur->data->GetInstance()->renderProgress);
+			m_renderer.SetRenderProgress(cur->data->GetInstance()->renderProgress);
 
 		if (!cur->data->GetEnemyAttribute().isDead)
 			cur->data->Draw();
@@ -94,24 +94,24 @@ void EnemyManager::Draw(void)
 			RenderProgressBuffer defaultRenderProgress;
 			defaultRenderProgress.isRandomFade = false;
 			defaultRenderProgress.progress = 1.0f;
-			renderer.SetRenderProgress(defaultRenderProgress);
+			m_renderer.SetRenderProgress(defaultRenderProgress);
 		}
 
 		cur = cur->next;
 	}
 
 	// カリング設定を戻す
-	renderer.SetCullingMode(CULL_MODE_BACK);
+	m_renderer.SetCullingMode(CULL_MODE_BACK);
 }
 
 void EnemyManager::DrawUI(EnemyUIType type)
 {
-	Node<Enemy*>* cur = enemyList.getHead();
+	Node<Enemy*>* cur = m_enemyList.getHead();
 	while (cur != nullptr)
 	{
 		// モデル描画
 		if (cur->data->GetInstance()->renderProgress.progress < 1.0f)
-			renderer.SetRenderProgress(cur->data->GetInstance()->renderProgress);
+			m_renderer.SetRenderProgress(cur->data->GetInstance()->renderProgress);
 
 		if (!cur->data->GetEnemyAttribute().isDead)
 			cur->data->DrawUI(type);
@@ -121,7 +121,7 @@ void EnemyManager::DrawUI(EnemyUIType type)
 			RenderProgressBuffer defaultRenderProgress;
 			defaultRenderProgress.isRandomFade = false;
 			defaultRenderProgress.progress = 1.0f;
-			renderer.SetRenderProgress(defaultRenderProgress);
+			m_renderer.SetRenderProgress(defaultRenderProgress);
 		}
 
 		cur = cur->next;
@@ -130,7 +130,7 @@ void EnemyManager::DrawUI(EnemyUIType type)
 
 void EnemyManager::Update(void)
 {
-	Node<Enemy*>* cur = enemyList.getHead();
+	Node<Enemy*>* cur = m_enemyList.getHead();
 	while (cur != nullptr)
 	{
 		cur->data->Update();
@@ -139,7 +139,7 @@ void EnemyManager::Update(void)
 			Node<Enemy*>* toDelete = cur;
 			cur = cur->next;
 			delete toDelete->data;
-			enemyList.remove(toDelete);
+			m_enemyList.remove(toDelete);
 		}
 		else
 			cur = cur->next;

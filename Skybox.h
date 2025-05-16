@@ -1,7 +1,10 @@
 //=============================================================================
 //
-// Skybox [Skybox.h]
+// スカイボックス定義 [Skybox.h]
 // Author : 
+// - 昼夜の空を6面テクスチャで描くよ
+// - blendFactor でスムーズな空の切り替えも実現
+// - 専用のCBとSRVでGPUパイプラインにも優しい構成だよ
 //
 //=============================================================================
 #pragma once
@@ -37,7 +40,7 @@ public:
     void Update(void);
     void Draw(const XMMATRIX& viewMatrix, const XMMATRIX& projectionMatrix);
 
-    static float GetCurrentDaytime(void) { return blendFactor; }
+    static float GetCurrentDaytime(void) { return s_blendFactor; }
 
 private:
 
@@ -56,12 +59,12 @@ private:
     ID3D11Buffer* m_skyboxBuffer;
     ID3D11DepthStencilState* m_depthStencilState;
 
-    ID3D11ShaderResourceView* skyboxDaySRVs[6];
-    ID3D11ShaderResourceView* skyboxNightSRVs[6];
+    ID3D11ShaderResourceView* m_skyboxDaySRVs[6];
+    ID3D11ShaderResourceView* m_skyboxNightSRVs[6];
 
     ShaderResourceBinder& m_ShaderResourceBinder = ShaderResourceBinder::get_instance();
 
     float m_timeOfDay;
-    bool dayToNight;
-    static float blendFactor;
+    bool m_dayToNight;
+    static float s_blendFactor;
 };

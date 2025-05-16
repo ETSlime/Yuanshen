@@ -1,13 +1,15 @@
 //=============================================================================
 //
-// SmokeEffectRenderer処理 [SmokeEffectRenderer.h]
+// スモークエフェクトちゃん [SmokeEffectRenderer.h]
 // Author : 
+// - もくもくエモエモな煙を描くよ
+// - Compute Shaderでパーティクル更新！GPUの力でふわっと演出
+// - DrawIndirectで超大量スモークもサクサク描画
 //
 //=============================================================================
 #pragma once
 #include "ParticleEffectRendererBase.h"
 #include "SimpleArray.h"
-
 
 
 class SmokeEffectRenderer : public ParticleEffectRendererBase

@@ -5,7 +5,7 @@
 //
 //=============================================================================
 #include "CursorManager.h"
-#include "input.h"
+#include "InputManager.h"
 
 void CursorManager::Init(void)
 {
@@ -18,7 +18,7 @@ void CursorManager::Init(void)
     m_currentCursor = m_customCursor;
     m_cursorType = CursorType::Custom;
 
-    SetMousePosCenter(); // カメラ用：マウス位置を画面の中心に設定
+    m_inputManager.SetMousePosCenter(); // カメラ用：マウス位置を画面の中心に設定
     GetCursorPos(&m_lastCursorPos); // カーソル位置を保存
     ShowCursor(FALSE);  // カーソル非表示
 }
@@ -129,7 +129,7 @@ void CursorManager::OnExitVisibleTemp(void)
 
     RememberCursorPosition(); // カーソル位置を保存
 	Hide(); // カーソルを非表示
-    SetMouseRecentered(true); // カメラ用：次のフレームでマウス位置リセットを要求
+    m_inputManager.SetMouseRecentered(true); // カメラ用：次のフレームでマウス位置リセットを要求
 	m_mode = CursorMode::Hidden;
 }
 

@@ -1,8 +1,10 @@
 //=============================================================================
 //
-// デバッグ表示処理 [Debugproc.h]
+// デバッグ情報をまとめて面倒みる管理お姉さま [Debugproc.h]
 // Author :
-//
+// ImGuiベースのUIを登録・描画して、ログ出力やフレームごとのデバッグ表示を制御するコアクラスですっ！
+// ぜんぶのIDebugUIちゃんたちを優しくまとめてくれる、冷静で頼れる司令塔なの~
+// 
 //=============================================================================
 #pragma once
 #include "main.h"
@@ -29,7 +31,7 @@ class DebugProc : public SingletonBase<DebugProc>
 {
 public:
 	void Init(HWND hwnd);
-	void Uninit(void);
+	void Shutdown(void);
 
 	void PrintDebugProc(char* fmt, ...);
 	void Register(IDebugUI* ui);

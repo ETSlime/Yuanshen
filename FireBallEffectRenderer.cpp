@@ -16,7 +16,7 @@
 bool FireBallEffectRenderer::Initialize(ID3D11Device* device, ID3D11DeviceContext* context)
 {
     // ブレンドモードをアルファブレンドに設定
-    m_blendMode = BLEND_MODE_ALPHABLEND;
+    m_blendMode = BLEND_MODE_ADD;
 
     // 基底クラスの初期化
     if (!ParticleEffectRendererBase::Initialize(device, context))
@@ -59,6 +59,8 @@ void FireBallEffectRenderer::ConfigureEffect(const ParticleEffectParams& params)
     m_spawnConeLength = fbParams->coneLength;
     m_rotationSpeed = fbParams->rotationSpeed;
     m_frameLerpCurve = fbParams->frameLerpCurve;
+	m_startSpeedMin = fbParams->startSpeedMin;
+    m_startSpeedMax = fbParams->startSpeedMax;
 }
 
 void FireBallEffectRenderer::DispatchComputeShader(void)
@@ -118,6 +120,8 @@ void FireBallEffectRenderer::UploadFireBallCB(void)
         cb->coneAngleDegree = m_spawnConeAngleDegree;
         cb->coneLength = m_spawnConeLength;
         cb->coneRadius = m_spawnConeRadius;
+		cb->startSpeedMin = m_startSpeedMin;
+		cb->startSpeedMax = m_startSpeedMax;
         m_context->Unmap(m_cbFireBall, 0);
     }
 

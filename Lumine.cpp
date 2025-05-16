@@ -5,7 +5,6 @@
 //
 //=============================================================================
 #include "Lumine.h"
-#include "input.h"
 #include "debugproc.h"
 #include "Player.h"
 #include "EnemyManager.h"
@@ -104,10 +103,10 @@ void Lumine::LoadWeapon(char* modelPath, char* modelName)
 
 void Lumine::Update(void)
 {
-	if (!GetKeyboardPress(DIK_W)
-		&& !GetKeyboardPress(DIK_S)
-		&& !GetKeyboardPress(DIK_A)
-		&& !GetKeyboardPress(DIK_D))
+	if (!m_inputManager.GetKeyboardPress(DIK_W)
+		&& !m_inputManager.GetKeyboardPress(DIK_S)
+		&& !m_inputManager.GetKeyboardPress(DIK_A)
+		&& !m_inputManager.GetKeyboardPress(DIK_D))
 		instance.attributes.isMoving = false;
 
 
@@ -651,7 +650,7 @@ bool Lumine::CanAttack3() const
 
 bool Lumine::CanRun(void) const
 {
-	return instance.attributes.isMoving && GetKeyboardPress(DIK_LSHIFT);
+	return instance.attributes.isMoving && m_inputManager.GetKeyboardPress(DIK_LSHIFT);
 }
 
 bool Lumine::CanHit(void) const

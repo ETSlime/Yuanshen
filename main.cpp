@@ -6,16 +6,13 @@
 //=============================================================================
 #include "main.h"
 #include "Renderer.h"
-#include "input.h"
+#include "InputManager.h"
 #include "Camera.h"
 #include "Debugproc.h"
 #include "Model.h"
 #include "EnemyManager.h"
 #include "LightManager.h"
 #include "Ground.h"
-#include "sprite.h"
-#include "score.h"
-#include "offScreenRender.h"
 #include "FBXLoader.h"
 #include "TextureMgr.h"
 #include "SkinnedMeshModel.h"
@@ -61,6 +58,7 @@ bool g_IsWindowActive = true; // デフォルトでアクティブ
 bool g_IsGamePaused = false;; // ゲームが一時停止中かどうか
 
 //MapEditor& mapEditor = MapEditor::get_instance();
+InputManager& inputManager = InputManager::get_instance();
 DebugProc& debugProc = DebugProc::get_instance();
 GameSystem& gameSystem = GameSystem::get_instance();
 CollisionManager& collisionManager = CollisionManager::get_instance();
@@ -265,7 +263,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			g_IsWindowActive = true;
 			g_IsGamePaused = false;
 			cursorManager.RememberCursorPosition(); // カーソル位置を保存
-			SetMouseRecentered(true); // カメラ回転防止用フラグ設定
+			inputManager.SetMouseRecentered(true); // カメラ回転防止用フラグ設定
 		}
 		else
 		{
@@ -307,11 +305,8 @@ HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 	gameSystem.Init();
 
 	// 入力処理の初期化
-	InitInput(hInstance, hWnd);
+	inputManager.Init(hInstance, hWnd);
 
-	InitOffScreenRender();
-
-	InitScore();
 
 	//mapEditor.Init();
 
@@ -332,21 +327,17 @@ HRESULT Init(HINSTANCE hInstance, HWND hWnd, BOOL bWindow)
 void Uninit(void)
 {
 	// カメラの終了処理
-	camera.Uninit();
+	camera.Shutdown();
 
 	//入力の終了処理
-	UninitInput();
+	inputManager.Shutdown();
 
-	UninitScore();
-
-	gameSystem.Uninit();
+	gameSystem.Shutdown();
 
 	// レンダラーの終了処理
-	renderer.Uninit();
+	renderer.Shutdown();
 
-	UninitOffScreenRender();
-
-	debugProc.Uninit();
+	debugProc.Shutdown();
 
 	//mapEditor.Uninit();
 }
@@ -361,7 +352,7 @@ void Update(void)
 	timer.Update();
 
 	// 入力の更新処理
-	UpdateInput();
+	inputManager.Update();
 
 	// カメラ更新
 	camera.Update();
