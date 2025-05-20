@@ -9,11 +9,16 @@
 #include "TextureMgr.h"
 #include "ShadowMeshCollector.hpp"
 
+//*****************************************************************************
+// マクロ定義
+//*****************************************************************************
+#define DRAW_BOUNDING_BOX       1
+
 Environment::Environment() : 
     m_device(Renderer::get_instance().GetDevice()), 
     m_context(Renderer::get_instance().GetDeviceContext())
 {
-    time = 0.0f; // 累積時間
+    m_time = 0.0f; // 累積時間
 
     Initialize();
 }
@@ -22,7 +27,7 @@ Environment::Environment(EnvironmentConfig config) :
     m_device(Renderer::get_instance().GetDevice()),
     m_context(Renderer::get_instance().GetDeviceContext())
 {
-	time = 0.0f; // 累積時間
+    m_time = 0.0f; // 累積時間
 
 	Initialize();
 
@@ -40,6 +45,10 @@ Environment::Environment(EnvironmentConfig config) :
 
 bool Environment::Initialize(void)
 {
+#ifdef _DEBUG
+    DebugProc::get_instance().Register(this);
+#endif // DEBUG
+
     // ノイズテクスチャ生成
     if (!GenerateNoiseTexture(&noiseTextureSRV))
         return false;
@@ -51,7 +60,7 @@ bool Environment::Initialize(void)
     bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-    HRESULT hr = m_device->CreateBuffer(&bufferDesc, nullptr, &perFrameBuffer);
+    HRESULT hr = m_device->CreateBuffer(&bufferDesc, nullptr, &m_perFrameBuffer);
     if (FAILED(hr))
         return false;
 
@@ -59,13 +68,17 @@ bool Environment::Initialize(void)
 
     loadShaders &= ShaderManager::get_instance().HasShaderSet(ShaderSetID::Instanced_Grass);
     if (loadShaders)
-        grassShaderSet = ShaderManager::get_instance().GetShaderSet(ShaderSetID::Instanced_Grass);
+        m_grassShaderSet = ShaderManager::get_instance().GetShaderSet(ShaderSetID::Instanced_Grass);
     loadShaders &= ShaderManager::get_instance().HasShaderSet(ShaderSetID::Instanced_Tree);
     if (loadShaders)
-        treeShaderSet = ShaderManager::get_instance().GetShaderSet(ShaderSetID::Instanced_Tree);
+        m_treeShaderSet = ShaderManager::get_instance().GetShaderSet(ShaderSetID::Instanced_Tree);
 
     if (!loadShaders)
         return false;
+
+#if DRAW_BOUNDING_BOX
+    m_debugBoundingBoxRenderer.Initialize();
+#endif
 
     return true;
 }
@@ -85,6 +98,7 @@ EnvironmentObject* Environment::InitializeEnvironmentObj(EnvironmentObjectType t
         obj->attributes.collision = false;
         obj->attributes.adaptedToTerrain = true;
         obj->attributes.billboard = false;
+		obj->attributes.isDynamic = false;
         obj->attributes.maxSlopeAngle = GRASS_MAX_SLOPE_ANGLE;
         obj->modelPath = GRASS_1_MODEL_PATH;
         obj->extDiffuseTexPath = GRASS_1_TEX_PATH;
@@ -98,6 +112,7 @@ EnvironmentObject* Environment::InitializeEnvironmentObj(EnvironmentObjectType t
         obj->attributes.collision = false;
         obj->attributes.adaptedToTerrain = true;
         obj->attributes.billboard = true;
+        obj->attributes.isDynamic = false;
         obj->attributes.maxSlopeAngle = GRASS_MAX_SLOPE_ANGLE;
         obj->modelPath = GRASS_2_MODEL_PATH;
         obj->extDiffuseTexPath = GRASS_2_TEX_PATH;
@@ -111,6 +126,7 @@ EnvironmentObject* Environment::InitializeEnvironmentObj(EnvironmentObjectType t
         obj->attributes.collision = false;
         obj->attributes.adaptedToTerrain = true;
         obj->attributes.billboard = false;
+        obj->attributes.isDynamic = false;
         obj->attributes.maxSlopeAngle = CLOVER_MAX_SLOPE_ANGLE;
         obj->modelPath = CLOVER_1_MODEL_PATH;
         obj->extDiffuseTexPath = CLOVER_1_TEX_PATH;
@@ -124,6 +140,7 @@ EnvironmentObject* Environment::InitializeEnvironmentObj(EnvironmentObjectType t
         obj->attributes.collision = false;
         obj->attributes.adaptedToTerrain = true;
         obj->attributes.billboard = false;
+        obj->attributes.isDynamic = false;
         obj->attributes.maxSlopeAngle = BUSH_MAX_SLOPE_ANGLE;
         obj->modelPath = BUSH_1_MODEL_PATH;
         break;
@@ -136,6 +153,7 @@ EnvironmentObject* Environment::InitializeEnvironmentObj(EnvironmentObjectType t
         obj->attributes.collision = true;
         obj->attributes.adaptedToTerrain = true;
         obj->attributes.billboard = false;
+        obj->attributes.isDynamic = false;
         obj->attributes.maxSlopeAngle = BUSH_MAX_SLOPE_ANGLE;
         obj->modelPath = BUSH_2_MODEL_PATH;
         break;
@@ -148,6 +166,7 @@ EnvironmentObject* Environment::InitializeEnvironmentObj(EnvironmentObjectType t
         obj->attributes.collision = false;
         obj->attributes.adaptedToTerrain = true;
         obj->attributes.billboard = true;
+        obj->attributes.isDynamic = false;
         obj->attributes.maxSlopeAngle = FLOWER_MAX_SLOPE_ANGLE;
         obj->modelPath = FLOWER_1_MODEL_PATH;
         obj->extDiffuseTexPath = FLOWER_1_TEX_PATH;
@@ -161,6 +180,7 @@ EnvironmentObject* Environment::InitializeEnvironmentObj(EnvironmentObjectType t
         obj->attributes.collision = false;
         obj->attributes.adaptedToTerrain = true;
         obj->attributes.billboard = true;
+        obj->attributes.isDynamic = false;
         obj->attributes.maxSlopeAngle = SHRUBBERY_MAX_SLOPE_ANGLE;
         obj->modelPath = SHRUBBERY_1_MODEL_PATH;
         obj->extDiffuseTexPath = SHRUBBERY_1_TEX_PATH;
@@ -174,6 +194,7 @@ EnvironmentObject* Environment::InitializeEnvironmentObj(EnvironmentObjectType t
         obj->attributes.collision = true;
         obj->attributes.adaptedToTerrain = false;
         obj->attributes.billboard = true;
+        obj->attributes.isDynamic = false;
         obj->attributes.maxSlopeAngle = TREE_MAX_SLOPE_ANGLE;
         obj->modelPath = TREE_1_MODEL_PATH;
         obj->extDiffuseTexPath = TREE_1_TEX_PATH;
@@ -188,42 +209,41 @@ EnvironmentObject* Environment::InitializeEnvironmentObj(EnvironmentObjectType t
         return nullptr;
     }
 
-    environmentObjects.push_back(obj);
+    m_environmentObjects.push_back(obj);
 
     return obj;
 }
 
 Environment::~Environment()
 {
-    for (UINT i = 0; i < environmentObjects.getSize(); i++)
+    for (UINT i = 0; i < m_environmentObjects.getSize(); i++)
 	{
-		SAFE_DELETE(environmentObjects[i]);
+		SAFE_DELETE(m_environmentObjects[i]);
 	}
 
-    SafeRelease(&perFrameBuffer);
-    SafeRelease(&shadowMapSRV);
+    SafeRelease(&m_perFrameBuffer);
     SafeRelease(&noiseTextureSRV);
 }
 
 void Environment::Update(void)
 {
-    time++; // 時間更新
+    m_time++; // 時間更新
 
     // 定数バッファマッピング
     D3D11_MAPPED_SUBRESOURCE mappedResource;
-    m_context->Map(perFrameBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+    m_context->Map(m_perFrameBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
     PerFrameBuffer* bufferData = reinterpret_cast<PerFrameBuffer*>(mappedResource.pData);
 
-    bufferData->Time = time * 0.0005f; // 時間設定
-    bufferData->WindDirection = CalculateDynamicWindDirection(time); // 動的風向き計算
-    bufferData->WindStrength = 0.2f + 0.05f * sinf(time * 0.5f); // 風強さ変動
+    bufferData->Time = m_time * 0.0005f; // 時間設定
+    bufferData->WindDirection = CalculateDynamicWindDirection(m_time); // 動的風向き計算
+    bufferData->WindStrength = 0.2f + 0.05f * sinf(m_time * 0.5f); // 風強さ変動
 
-    m_context->Unmap(perFrameBuffer, 0); // バッファアンマップ
+    m_context->Unmap(m_perFrameBuffer, 0); // バッファアンマップ
 
     // ビルボードオブジェクトの回転行列計算
-    for (UINT i = 0; i < environmentObjects.getSize(); i++)
+    for (UINT i = 0; i < m_environmentObjects.getSize(); i++)
     {
-        EnvironmentObject* obj = environmentObjects[i];
+        EnvironmentObject* obj = m_environmentObjects[i];
         if (obj->attributes.billboard)
         {
             Camera& camera = Camera::get_instance();
@@ -236,7 +256,7 @@ void Environment::Update(void)
             billboardRotation.r[2] = XMVectorSet(mtxView.r[0].m128_f32[2], mtxView.r[1].m128_f32[2], mtxView.r[2].m128_f32[2], 0.0f);
 
             // インスタンスデータの回転行列更新
-            for (int j = 0; j < obj->instanceCount; j++)
+            for (UINT j = 0; j < obj->instanceCount; j++)
             {
                 XMVECTOR quat = XMQuaternionRotationMatrix(
                     XMMatrixRotationQuaternion(XMLoadFloat4(&obj->instanceData[j].initialBillboardRot)) * billboardRotation);
@@ -255,16 +275,18 @@ void Environment::Update(void)
 
             m_context->Unmap(obj->instanceBuffer, 0);
         }
+
+		// 動的オブジェクトのバウンディングボックス更新
+        if (obj->attributes.isDynamic)
+            UpdateBoundingBox(obj);
     }
-
-
 }
 
 void Environment::Draw(void)
 {
-    for (UINT i = 0; i < environmentObjects.getSize(); i++)
+    for (UINT i = 0; i < m_environmentObjects.getSize(); i++)
 	{
-		EnvironmentObject* obj = environmentObjects[i];
+		EnvironmentObject* obj = m_environmentObjects[i];
 		if (obj->attributes.use)
 		{
             Renderer::get_instance().SetCurrentWorldMatrix(&obj->transform.mtxWorld);
@@ -282,13 +304,13 @@ void Environment::RenderEnvironmentObj(EnvironmentObject* obj)
     UINT offsets[2] = { 0, 0 }; // オフセット初期化
     ID3D11Buffer* buffers[2] = { obj->vertexBuffer, obj->instanceBuffer }; // バッファ配列
 
-    m_context->IASetInputLayout(treeShaderSet.inputLayout);
+    m_context->IASetInputLayout(m_treeShaderSet.inputLayout);
     m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     // 頂点バッファとインスタンスバッファ設定
     m_context->IASetVertexBuffers(0, 2, buffers, strides, offsets);
     // インデックスバッファ設定
     m_context->IASetIndexBuffer(obj->indexBuffer, DXGI_FORMAT_R32_UINT, 0); 
-    m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_INSTANCED_DATA, perFrameBuffer);
+    m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_INSTANCED_DATA, m_perFrameBuffer);
 
     m_context->VSSetShader(obj->vertexShader, nullptr, 0);
 
@@ -448,9 +470,12 @@ bool Environment::LoadEnvironmentObj(EnvironmentObject* obj)
 {
     obj->modelGO = new GameObject<ModelInstance>();
     obj->modelGO->Instantiate(obj->modelPath);
+	obj->modelGO->SetModelType(ModelType::Instanced);
 
     const SUBSET* subset = obj->modelGO->GetModel()->GetSubset();
     unsigned int subsetNum = obj->modelGO->GetModel()->GetSubNum();
+
+	obj->boundingBoxLocal = obj->modelGO->GetModel()->GetBoundingBox();
 
     obj->useExtDiffuseTex = true;
     for (unsigned int i = 0; i < subsetNum; i++)
@@ -543,13 +568,13 @@ void Environment::LoadShaders(EnvironmentObject* obj)
 {
 	if (obj->attributes.affectedByWind)
 	{
-        obj->vertexShader = grassShaderSet.vs;
-        obj->pixelShader = grassShaderSet.ps;
+        obj->vertexShader = m_grassShaderSet.vs;
+        obj->pixelShader = m_grassShaderSet.ps;
 	}
 	else
 	{
-        obj->vertexShader = treeShaderSet.vs;
-        obj->pixelShader = treeShaderSet.ps;
+        obj->vertexShader = m_treeShaderSet.vs;
+        obj->pixelShader = m_treeShaderSet.ps;
 	}
 }
 
@@ -570,16 +595,38 @@ OctreeNode* Environment::GenerateOctree(const SimpleArray<Triangle*>* triangles,
     return octree;
 }
 
+void Environment::RenderDebugInfo(void)
+{
+#if DRAW_BOUNDING_BOX
+    for (UINT i = 0; i < m_environmentObjects.getSize(); i++)
+    {
+        EnvironmentObject* obj = m_environmentObjects[i];
+
+        SimpleArray<Collider>* colliders = obj->modelGO->GetInstancedColliderArray();
+        if (!colliders) continue;
+
+        for (UINT j = 0; j < colliders->getSize(); j++)
+        {
+            const BOUNDING_BOX& box = (*colliders)[j].aabb;
+
+            XMFLOAT4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+            m_debugBoundingBoxRenderer.DrawBox(box, m_camera.GetViewProjMtx(), color);
+        }
+    }
+#endif
+}
+
 bool Environment::GenerateRandomInstances(EnvironmentObjectType type, const Model* fieldModel, int clusterCount)
 {
     // 環境オブジェクト検索
     EnvironmentObject* obj = nullptr;
-    for (UINT i = 0; i < environmentObjects.getSize(); ++i)
+    for (UINT i = 0; i < m_environmentObjects.getSize(); ++i)
 	{
         // 環境オブジェクトが見つかった場合、オブジェクトを設定
-		if (environmentObjects[i]->type == type)
+		if (m_environmentObjects[i]->type == type)
 		{
-			obj = environmentObjects[i];
+			obj = m_environmentObjects[i];
             obj->attributes.use = true;
 			break;
 		}
@@ -697,17 +744,22 @@ bool Environment::GenerateRandomInstances(EnvironmentObjectType type, const Mode
 
     SAFE_DELETE(octree);
 
-    // インスタンスデータの数を設定
-    obj->modelGO->SetInstanceCount(instanceDataArray.getSize());
-
     if (!CreateInstanceBuffer(obj, instanceDataArray))
         return false;
+
+    obj->modelGO->SetInstanceCollision(obj->attributes.collision); // 衝突判定
+    obj->modelGO->SetInstanceCount(obj->instanceCount); // インスタンス数を設定
+    obj->modelGO->SetInstanceData(obj->instanceData); // インスタンスデータを設定
+    obj->modelGO->InitializeInstancedArray(); // インスタンス化配列を初期化
+
+    // バウンディングボックス更新
+    UpdateBoundingBox(obj);
 
     return true;
 
 }
 
-bool Environment::GenerateInstanceByParams(const InstanceParams& params, const SkinnedMeshModel* fieldModel)
+bool Environment::GenerateInstanceByParams(const InstanceParams& params, const SkinnedMeshModel* fieldModel, BOUNDING_BOX fieldBBox)
 {
     EnvironmentObject* obj = InitializeEnvironmentObj(params.type);
     if (obj == nullptr)
@@ -717,8 +769,7 @@ bool Environment::GenerateInstanceByParams(const InstanceParams& params, const S
     SimpleArray<InstanceData> instanceDataArray;
 
     const SimpleArray<Triangle*>* triangles = fieldModel->GetTriangles();
-    BOUNDING_BOX boundingBox = fieldModel->GetBoundingBox();
-    OctreeNode* octree = GenerateOctree(triangles, boundingBox);
+    OctreeNode* octree = GenerateOctree(triangles, fieldBBox);
 
     UINT numInstance = params.transformArray.getSize();
 
@@ -804,11 +855,16 @@ bool Environment::GenerateInstanceByParams(const InstanceParams& params, const S
 
     SAFE_DELETE(octree);
 
-    // インスタンスデータの数を設定
-    obj->modelGO->SetInstanceCount(instanceDataArray.getSize());
-
     if (!CreateInstanceBuffer(obj, instanceDataArray))
         return false;
+
+	obj->modelGO->SetInstanceCollision(obj->attributes.collision); // 衝突判定
+    obj->modelGO->SetInstanceCount(obj->instanceCount); // インスタンス数を設定
+    obj->modelGO->SetInstanceData(obj->instanceData); // インスタンスデータを設定
+	obj->modelGO->InitializeInstancedArray(); // インスタンス化配列を初期化
+
+    // バウンディングボックス更新
+    UpdateBoundingBox(obj);
 
     return true;
 }
@@ -896,7 +952,7 @@ bool Environment::CreateInstanceBuffer(EnvironmentObject* obj, const SimpleArray
 {
     obj->instanceCount = instanceDataArray.getSize();
     obj->instanceData = new InstanceData[obj->instanceCount];
-    for (int i = 0; i < obj->instanceCount; i++)
+    for (UINT i = 0; i < obj->instanceCount; i++)
         obj->instanceData[i] = instanceDataArray[i];
 
     // バッファ記述子設定
@@ -915,7 +971,12 @@ bool Environment::CreateInstanceBuffer(EnvironmentObject* obj, const SimpleArray
     if (FAILED(hr))
         return false;
 
-    obj->modelGO->SetInstanceBuffer(obj->instanceBuffer); // モデルにインスタンスバッファを設定
+	// インスタンスバッファのシャドウコピーを作成
+    hr = m_device->CreateBuffer(&bufferDesc, nullptr, &obj->instanceBufferShadow);
+    if (FAILED(hr))
+        return false;
+
+    obj->modelGO->SetInstanceBuffer(obj->instanceBufferShadow); // モデルにインスタンスバッファを設定
 
     return true;
 }
@@ -952,4 +1013,52 @@ XMVECTOR Environment::AddRotationToQuaternion(const XMVECTOR& baseRotation, Rota
 
     // 結果を正規化して返す
     return XMQuaternionNormalize(result);
+}
+
+void Environment::UpdateBoundingBox(EnvironmentObject* obj)
+{
+    SimpleArray<Collider>* colliders = obj->modelGO->GetInstancedColliderArray();
+    //colliders->clear(); // 前のデータをクリア（再利用）
+    //colliders->reserve(obj->instanceCount); // 最大容量確保
+
+	BOUNDING_BOX boundingBoxLocal = obj->boundingBoxLocal;
+
+    for (UINT i = 0; i < obj->instanceCount; i++)
+    {
+        const InstanceData& inst = obj->instanceData[i];
+
+        // ローカルAABBの8つのコーナーを取得
+        XMVECTOR localCorners[8];
+        boundingBoxLocal.GetCorners(localCorners);
+
+        // 回転・スケーリング・オフセットマトリックスを構築
+        XMMATRIX scaleMat = XMMatrixScaling(inst.Scale, inst.Scale, inst.Scale);
+        XMMATRIX rotMat = XMMatrixRotationQuaternion(XMLoadFloat4(&inst.Rotation));
+        XMMATRIX transMat = XMMatrixTranslation(inst.OffsetPosition.x, inst.OffsetPosition.y, inst.OffsetPosition.z);
+
+        XMMATRIX worldMat = scaleMat * rotMat * transMat;
+
+        // ワールドAABBを構築
+        BOUNDING_BOX worldAABB;
+        worldAABB.minPoint = XMFLOAT3(FLT_MAX, FLT_MAX, FLT_MAX);
+        worldAABB.maxPoint = XMFLOAT3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+        for (int j = 0; j < 8; ++j)
+        {
+            XMVECTOR v = XMVector3Transform(localCorners[j], worldMat);
+            XMFLOAT3 pos;
+            XMStoreFloat3(&pos, v);
+
+            worldAABB.minPoint.x = min(worldAABB.minPoint.x, pos.x);
+            worldAABB.minPoint.y = min(worldAABB.minPoint.y, pos.y);
+            worldAABB.minPoint.z = min(worldAABB.minPoint.z, pos.z);
+
+            worldAABB.maxPoint.x = max(worldAABB.maxPoint.x, pos.x);
+            worldAABB.maxPoint.y = max(worldAABB.maxPoint.y, pos.y);
+            worldAABB.maxPoint.z = max(worldAABB.maxPoint.z, pos.z);
+        }
+
+		// コライダーを更新
+        (*colliders)[i].aabb = worldAABB;
+    }
 }

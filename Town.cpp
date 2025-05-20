@@ -30,7 +30,7 @@ Town::Town()
 
 
 	GameObject<SkinnedMeshModelInstance>* skyBox = new GameObject<SkinnedMeshModelInstance>();
-	skyBox->Instantiate(MODEL_TOWN_PATH, MODEL_SKYBOX_NAME, ModelType::Skybox);
+	skyBox->Instantiate(MODEL_TOWN_PATH, MODEL_SKYBOX_NAME, SkinnedModelType::Skybox);
 	skyBox->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
 	skyBox->SetScale(XMFLOAT3(SKYBOX_SIZE, SKYBOX_SIZE, SKYBOX_SIZE));
 	skyBox->Update();
@@ -42,7 +42,7 @@ Town::Town()
 	models.push_back(skyBox);
 
 	GameObject<SkinnedMeshModelInstance>* LoD0 = new GameObject<SkinnedMeshModelInstance>();
-	LoD0->Instantiate(MODEL_TOWN_PATH, MODEL_LOD0_NAME, ModelType::Town_LOD0);
+	LoD0->Instantiate(MODEL_TOWN_PATH, MODEL_LOD0_NAME, SkinnedModelType::Town_LOD0);
 	LoD0->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
 	LoD0->SetScale(XMFLOAT3(PLOT_LOD0_SIZE, PLOT_LOD0_SIZE, PLOT_LOD0_SIZE));
 	LoD0->SetRotation(XMFLOAT3(0, -XM_PI * 0.2f, 0.0f));
@@ -57,7 +57,7 @@ Town::Town()
 	models.push_back(LoD0);
 
 	GameObject<SkinnedMeshModelInstance>* LoD1 = new GameObject<SkinnedMeshModelInstance>();
-	LoD1->Instantiate(MODEL_TOWN_PATH, MODEL_LOD1_NAME, ModelType::Town_LOD1);
+	LoD1->Instantiate(MODEL_TOWN_PATH, MODEL_LOD1_NAME, SkinnedModelType::Town_LOD1);
 	LoD1->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
 	LoD1->SetScale(XMFLOAT3(PLOT_LOD1_SIZE, PLOT_LOD1_SIZE, PLOT_LOD1_SIZE));
 	LoD1->SetRotation(XMFLOAT3(0, -XM_PI * 0.5f, 0.0f));
@@ -72,7 +72,7 @@ Town::Town()
 	models.push_back(LoD1);
 
 	GameObject<SkinnedMeshModelInstance>* LoD2 = new GameObject<SkinnedMeshModelInstance>();
-	LoD2->Instantiate(MODEL_TOWN_PATH, MODEL_LOD2_NAME, ModelType::Town_LOD2);
+	LoD2->Instantiate(MODEL_TOWN_PATH, MODEL_LOD2_NAME, SkinnedModelType::Town_LOD2);
 	LoD2->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
 	LoD2->SetScale(XMFLOAT3(PLOT_LOD2_SIZE, PLOT_LOD2_SIZE, PLOT_LOD2_SIZE));
 	LoD2->SetRotation(XMFLOAT3(0, -XM_PI * 0.5f, 0.0f));
@@ -139,7 +139,7 @@ void Town::Draw()
 	{
 		if (m_Renderer.GetRenderMode() == RenderMode::SKINNED_MESH)
 		{
-			if (models[i]->GetSkinnedMeshModel()->GetModelType() == ModelType::Skybox)
+			if (models[i]->GetSkinnedMeshModel()->GetModelType() == SkinnedModelType::Skybox)
 			{
 				m_Camera.SetCameraType(CameraType::SKYBOX);
 				models[i]->Draw();

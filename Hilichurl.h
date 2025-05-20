@@ -74,7 +74,7 @@ public:
 
 private:
 	GameObject<SkinnedMeshModelInstance> weapon;
-	AnimStateMachine* stateMachine;
-	float playAnimSpeed;
-	FBXLoader& fbxLoader = FBXLoader::get_instance();
+	AnimStateMachine* m_stateMachine;
+	float m_playAnimSpeed;
+	FBXLoader& m_fbxLoader = FBXLoader::get_instance();
 };

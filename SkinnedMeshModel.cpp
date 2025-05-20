@@ -115,9 +115,9 @@ void SkinnedMeshModel::DrawModel()
             material.noTexSampling = FALSE;
         else
             material.noTexSampling = TRUE;
-        if (modelType == ModelType::Town_LOD0 ||
-            modelType == ModelType::Town_LOD1 ||
-            modelType == ModelType::Town_LOD2)
+        if (modelType == SkinnedModelType::Town_LOD0 ||
+            modelType == SkinnedModelType::Town_LOD1 ||
+            modelType == SkinnedModelType::Town_LOD2)
             material.noTexSampling = FALSE;
 
         Renderer::get_instance().SetMaterial(material);
@@ -126,37 +126,37 @@ void SkinnedMeshModel::DrawModel()
 
         switch (modelType)
         {
-        case ModelType::Sigewinne:
+        case SkinnedModelType::Sigewinne:
             DrawSigewinne(modelData);
             break;
-        case ModelType::Klee:
+        case SkinnedModelType::Klee:
             DrawKlee(modelData);
             break;
-        case ModelType::Lumine:
+        case SkinnedModelType::Lumine:
             DrawLumine(modelData);
             break;
-        case ModelType::Field:
+        case SkinnedModelType::Field:
             DrawField(modelData);
             break;
-        case ModelType::Town_LOD0:
+        case SkinnedModelType::Town_LOD0:
             //Renderer::get_instance().SetFillMode(D3D11_FILL_WIREFRAME);
             DrawTownLoD(modelData, 0);
             //Renderer::get_instance().SetFillMode(D3D11_FILL_SOLID);
             break;
-        case ModelType::Town_LOD1:
+        case SkinnedModelType::Town_LOD1:
             //Renderer::get_instance().SetFillMode(D3D11_FILL_WIREFRAME);
             DrawTownLoD(modelData, 1);
             //Renderer::get_instance().SetFillMode(D3D11_FILL_SOLID);
             break;
-        case ModelType::Town_LOD2:
+        case SkinnedModelType::Town_LOD2:
             //Renderer::get_instance().SetFillMode(D3D11_FILL_WIREFRAME);
             DrawTownLoD(modelData, 2);
             //Renderer::get_instance().SetFillMode(D3D11_FILL_SOLID);
             break;
-        case ModelType::Church:
+        case SkinnedModelType::Church:
             DrawChurch(modelData);
             break;
-        case ModelType::Weapon:
+        case SkinnedModelType::Weapon:
         default:
             Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &modelData->diffuseTexture);
             Renderer::get_instance().GetDeviceContext()->DrawIndexed(modelData->IndexNum, 0, 0);
@@ -164,8 +164,8 @@ void SkinnedMeshModel::DrawModel()
         }
 
 #ifdef _DEBUG
-        if (drawBoundingBox)
-            DrawBoundingBox(modelData);
+        //if (drawBoundingBox)
+        //    DrawBoundingBox(modelData);
 #endif
 
         // ƒJƒŠƒ“ƒOÝ’è‚ð–ß‚·
@@ -381,45 +381,45 @@ void SkinnedMeshModel::BuildTrianglesByWorldMatrix(XMMATRIX worldMatrix, bool al
     {
         ModelData* modelData = it.value;
         
-        XMFLOAT3 worldPos1, worldPos2;
+        //XMFLOAT3 worldPos1, worldPos2;
 
-        XMVECTOR localAABBMax = XMVectorSet(
-            modelData->boundingBoxes[0]->baseMaxPoint.x,
-            modelData->boundingBoxes[0]->baseMaxPoint.y,
-            modelData->boundingBoxes[0]->baseMaxPoint.z,
-            1.0f
-        );
+        //XMVECTOR localAABBMax = XMVectorSet(
+        //    modelData->boundingBoxes[0]->baseMaxPoint.x,
+        //    modelData->boundingBoxes[0]->baseMaxPoint.y,
+        //    modelData->boundingBoxes[0]->baseMaxPoint.z,
+        //    1.0f
+        //);
 
-        XMVECTOR localAABBMin = XMVectorSet(
-            modelData->boundingBoxes[0]->baseMinPoint.x,
-            modelData->boundingBoxes[0]->baseMinPoint.y,
-            modelData->boundingBoxes[0]->baseMinPoint.z,
-            1.0f
-        );
+        //XMVECTOR localAABBMin = XMVectorSet(
+        //    modelData->boundingBoxes[0]->baseMinPoint.x,
+        //    modelData->boundingBoxes[0]->baseMinPoint.y,
+        //    modelData->boundingBoxes[0]->baseMinPoint.z,
+        //    1.0f
+        //);
 
         XMMATRIX boneTransform = GetBoneFinalTransform();
 
-        XMVECTOR skinnedAABBMax = XMVector3Transform(localAABBMax, boneTransform);
-        XMVECTOR skinnedAABBMin = XMVector3Transform(localAABBMin, boneTransform);
+        //XMVECTOR skinnedAABBMax = XMVector3Transform(localAABBMax, boneTransform);
+        //XMVECTOR skinnedAABBMin = XMVector3Transform(localAABBMin, boneTransform);
 
-        XMVECTOR worldPosMax = XMVector3Transform(skinnedAABBMax, worldMatrix);
-        XMVECTOR worldPosMin = XMVector3Transform(skinnedAABBMin, worldMatrix);
+        //XMVECTOR worldPosMax = XMVector3Transform(skinnedAABBMax, worldMatrix);
+        //XMVECTOR worldPosMin = XMVector3Transform(skinnedAABBMin, worldMatrix);
 
 
-        XMStoreFloat3(&worldPos1, worldPosMax);
-        XMStoreFloat3(&worldPos2, worldPosMin);
+        //XMStoreFloat3(&worldPos1, worldPosMax);
+        //XMStoreFloat3(&worldPos2, worldPosMin);
 
-        boundingBox.maxPoint = XMFLOAT3(
-            max(worldPos1.x, worldPos2.x),
-            max(worldPos1.y, worldPos2.y),
-            max(worldPos1.z, worldPos2.z)
-        );
+        //boundingBox.maxPoint = XMFLOAT3(
+        //    max(worldPos1.x, worldPos2.x),
+        //    max(worldPos1.y, worldPos2.y),
+        //    max(worldPos1.z, worldPos2.z)
+        //);
 
-        boundingBox.minPoint = XMFLOAT3(
-            min(worldPos1.x, worldPos2.x),
-            min(worldPos1.y, worldPos2.y),
-            min(worldPos1.z, worldPos2.z)
-        );
+        //boundingBox.minPoint = XMFLOAT3(
+        //    min(worldPos1.x, worldPos2.x),
+        //    min(worldPos1.y, worldPos2.y),
+        //    min(worldPos1.z, worldPos2.z)
+        //);
 
         
 
@@ -690,7 +690,7 @@ XMMATRIX CreateRotationMatrix(float pitch, float yaw, float roll)
 }
 
 SkinnedMeshModel* SkinnedMeshModel::StoreModel(char* modelPath, char* modelName, char* modelFullPath, 
-    ModelType modelType, AnimClipName clipName)
+    SkinnedModelType modelType, AnimClipName clipName)
 {
     SkinnedMeshModelPool* modelPool = GetModel(modelFullPath);
     if (modelPool == nullptr)

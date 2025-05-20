@@ -29,7 +29,7 @@ GameObject<SkinnedMeshModelInstance>::~GameObject()
 
 template <>
 void GameObject<SkinnedMeshModelInstance>::Instantiate(char* modelPath, char* modelName, 
-	ModelType modelType, AnimClipName clipName)
+	SkinnedModelType modelType, AnimClipName clipName)
 {
 	char* modelFullPath = new char[MODEL_NAME_LENGTH] {};
 
@@ -57,66 +57,47 @@ void GameObject<SkinnedMeshModelInstance>::Instantiate(char* modelPath, char* mo
 template<>
 void GameObject<SkinnedMeshModelInstance>::Update()
 {
-	XMMATRIX mtxScl, mtxRot, mtxTranslate, mtxWorld;
-
-	// ワールドマトリックスの初期化
-	mtxWorld = XMMatrixIdentity();
-
-	// スケールを反映
-	mtxScl = XMMatrixScaling(instance.transform.scl.x, instance.transform.scl.y, instance.transform.scl.z);
-	mtxWorld = XMMatrixMultiply(mtxWorld, mtxScl);
-
-	// 回転を反映
-	mtxRot = XMMatrixRotationRollPitchYaw(instance.transform.rot.x, instance.transform.rot.y + XM_PI, instance.transform.rot.z);
-	mtxWorld = XMMatrixMultiply(mtxWorld, mtxRot);
-
-	// 移動を反映
-	mtxTranslate = XMMatrixTranslation(instance.transform.pos.x, instance.transform.pos.y, instance.transform.pos.z);
-	mtxWorld = XMMatrixMultiply(mtxWorld, mtxTranslate);
-
+	// ワールド行列の構築
+	XMMATRIX mtxWorld = XMMatrixIdentity();
+	mtxWorld = XMMatrixMultiply(mtxWorld, XMMatrixScaling(instance.transform.scl.x, instance.transform.scl.y, instance.transform.scl.z)); // スケーリング
+	mtxWorld = XMMatrixMultiply(mtxWorld, XMMatrixRotationRollPitchYaw(instance.transform.rot.x, instance.transform.rot.y + XM_PI, instance.transform.rot.z)); // 回転
+	mtxWorld = XMMatrixMultiply(mtxWorld, XMMatrixTranslation(instance.transform.pos.x, instance.transform.pos.y, instance.transform.pos.z)); // 平行移動
 	instance.transform.mtxWorld = mtxWorld;
 
-	XMMATRIX boneTransform = XMMatrixIdentity();// instance.pModel->GetBoneFinalTransform();
+	// ボーン変形行列（スキニングの最終変換）
+	XMMATRIX boneTransform = XMMatrixIdentity(); // ※実装に応じてルートボーンまたは全体ボーン補正
 
-	XMFLOAT3 worldPos1, worldPos2;
+	// ローカル空間AABBの取得
+	XMFLOAT3 localMin = instance.pModel->GetBoundingBox().minPoint;
+	XMFLOAT3 localMax = instance.pModel->GetBoundingBox().maxPoint;
 
-	// ローカルAABBの最大頂点
-	XMVECTOR localAABBMax = XMVectorSet(
-		instance.pModel->GetBoundingBox().maxPoint.x,
-		instance.pModel->GetBoundingBox().maxPoint.y,
-		instance.pModel->GetBoundingBox().maxPoint.z,
-		1.0f
-	);
+	// 8つのコーナー頂点を作成（ローカル空間）
+	XMVECTOR localCorners[8] = {
+		XMVectorSet(localMin.x, localMin.y, localMin.z, 1.0f),
+		XMVectorSet(localMax.x, localMin.y, localMin.z, 1.0f),
+		XMVectorSet(localMin.x, localMax.y, localMin.z, 1.0f),
+		XMVectorSet(localMax.x, localMax.y, localMin.z, 1.0f),
+		XMVectorSet(localMin.x, localMin.y, localMax.z, 1.0f),
+		XMVectorSet(localMax.x, localMin.y, localMax.z, 1.0f),
+		XMVectorSet(localMin.x, localMax.y, localMax.z, 1.0f),
+		XMVectorSet(localMax.x, localMax.y, localMax.z, 1.0f),
+	};
 
-	// ローカルAABBの最小頂点
-	XMVECTOR localAABBMin = XMVectorSet(
-		instance.pModel->GetBoundingBox().minPoint.x,
-		instance.pModel->GetBoundingBox().minPoint.y,
-		instance.pModel->GetBoundingBox().minPoint.z,
-		1.0f
-	);
+	// ワールド空間AABBの初期化
+	XMVECTOR worldMin = XMVectorSet(FLT_MAX, FLT_MAX, FLT_MAX, 1.0f);
+	XMVECTOR worldMax = XMVectorSet(-FLT_MAX, -FLT_MAX, -FLT_MAX, 1.0f);
 
-	// まずボーン変換を適用
-	XMVECTOR skinnedAABBMax = XMVector3Transform(localAABBMax, boneTransform);
-	XMVECTOR skinnedAABBMin = XMVector3Transform(localAABBMin, boneTransform);
+	// 全ての角をスキン変換→ワールド変換→AABB更新
+	for (int i = 0; i < 8; ++i)
+	{
+		XMVECTOR skinnedPt = XMVector3Transform(localCorners[i], boneTransform);    // ボーン変換
+		XMVECTOR worldPt = XMVector3Transform(skinnedPt, mtxWorld);              // ワールド変換
 
-	// 次にワールド変換を適用
-	XMVECTOR worldPosMax = XMVector3Transform(skinnedAABBMax, mtxWorld);
-	XMVECTOR worldPosMin = XMVector3Transform(skinnedAABBMin, mtxWorld);
+		worldMin = XMVectorMin(worldMin, worldPt);
+		worldMax = XMVectorMax(worldMax, worldPt);
+	}
 
-	XMStoreFloat3(&worldPos1, worldPosMax);
-	XMStoreFloat3(&worldPos2, worldPosMin);
-
-	// コライダーのAABBを更新
-	instance.collider.bbox.maxPoint = XMFLOAT3(
-		max(worldPos1.x, worldPos2.x),
-		max(worldPos1.y, worldPos2.y),
-		max(worldPos1.z, worldPos2.z)
-	);
-
-	instance.collider.bbox.minPoint = XMFLOAT3(
-		min(worldPos1.x, worldPos2.x),
-		min(worldPos1.y, worldPos2.y),
-		min(worldPos1.z, worldPos2.z)
-	);
+	// AABBをコライダーに格納（ワールド空間）
+	XMStoreFloat3(&instance.collider.aabb.minPoint, worldMin);
+	XMStoreFloat3(&instance.collider.aabb.maxPoint, worldMax);
 }

@@ -15,6 +15,8 @@
 #include "ShadowMeshCollector.h"
 #include "Debugproc.h"
 
+
+
 class ShadowMapRenderer : public SingletonBase<ShadowMapRenderer>, public IDebugUI
 {
 public:
@@ -22,9 +24,6 @@ public:
     bool Init(int shadowMapSize, int numCascades = 4);
     void Shutdown();
 
-    // モデルの影を収集する
-    void CollectFromScene_NoCulling(const SimpleArray<IGameObject*>& objects);
-    void CollectFromScene(const SimpleArray<IGameObject*> objects, const XMMATRIX& lightViewProj);
     // シャドウマップを描画する
     void RenderCSMForLight(DirectionalLight* light, int lightIndex, const SimpleArray<IGameObject*>& sceneObjects);
 
@@ -38,10 +37,6 @@ public:
     inline bool IsStaticShadowEnabled() const { return m_enableStaticShadow; }
     inline bool IsSkinnedShadowEnabled() const { return m_enableSkinnedShadow; }
     inline bool IsInstancedShadowEnabled() const { return m_enableInstancedShadow; }
-
-    virtual void RenderImGui(void) override;
-    virtual const char* GetPanelName(void) const override { return "Shadow Map Renderer"; } ;
-    virtual void RenderDebugInfo(void) override;
 
 private:
 
@@ -61,6 +56,11 @@ private:
 
     bool IsAABBInsideLightFrustum(const BOUNDING_BOX& worldAABB, const XMMATRIX& lightViewProj);
 
+
+    virtual void RenderImGui(void) override;
+    virtual const char* GetPanelName(void) const override { return "Shadow Map Renderer"; };
+    virtual void RenderDebugInfo(void) override;
+
     CascadedShadowMap m_csm;
     ShadowMeshCollector m_shadowCollector;
 
@@ -71,10 +71,6 @@ private:
     bool m_enableStaticShadow = true;
     bool m_enableSkinnedShadow = true;
     bool m_enableInstancedShadow = true;
-
-    SimpleArray<BOUNDING_BOX> m_debugBounds;
-
-    void UpdateCascadeDebugBounds(void);
 
     Camera& m_camera = Camera::get_instance();
 

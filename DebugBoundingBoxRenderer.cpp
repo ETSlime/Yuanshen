@@ -11,7 +11,13 @@
 //=============================================================================
 void DebugBoundingBoxRenderer::Initialize(char* name)
 {
-    strcpy(m_boxName, name);
+    if (name)
+    {
+        size_t len = strnlen(name, DEBUG_BOUNDING_BOX_NAME_LENGTH - 1);
+        m_boxName = new char[DEBUG_BOUNDING_BOX_NAME_LENGTH];
+        strncpy(m_boxName, name, DEBUG_BOUNDING_BOX_NAME_LENGTH - 1);
+        m_boxName[len] = '\0';
+    }
 
     DebugProc::get_instance().Register(this);
 
@@ -110,6 +116,8 @@ void DebugBoundingBoxRenderer::RenderImGui(void)
 
 DebugBoundingBoxRenderer::~DebugBoundingBoxRenderer()
 {
+    delete[] m_boxName;
+
     SafeRelease(&m_vertexBuffer);
     SafeRelease(&m_indexBuffer);
     SafeRelease(&m_constantBuffer);

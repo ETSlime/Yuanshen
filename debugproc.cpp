@@ -140,7 +140,7 @@ void DebugProc::Draw(void)
 
 	for (auto* ui : m_debugUIs)
 	{
-		if (ImGui::CollapsingHeader(ui->GetPanelName()))
+		if (ui->GetPanelName() && ImGui::CollapsingHeader(ui->GetPanelName()))
 			ui->RenderImGui();
 		ui->RenderDebugInfo();
 	}

@@ -15,6 +15,8 @@
 #include "Timer.h"
 #include "ShadowMeshCollector.h"
 #include "Scene.h"
+#include "DebugBoundingBoxRenderer.h"
+#include "Camera.h"
 
 //*****************************************************************************
 // マクロ定義
@@ -24,6 +26,16 @@ enum class ActionEnum
 	NONE,
 	ATTACK,
 };
+
+enum class ModelType
+{
+	Static,
+	SkinnedMesh,
+	Instanced,
+};
+
+#define DRAW_BOUNDING_BOX       1
+
 //*****************************************************************************
 // 構造体定義
 //*****************************************************************************
@@ -113,10 +125,15 @@ struct Attributes
 struct InstanceModelAttribute
 {
 	bool			isInstanced = false;
+	bool			isCollision = false;
 	UINT			instanceCount = 0;
+	InstanceData*	instanceData = nullptr;
 	ID3D11Buffer*	instanceBuffer = nullptr;
 	ID3D11Buffer*	vertexBuffer = nullptr;
 	ID3D11Buffer*	indexBuffer = nullptr;
+	SimpleArray<InstanceData>* visibleInstanceDataArray = nullptr;
+	SimpleArray<bool>* visibleInstanceDraw = nullptr;
+	SimpleArray<Collider>* colliderArray = nullptr;
 };
 
 struct SkinnedMeshModelInstance
@@ -138,6 +155,8 @@ struct SkinnedMeshModelInstance
 	BOOL			isCursorIn = false;
 	int				editorIdx = -1;
 
+	bool			drawWorldAABB = false;
+	ModelType		modelType = ModelType::SkinnedMesh;
 	RenderProgressBuffer renderProgress;
 };
 
@@ -160,6 +179,8 @@ struct ModelInstance
 	BOOL			isCursorIn = false;
 	int				editorIdx = -1;
 
+	bool			drawWorldAABB = false;
+	ModelType		modelType = ModelType::Static;
 	RenderProgressBuffer renderProgress;
 
 	// インスタンス化されたモデルかどうか
@@ -179,20 +200,22 @@ public:
 	virtual const XMMATRIX& GetWorldMatrix() const = 0;
 
 	virtual void CollectShadowMesh(ShadowMeshCollector& collector) const = 0;
+	virtual ModelType GetModelType() const = 0;
 };
 
 template<typename TModel>
-class GameObject : public IGameObject
+class GameObject : public IGameObject, public IDebugUI
 {
 public:
 	GameObject();
 	~GameObject();
 	void Instantiate(char* modelPath);
-	void Instantiate(char* modelPath, char* modelName, ModelType modelType = ModelType::Default, 
+	void Instantiate(char* modelPath, char* modelName, SkinnedModelType modelType = SkinnedModelType::Default, 
 		AnimClipName clipName = AnimClipName::ANIM_NONE);
 	virtual void Update();
 	virtual void Draw();
 	virtual void DrawEffect() {};
+	virtual void RenderDebugInfo(void) override;
 	void DrawModelEditor();
 	void UpdateModelEditor();
 
@@ -203,11 +226,13 @@ public:
 
 	inline const TModel* GetInstance() const { return &instance; }
 	inline const TModel& GetInstanceRef() const { return instance; }
+	inline InstanceModelAttribute& GetInstancedAttribute() { return instance.instanceAttribute; }
 	inline Model* GetModel() { return instance.pModel; }
 	inline SkinnedMeshModel* GetSkinnedMeshModel() { return instance.pModel; }
 	inline const SkinnedMeshModel* GetSkinnedMeshModelConst() const { return instance.pModel; }
-
-
+	inline void SetModelType(ModelType type) { instance.modelType = type; }
+	inline ModelType GetModelType() const override { return instance.modelType; }
+	inline void SetDrawWorldAABB(bool draw) { instance.drawWorldAABB = draw; }
 	inline void SetPosition(XMFLOAT3 pos) { instance.transform.pos = pos; }
 	inline void SetRotation(XMFLOAT3 rot) { instance.transform.rot = rot; }
 	inline void SetScale(XMFLOAT3 scl) { instance.transform.scl = scl; }
@@ -237,6 +262,41 @@ public:
 	inline ID3D11Buffer* GetVertexBuffer() { return instance.instanceAttribute.vertexBuffer; }
 	inline void SetIndexBuffer(ID3D11Buffer* buffer) { instance.instanceAttribute.indexBuffer = buffer; }
 	inline ID3D11Buffer* GetIndexBuffer() { return instance.instanceAttribute.indexBuffer; }
+	inline void SetInstanceData(InstanceData* data) { instance.instanceAttribute.instanceData = data; }
+	inline const InstanceData* GetInstanceData() { return instance.instanceAttribute.instanceData; }
+	inline SimpleArray<Collider>* GetInstancedColliderArray() { return instance.instanceAttribute.colliderArray; }
+	inline void SetInstanceCollision(bool collision) { instance.instanceAttribute.isCollision = collision; }
+	inline void InitializeInstancedArray() 
+	{ 
+		auto& ptr = instance.instanceAttribute.visibleInstanceDataArray;
+		const UINT totalCount = instance.instanceAttribute.instanceCount;
+
+		if (ptr == nullptr)
+		{
+			ptr = new SimpleArray<InstanceData>(totalCount);
+		}
+		else
+		{
+			ptr->clear();                     // 前のフレームのデータをリセット
+			ptr->reserve(totalCount);         // 必要に応じて拡張
+		}
+
+		instance.instanceAttribute.visibleInstanceDraw = new SimpleArray<bool>(totalCount, false);
+		instance.instanceAttribute.colliderArray = new SimpleArray<Collider>(totalCount, Collider());
+
+		if (instance.instanceAttribute.isCollision)
+		{
+			for (UINT i = 0; i < totalCount; i++)
+			{
+				Collider* collider = &(*instance.instanceAttribute.colliderArray)[i];
+				collider->type = ColliderType::STATIC_OBJECT;
+				collider->owner = this;
+				collider->enable = true;
+				CollisionManager::get_instance().RegisterDynamicCollider(collider);
+			}
+		}
+
+	}
 
 
 	inline BOOL GetIsModelSelected() { return instance.isSelected; }
@@ -248,13 +308,12 @@ public:
 	inline void UpdateAttributes(Attributes attributes) { instance.attributes = attributes; }
 
 	// 物理演算用の当たり判定
-	inline void SetDrawBoundingBox(bool draw) { instance.pModel.SetDrawBoundingBox(draw); }
 	inline void SetColliderType(ColliderType type) { instance.collider.type = type; }
 	inline void SetColliderOwner(void* owner) { instance.collider.owner = owner; }
 	inline void SetColliderEnable(bool enable) { instance.collider.enable = enable; }
-	inline void SetColliderBoundingBox(BOUNDING_BOX boundingBox) { instance.collider.bbox = boundingBox; }
+	inline void SetColliderBoundingBox(BOUNDING_BOX boundingBox) { instance.collider.aabb = boundingBox; }
 	inline const Collider& GetCollider(void) { return instance.collider; }
-	inline BOUNDING_BOX GetBoundingBoxWorld(void) const override { return instance.collider.bbox; }
+	inline BOUNDING_BOX GetBoundingBoxWorld(void) const override { return instance.collider.aabb; }
 
 
 	inline void SetGrounded(bool grounded) { instance.attributes.isGrounded = grounded; }
@@ -283,6 +342,7 @@ public:
 
 protected:
 	TModel instance;
+	DebugBoundingBoxRenderer m_debugBoundingBoxRenderer;
 };
 
 class ISkinnedMeshModelChar
@@ -326,6 +386,14 @@ template <typename T>
 GameObject<T>::GameObject()
 {
 	Scene::get_instance().RegisterGameObject(this);
+
+#ifdef _DEBUG
+	DebugProc::get_instance().Register(this);
+#endif // DEBUG
+
+#if DRAW_BOUNDING_BOX
+	m_debugBoundingBoxRenderer.Initialize();
+#endif
 }
 
 template <typename T>
@@ -363,7 +431,7 @@ void GameObject<T>::Instantiate(char* modelPath)
 
 template <>
 void GameObject<SkinnedMeshModelInstance>::Instantiate(char* modelPath, char* modelName, 
-	ModelType modelType, AnimClipName clipName);
+	SkinnedModelType modelType, AnimClipName clipName);
 
 template<>
 void GameObject< SkinnedMeshModelInstance>::Update();
@@ -390,39 +458,37 @@ void GameObject<T>::Update()
 
 	instance.transform.mtxWorld = mtxWorld;
 
-	XMFLOAT3 worldPos1, worldPos2;
+		// ローカル空間AABBの取得
+	XMFLOAT3 localMin = instance.pModel->GetBoundingBox().minPoint;
+	XMFLOAT3 localMax = instance.pModel->GetBoundingBox().maxPoint;
 
-	XMVECTOR localAABBMax = XMVectorSet(
-		instance.pModel->GetBoundingBox().maxPoint.x,
-		instance.pModel->GetBoundingBox().maxPoint.y,
-		instance.pModel->GetBoundingBox().maxPoint.z,
-		1.0f
-	);
+	// 8つのコーナー頂点を作成（ローカル空間）
+	XMVECTOR localCorners[8] = {
+		XMVectorSet(localMin.x, localMin.y, localMin.z, 1.0f),
+		XMVectorSet(localMax.x, localMin.y, localMin.z, 1.0f),
+		XMVectorSet(localMin.x, localMax.y, localMin.z, 1.0f),
+		XMVectorSet(localMax.x, localMax.y, localMin.z, 1.0f),
+		XMVectorSet(localMin.x, localMin.y, localMax.z, 1.0f),
+		XMVectorSet(localMax.x, localMin.y, localMax.z, 1.0f),
+		XMVectorSet(localMin.x, localMax.y, localMax.z, 1.0f),
+		XMVectorSet(localMax.x, localMax.y, localMax.z, 1.0f),
+	};
 
-	XMVECTOR worldPosMax = XMVector3Transform(localAABBMax, mtxWorld);
-	XMStoreFloat3(&worldPos1, worldPosMax);
+	// ワールド空間AABBの初期化
+	XMVECTOR worldMin = XMVectorSet(FLT_MAX, FLT_MAX, FLT_MAX, 1.0f);
+	XMVECTOR worldMax = XMVectorSet(-FLT_MAX, -FLT_MAX, -FLT_MAX, 1.0f);
 
-	XMVECTOR localAABBMin = XMVectorSet(
-		instance.pModel->GetBoundingBox().minPoint.x,
-		instance.pModel->GetBoundingBox().minPoint.y,
-		instance.pModel->GetBoundingBox().minPoint.z,
-		1.0f
-	);
+	// 全ての角をスキン変換→ワールド変換→AABB更新
+	for (int i = 0; i < 8; ++i)
+	{
+		XMVECTOR worldPt = XMVector3Transform(localCorners[i], instance.transform.mtxWorld);
+		worldMin = XMVectorMin(worldMin, worldPt);
+		worldMax = XMVectorMax(worldMax, worldPt);
+	}
 
-	XMVECTOR worldPosMin = XMVector3Transform(localAABBMin, mtxWorld);
-	XMStoreFloat3(&worldPos2, worldPosMin);
-
-	instance.collider.bbox.maxPoint = XMFLOAT3(
-		max(worldPos1.x, worldPos2.x),
-		max(worldPos1.y, worldPos2.y),
-		max(worldPos1.z, worldPos2.z)
-	);
-
-	instance.collider.bbox.minPoint = XMFLOAT3(
-		min(worldPos1.x, worldPos2.x),
-		min(worldPos1.y, worldPos2.y),
-		min(worldPos1.z, worldPos2.z)
-	);
+	// AABBをコライダーに格納（ワールド空間）
+	XMStoreFloat3(&instance.collider.aabb.minPoint, worldMin);
+	XMStoreFloat3(&instance.collider.aabb.maxPoint, worldMax);
 }
 
 
@@ -435,6 +501,21 @@ void GameObject<T>::Draw()
 	instance.pModel->DrawModel();
 }
 
+
+template<typename TModel>
+inline void GameObject<TModel>::RenderDebugInfo(void)
+{
+#if DRAW_BOUNDING_BOX
+	if (instance.drawWorldAABB)
+	{
+		const BOUNDING_BOX& box = instance.collider.aabb;
+
+		XMFLOAT4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+		m_debugBoundingBoxRenderer.DrawBox(box, Camera::get_instance().GetViewProjMtx(), color);
+	}
+#endif
+}
 
 template<typename T>
 inline void GameObject<T>::DrawModelEditor()

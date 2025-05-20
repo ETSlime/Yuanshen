@@ -13,7 +13,7 @@
 #define RIGHT_HAND_BONE_IDX (20)
 
 bool FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshModel& model, 
-    const char* modelPath, const char* modelName, const char* texturePath, AnimClipName animName, ModelType modelType)
+    const char* modelPath, const char* modelName, const char* texturePath, AnimClipName animName, SkinnedModelType modelType)
 {
     char* modelFullPath = new char[MODEL_NAME_LENGTH]{};
 
@@ -53,12 +53,12 @@ bool FBXLoader::LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshM
 
     switch (modelType)
     {
-    case ModelType::Sigewinne:
+    case SkinnedModelType::Sigewinne:
         model.weaponTransformIdx = LEFT_HAND_BONE_IDX;
         break;
-    case ModelType::Lumine:
-    case ModelType::Hilichurl:
-    case ModelType::Mitachurl:
+    case SkinnedModelType::Lumine:
+    case SkinnedModelType::Hilichurl:
+    case SkinnedModelType::Mitachurl:
         model.weaponTransformIdx = RIGHT_HAND_BONE_IDX;
         break;
     default:

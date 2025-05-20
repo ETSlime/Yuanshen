@@ -35,7 +35,7 @@ class DebugBoundingBoxRenderer : public IDebugUI
 public:
     ~DebugBoundingBoxRenderer();
 
-	void Initialize(char* name = "Debug BoundingBox");
+	void Initialize(char* name = nullptr);
 	void DrawBox(const BOUNDING_BOX& box, const XMMATRIX& viewProj, const XMFLOAT4& color);
 
     virtual void RenderImGui(void) override;
@@ -48,12 +48,13 @@ private:
 
     XMFLOAT3 m_center = {};
     XMFLOAT3 m_size = {};
-    char m_boxName[DEBUG_BOUNDING_BOX_NAME_LENGTH];
+    char* m_boxName = nullptr;
 
     ShaderSet debugShaderSet;
 
     ID3D11Device* m_device;
     ID3D11DeviceContext* m_context;
+
 
     ShaderResourceBinder& m_ShaderResourceBinder = ShaderResourceBinder::get_instance();
 };

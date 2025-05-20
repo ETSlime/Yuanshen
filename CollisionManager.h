@@ -36,14 +36,14 @@ enum class ColliderType
 class Collider 
 {
 public:
-    BOUNDING_BOX bbox; // ワールド座標での衝突判定用
+    BOUNDING_BOX aabb; // ワールド座標での衝突判定用
     ColliderType type; // 衝突器の種類
     void* owner;
     bool enable;
 
     Collider()
     {
-        bbox = BOUNDING_BOX();
+        aabb = BOUNDING_BOX();
         type = ColliderType::DEFAULT;
         enable = false;
         owner = nullptr;

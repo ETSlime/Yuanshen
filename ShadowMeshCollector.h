@@ -11,6 +11,48 @@
 #include "SimpleArray.h"
 #include "main.h"
 #include "Renderer.h"
+#include "CollisionManager.h"
+
+//*********************************************************
+// 構造体
+//*********************************************************
+struct MeshRenderData
+{
+    ID3D11Buffer* vertexBuffer;
+    ID3D11Buffer* indexBuffer;
+    UINT stride;
+    UINT indexCount;
+    DXGI_FORMAT indexFormat;
+    XMMATRIX worldMatrix;
+
+    ID3D11ShaderResourceView* opacityMapSRV = nullptr;
+    bool enableAlphaTest = false;
+};
+
+struct StaticRenderData : public MeshRenderData
+{
+    UINT startIndexLocation = 0;
+};
+
+struct SkinnedRenderData : public MeshRenderData
+{
+    const XMMATRIX* pBoneMatrices = nullptr;
+};
+
+struct InstancedRenderData : public MeshRenderData
+{
+    ID3D11Buffer* instanceBuffer = nullptr;
+    UINT instanceCount = 0;
+    UINT startIndexLocation = 0;
+    UINT instanceStride = 0; // インスタンスストライド追加
+
+    const InstanceData* allInstanceData = nullptr;
+    UINT allInstanceCount = 0;
+    SimpleArray<InstanceData>* visibleInstances = nullptr;
+    // カスケード間で重複アップロードを防ぐ可視フラグ配列
+    SimpleArray<bool>* visibleInstanceDraw = nullptr;
+    SimpleArray<Collider>* colliderArray = nullptr;
+};
 
 class ShadowMeshCollector
 {

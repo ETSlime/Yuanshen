@@ -50,7 +50,7 @@ void CollisionManager::Update()
 
             // 動的オブジェクトの AABB を元に、静的八分木から候補となる三角形をクエリする
             SimpleArray<Triangle*> candidates;
-            staticOctree->queryRange(dynamicCol->bbox, candidates);
+            staticOctree->queryRange(dynamicCol->aabb, candidates);
 
             bool hasCollision = false;
             bool hasValidSlope = false;
@@ -58,14 +58,14 @@ void CollisionManager::Update()
             float bestY = -FLT_MAX;
             float minHeightDiff = FLT_MAX;
             float minDistSq = FLT_MAX; // 最短距離
-            float currentY = dynamicCol->bbox.minPoint.y;//transform.pos.y;
+            float currentY = dynamicCol->aabb.minPoint.y;//transform.pos.y;
             XMVECTOR obstacleNormal{};
             // 候補となる各三角形に対して、精密な衝突判定を実施する
             int numCandidates = candidates.getSize();
             for (int j = 0; j < numCandidates; j++)
             {
                 SimpleArray<float> hitYArray;
-                if (dynamicCol->bbox.intersects(candidates[j]->bbox))
+                if (dynamicCol->aabb.intersects(candidates[j]->aabb))
                 {
                     hasCollision = true;
                     // 動的オブジェクトがプレイヤーと敵の場合のみ、斜面の高さ補正を計算する
@@ -76,9 +76,9 @@ void CollisionManager::Update()
                         //障害物の中心を求める
                         XMFLOAT3 obstacleCenter =
                         {
-                            (candidates[j]->bbox.minPoint.x + candidates[j]->bbox.maxPoint.x) * 0.5f,
-                            (candidates[j]->bbox.minPoint.y + candidates[j]->bbox.maxPoint.y) * 0.5f,
-                            (candidates[j]->bbox.minPoint.z + candidates[j]->bbox.maxPoint.z) * 0.5f
+                            (candidates[j]->aabb.minPoint.x + candidates[j]->aabb.maxPoint.x) * 0.5f,
+                            (candidates[j]->aabb.minPoint.y + candidates[j]->aabb.maxPoint.y) * 0.5f,
+                            (candidates[j]->aabb.minPoint.z + candidates[j]->aabb.maxPoint.z) * 0.5f
                         };
 
                         // 障害物の法線 n
@@ -148,7 +148,7 @@ void CollisionManager::Update()
                     collisionEvent.colliderA = dynamicCol;
                     // 静的オブジェクトは Triangle* で管理しているので、ここでは衝突対象の種類を WALL とする
                     static Collider dummyStatic;
-                    dummyStatic.bbox = candidates[j]->bbox;
+                    dummyStatic.aabb = candidates[j]->aabb;
                     dummyStatic.type = ColliderType::WALL;
                     collisionEvent.colliderB = &dummyStatic;
                     eventBus.publishCollision(collisionEvent);
@@ -260,7 +260,7 @@ void CollisionManager::Update()
             else if (IsSelfCollision(dynamicCol, dynamicCol2)) continue;
 
             bool isObstacle = false;
-            if (dynamicColliders[i]->bbox.intersects(dynamicColliders[j]->bbox))
+            if (dynamicColliders[i]->aabb.intersects(dynamicColliders[j]->aabb))
             {
                 if ((dynamicCol->type == ColliderType::ENEMY && dynamicCol2->type == ColliderType::PLAYER_ATTACK)
                     || (dynamicCol2->type == ColliderType::ENEMY && dynamicCol->type == ColliderType::PLAYER_ATTACK))
@@ -308,32 +308,40 @@ void CollisionManager::Update()
                     Transform transform = colliderOwner->GetTransform();
 
                     // 障害物の AABB 情報
-                    const BOUNDING_BOX& obstacleBBox = dynamicCol2->bbox;  // 衝突した障害物の AABB
+                    const BOUNDING_BOX& obstacleAABB = dynamicCol2->aabb;  // 衝突した障害物の AABB
 
-                    // AABB の中心座標を計算
-                    XMFLOAT3 obstacleCenter =
-                    {
-                        (obstacleBBox.minPoint.x + obstacleBBox.maxPoint.x) * 0.5f,
-                        (obstacleBBox.minPoint.y + obstacleBBox.maxPoint.y) * 0.5f,
-                        (obstacleBBox.minPoint.z + obstacleBBox.maxPoint.z) * 0.5f
-                    };
+                    // 各面との距離を計算
+                    float distLeft = fabs(transform.pos.x - obstacleAABB.minPoint.x);
+                    float distRight = fabs(transform.pos.x - obstacleAABB.maxPoint.x);
+                    float distFront = fabs(transform.pos.z - obstacleAABB.minPoint.z);
+                    float distBack = fabs(transform.pos.z - obstacleAABB.maxPoint.z);
 
-
-                    // 障害物との距離を計算（X, Z 平面のみ考慮）
-                    float distX = fabs(transform.pos.x - obstacleCenter.x);
-                    float distZ = fabs(transform.pos.z - obstacleCenter.z);
-
-                    // どの面に最も近いかを判定
+                    // 最も近い面を特定し、推定法線を決定
                     XMFLOAT3 estimatedNormal = { 0, 0, 0 };
-                    if (distX > distZ)
+
+                    float minDist = distLeft;
+                    estimatedNormal.x = 1.0f; // 法線向プレイヤー方向（プレイヤーが minX より左なら → 法線は右）
+
+                    // 左右の面の距離が近い場合は、X 軸方向の成分を優先
+                    if (distRight < minDist) 
                     {
-                        // X 軸方向の壁に衝突
-                        estimatedNormal.x = (transform.pos.x < obstacleCenter.x) ? 1.0f : -1.0f;
+                        minDist = distRight;
+                        estimatedNormal.x = -1.0f; // プレイヤーが maxX より右 → 法線は左
+                        estimatedNormal.z = 0.0f;
                     }
-                    else
+
+                    // 後ろの面の距離が近い場合は、Z 軸方向の成分を優先
+                    if (distFront < minDist) 
                     {
-                        // Z 軸方向の壁に衝突
-                        estimatedNormal.z = (transform.pos.z < obstacleCenter.z) ? 1.0f : -1.0f;
+                        minDist = distFront;
+                        estimatedNormal.x = 0.0f;
+                        estimatedNormal.z = 1.0f; // プレイヤーが minZ より前 → 法線は奥
+                    }
+                    if (distBack < minDist) 
+                    {
+                        minDist = distBack;
+                        estimatedNormal.x = 0.0f;
+                        estimatedNormal.z = -1.0f; // プレイヤーが maxZ より後ろ → 法線は手前
                     }
 
                     // 推定された法線を XMVECTOR に変換

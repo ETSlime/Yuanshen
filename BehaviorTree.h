@@ -18,7 +18,7 @@ public:
 protected:
     EnemyAttributes& GetEnemyAttributes(Enemy* enemy)
     {
-        return enemy->enemyAttr;
+        return enemy->m_enemyAttr;
     }
 
     DebugProc& debugProc = DebugProc::get_instance();

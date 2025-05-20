@@ -7,12 +7,18 @@
 #include "ShadowMapRenderer.h"
 #include "ShaderLoader.h"
 
+//*****************************************************************************
+// マクロ定義
+//*****************************************************************************
+#define DEBUG_CASCASDE_SRV   1  // デバッグ用のカスケードシャドウマップ表示
+
 bool ShadowMapRenderer::Init(int shadowMapSize, int numCascades)
 { 
+#ifdef _DEBUG
     DebugProc::get_instance().Register(this);
+#endif // DEBUG
 
     m_csm.Initialize(shadowMapSize, numCascades);
-    m_debugBounds.resize(numCascades);
 
     m_device = Renderer::get_instance().GetDevice();
     m_context = Renderer::get_instance().GetDeviceContext();
@@ -82,10 +88,13 @@ void ShadowMapRenderer::RenderShadowPass(int cascadeIndex)
 {
     ShadowMeshCollector& collector = m_csm.GetCascadeCollector(cascadeIndex);
 
+    UINT meshCount = 0;
+
     if (m_enableStaticShadow)
     {
         const auto& staticMeshes = collector.GetStaticMeshes();
-        for (UINT i = 0; i < staticMeshes.getSize(); ++i)
+		meshCount = staticMeshes.getSize();
+        for (UINT i = 0; i < meshCount; ++i)
         {
             RenderStaticMesh(staticMeshes[i]);
         }
@@ -94,7 +103,8 @@ void ShadowMapRenderer::RenderShadowPass(int cascadeIndex)
     if (m_enableSkinnedShadow)
     {
         const auto& skinnedMeshes = collector.GetSkinnedMeshes();
-        for (UINT i = 0; i < skinnedMeshes.getSize(); ++i)
+		meshCount = skinnedMeshes.getSize();
+        for (UINT i = 0; i < meshCount; ++i)
         {
             RenderSkinnedMesh(skinnedMeshes[i]);
         }
@@ -102,39 +112,12 @@ void ShadowMapRenderer::RenderShadowPass(int cascadeIndex)
 
     if (m_enableInstancedShadow)
     {
-        const auto& instancedMeshes = collector.GetInstancedMeshes();
-        for (UINT i = 0; i < instancedMeshes.getSize(); ++i)
+        auto& instancedMeshes = collector.GetInstancedMeshes();
+		meshCount = instancedMeshes.getSize();
+        for (UINT i = 0; i < meshCount; ++i)
         {
             RenderInstancedMesh(instancedMeshes[i]);
         }
-    }
-}
-
-void ShadowMapRenderer::CollectFromScene_NoCulling(const SimpleArray<IGameObject*>& objects)
-{
-    m_shadowCollector.Clear();
-
-    for (auto* obj : objects)
-    {
-        if (!obj->GetUse() || !obj->GetCastShadow()) 
-            continue;
-
-        obj->CollectShadowMesh(m_shadowCollector);
-    }
-}
-
-void ShadowMapRenderer::CollectFromScene(const SimpleArray<IGameObject*> objects, const XMMATRIX& lightViewProj)
-{
-    m_shadowCollector.Clear();
-
-    for (auto* obj : objects)
-    {
-        if (!obj->GetUse() || !obj->GetCastShadow()) continue;
-
-        const BOUNDING_BOX& worldAABB = obj->GetBoundingBoxWorld();
-        if (!IsAABBInsideLightFrustum(worldAABB, lightViewProj)) continue;
-
-        obj->CollectShadowMesh(m_shadowCollector);
     }
 }
 
@@ -202,6 +185,12 @@ void ShadowMapRenderer::RenderSkinnedMesh(const SkinnedRenderData& mesh)
 
 void ShadowMapRenderer::RenderInstancedMesh(const InstancedRenderData& mesh)
 {
+  //  for (UINT i = 0; i < mesh.instanceCount; ++i)
+  //  {
+  //      if (!mesh.visibleInstanceDraw) continue;
+
+		//mesh.visibleInstanceDraw[i] = false; // 使用フラグをリセット
+  //  }
 
     m_context->IASetInputLayout(m_instancedModelShaderSet.inputLayout);
 
@@ -225,9 +214,9 @@ void ShadowMapRenderer::RenderInstancedMesh(const InstancedRenderData& mesh)
     {
         m_context->PSSetShader(nullptr, nullptr, 0);
     }
-
-    m_context->DrawIndexedInstanced(mesh.indexCount, mesh.instanceCount, mesh.startIndexLocation, 0, 0);
-
+	// インスタンスバッファの可視インスタンス
+    UINT visibleCount = mesh.visibleInstances->getSize();
+    m_context->DrawIndexedInstanced(mesh.indexCount, visibleCount, mesh.startIndexLocation, 0, 0);
 }
 
 bool ShadowMapRenderer::IsAABBInsideLightFrustum(const BOUNDING_BOX& worldAABB, const XMMATRIX& lightViewProj)
@@ -285,11 +274,13 @@ void ShadowMapRenderer::RenderImGui(void)
     ImGui::Checkbox("Enable Skinned Shadow", &m_enableSkinnedShadow);
     ImGui::Checkbox("Enable Instanced Shadow", &m_enableInstancedShadow);
 
+#if DEBUG_CASCASDE_SRV
     for (int i = 0; i < m_csm.GetCascadeCount(); ++i)
     {
         ImGui::Text("Cascade %d", i);
         ImGui::Image((ImTextureID)m_csm.GetSRV(0, i), ImVec2(128, 128));
     }
+#endif // DEBUG
 
 
     // CSM 設定のデバッグUIを表示
@@ -300,54 +291,7 @@ void ShadowMapRenderer::RenderImGui(void)
 
 void ShadowMapRenderer::RenderDebugInfo(void)
 {
+#if DEBUG_CASCADE_BOUND
     m_csm.VisualizeCascadeBounds();
-}
-
-void ShadowMapRenderer::UpdateCascadeDebugBounds(void)
-{
-    const int cascadeCount = m_csm.GetCascadeCount();
-
-    float nearZ = m_camera.GetNearZ();
-    float farZ = m_camera.GetFarZ();
-
-    float lambda = 0.5f;
-    float splitDepths[MAX_CASCADES];
-
-    for (int i = 0; i < cascadeCount; ++i)
-    {
-        float p = static_cast<float>(i + 1) / cascadeCount;
-        float logSplit = nearZ * powf(farZ / nearZ, p);
-        float uniSplit = nearZ + (farZ - nearZ) * p;
-        splitDepths[i] = lambda * logSplit + (1 - lambda) * uniSplit;
-    }
-
-    XMMATRIX invViewProj = XMMatrixInverse(nullptr, m_camera.GetViewProjMtx());
-
-
-    for (int i = 0; i < cascadeCount; ++i)
-    {
-        float zn = (i == 0) ? nearZ : splitDepths[i - 1];
-        float zf = splitDepths[i];
-
-        SimpleArray<XMVECTOR>frustumCorners;
-
-
-        for (int y = 0; y <= 1; ++y)
-        {
-            for (int x = 0; x <= 1; ++x)
-            {
-                for (int z = 0; z <= 1; ++z)
-                {
-                    float ndcX = (float)x * 2.0f - 1.0f;
-                    float ndcY = (float)y * 2.0f - 1.0f;
-                    float ndcZ = z ? (zf / farZ * 2.0f - 1.0f) : (zn / farZ * 2.0f - 1.0f);
-                    XMVECTOR cornerNDC = XMVectorSet(ndcX, ndcY, ndcZ, 1.0f);
-                    XMVECTOR cornerWorld = XMVector3TransformCoord(cornerNDC, invViewProj);
-                    frustumCorners.push_back(cornerWorld);
-                }
-            }
-        }
-
-        m_debugBounds[i] = AABBUtils::CreateFromPoints(frustumCorners);
-    }
+#endif // DEBUG
 }

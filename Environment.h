@@ -10,6 +10,8 @@
 #include "Renderer.h"
 #include "GameObject.h"
 #include "OctreeNode.h"
+#include "DebugBoundingBoxRenderer.h"
+#include "Camera.h"
 
 //*****************************************************************************
 // マクロ定義
@@ -37,10 +39,6 @@
 #define FLOWER_MAX_SLOPE_ANGLE          (XM_PI * 0.33f)
 #define SHRUBBERY_MAX_SLOPE_ANGLE       (XM_PI * 0.33f)
 #define TREE_MAX_SLOPE_ANGLE            (XM_PI * 0.33f)
-//*****************************************************************************
-// 構造体定義
-//*****************************************************************************
-
 
 enum class EnvironmentObjectType 
 {
@@ -64,6 +62,10 @@ enum RotationAxis
     AXIS_Z
 };
 
+
+//*****************************************************************************
+// 構造体定義
+//*****************************************************************************
 struct InstanceVertex
 {
     XMFLOAT3 Position;   // 頂点位置
@@ -71,27 +73,6 @@ struct InstanceVertex
     XMFLOAT2 TexCoord;   // テクスチャ座標
     float Weight;        // 風の影響度 (重み)
     XMFLOAT3 Tangent;    // 切線（法線マップ用）
-};
-
-struct InstanceData
-{
-    XMFLOAT3 OffsetPosition; // インスタンス位置オフセット (ワールド座標)
-    XMFLOAT4 Rotation;        // インスタンスの回転 (四元数)
-    XMFLOAT4 initialBillboardRot; // 初期ビルボード回転角度
-    float Scale;             // インスタンススケール
-    float Type;              // インスタンスの種類
-
-    InstanceData()
-    {
-        OffsetPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
-        Rotation = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-        initialBillboardRot = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-        Scale = 1.0f;
-        Type = 0.0f;
-    }
-
-    InstanceData(XMFLOAT3 offset, XMFLOAT4 rot, XMFLOAT4 billboardRot, float scl, float type):
-        OffsetPosition(offset), Rotation(rot), initialBillboardRot(billboardRot), Scale(scl), Type(type) {}
 };
 
 struct alignas(16) PerFrameBuffer 
@@ -113,6 +94,7 @@ struct EnvironmentObjAttributes
     bool collision;
     bool adaptedToTerrain;
     bool billboard;
+	bool isDynamic;
     float maxSlopeAngle;
 };
 
@@ -122,17 +104,19 @@ struct EnvironmentObject
     EnvironmentObjAttributes attributes;
 	GameObject<ModelInstance>* modelGO = nullptr;
 	Transform transform;
+	BOUNDING_BOX boundingBoxLocal;
 
     char* modelPath = nullptr;
     char* extDiffuseTexPath = nullptr;
-    int indexCount;
-    int instanceCount;
+    UINT indexCount;
+    UINT instanceCount;
     bool useExtDiffuseTex = false;
 
     ID3D11ShaderResourceView* externDiffuseTextureSRV = nullptr;
     ID3D11Buffer* vertexBuffer = nullptr;
     ID3D11Buffer* indexBuffer = nullptr;
     ID3D11Buffer* instanceBuffer = nullptr;
+	ID3D11Buffer* instanceBufferShadow = nullptr;
     InstanceData* instanceData = nullptr;
     ID3D11VertexShader* vertexShader = nullptr;
     ID3D11PixelShader* pixelShader = nullptr;
@@ -147,6 +131,7 @@ struct EnvironmentObject
         SafeRelease(&vertexBuffer);
         SafeRelease(&indexBuffer);
         SafeRelease(&instanceBuffer);
+		SafeRelease(&instanceBufferShadow);
         SafeRelease(&externDiffuseTextureSRV);
 	}
 };
@@ -195,7 +180,7 @@ struct InstanceParams
     bool randomRotY = false;
 };
 
-class Environment
+class Environment : public IDebugUI
 {
 public:
     Environment();
@@ -205,7 +190,7 @@ public:
     void Update(void);
     void Draw(void);
     bool GenerateRandomInstances(EnvironmentObjectType type, const Model* fieldModel, int clusterCount = 45);
-    bool GenerateInstanceByParams(const InstanceParams& params, const SkinnedMeshModel* fieldModel);
+    bool GenerateInstanceByParams(const InstanceParams& params, const SkinnedMeshModel* fieldModel, BOUNDING_BOX fieldBBox);
 
 private:
 
@@ -218,6 +203,8 @@ private:
     // 指定した軸を中心に角度（ラジアン）だけ回転を追加する
     XMVECTOR AddRotationToQuaternion(const XMVECTOR& baseRotation, RotationAxis axis, float angle);
 
+    void UpdateBoundingBox(EnvironmentObject* obj);
+
     // 動的風向き計算
     XMFLOAT3 CalculateDynamicWindDirection(float time);
 
@@ -229,20 +216,23 @@ private:
 
     OctreeNode* GenerateOctree(const SimpleArray<Triangle*>* triangles, BOUNDING_BOX boundingBox);
 
-    SimpleArray<EnvironmentObject*> environmentObjects;
+    virtual void RenderDebugInfo(void) override;
+
+    SimpleArray<EnvironmentObject*> m_environmentObjects;
 
     ID3D11Device* m_device;
     ID3D11DeviceContext* m_context;
 
-    ID3D11Buffer* perFrameBuffer;
+    ID3D11Buffer* m_perFrameBuffer;
 
-    ID3D11ShaderResourceView* shadowMapSRV;
     ID3D11ShaderResourceView* noiseTextureSRV;
 
-    ShaderSet grassShaderSet;
-    ShaderSet treeShaderSet;
+    ShaderSet m_grassShaderSet;
+    ShaderSet m_treeShaderSet;
 
-    float time;
+    float m_time;
 
+    DebugBoundingBoxRenderer m_debugBoundingBoxRenderer;
+    Camera& m_camera = Camera::get_instance();
     ShaderResourceBinder& m_ShaderResourceBinder = ShaderResourceBinder::get_instance();
 };

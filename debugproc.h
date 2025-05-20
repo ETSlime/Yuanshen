@@ -22,9 +22,9 @@
 class IDebugUI
 {
 public:
-	virtual void RenderImGui() = 0;
+	virtual void RenderImGui() {};
 	virtual void RenderDebugInfo() {}
-	virtual const char* GetPanelName() const = 0;
+	virtual const char* GetPanelName() const { return nullptr; };
 };
 
 class DebugProc : public SingletonBase<DebugProc>

@@ -73,6 +73,10 @@ inline void CollectShadowMeshFromModel<ModelInstance>(
         data.instanceBuffer = modelInstance.instanceAttribute.instanceBuffer;
         data.instanceCount = modelInstance.instanceAttribute.instanceCount;
         data.enableAlphaTest = modelInstance.enableAlphaTest;
+		data.allInstanceData = modelInstance.instanceAttribute.instanceData;
+		data.visibleInstances = modelInstance.instanceAttribute.visibleInstanceDataArray;
+		data.visibleInstanceDraw = modelInstance.instanceAttribute.visibleInstanceDraw;
+		data.colliderArray = modelInstance.instanceAttribute.colliderArray;
         out.push_back(std::move(data));
     }
 }

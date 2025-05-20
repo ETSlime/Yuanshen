@@ -24,7 +24,7 @@
 
 Hilichurl::Hilichurl(Transform transform, EnemyState initState):Enemy(EnemyType::Hilichurl, transform)
 {
-	Instantiate("data/MODEL/enemy/Hilichurl", "Character_output.fbx", ModelType::Hilichurl);
+	Instantiate("data/MODEL/enemy/Hilichurl", "Character_output.fbx", SkinnedModelType::Hilichurl);
 	instance.collider.type = ColliderType::ENEMY;
 	instance.collider.owner = this;
 	instance.collider.enable = true;
@@ -53,7 +53,7 @@ Hilichurl::Hilichurl(Transform transform, EnemyState initState):Enemy(EnemyType:
 	AddAnimation("data/MODEL/enemy/Hilichurl/", "Falling Back Death.fbx", AnimClipName::ANIM_DIE);
 
 
-	playAnimSpeed = PLAY_ANIM_SPD;
+	m_playAnimSpeed = PLAY_ANIM_SPD;
 
 	SetupAnimStateMachine(initState);
 	InitHPGauge();
@@ -64,23 +64,23 @@ Hilichurl::Hilichurl(Transform transform, EnemyState initState):Enemy(EnemyType:
 void Hilichurl::Initialize(void)
 {
 	Enemy::Initialize();
-	stateMachine->SetCurrentState(STATE(enemyAttr.initState));
+	m_stateMachine->SetCurrentState(STATE(m_enemyAttr.initState));
 }
 
 Hilichurl::~Hilichurl()
 {
-	SAFE_DELETE(stateMachine);
+	SAFE_DELETE(m_stateMachine);
 }
 
 void Hilichurl::AddAnimation(char* animPath, char* animName, AnimClipName clipName)
 {
 	if (instance.pModel)
-		fbxLoader.LoadAnimation(renderer.GetDevice(), *instance.pModel, animPath, animName, clipName);
+		m_fbxLoader.LoadAnimation(renderer.GetDevice(), *instance.pModel, animPath, animName, clipName);
 }
 
 void Hilichurl::LoadWeapon(char* modelPath, char* modelName)
 {
-	weapon.Instantiate(modelPath, modelName, ModelType::Weapon);
+	weapon.Instantiate(modelPath, modelName, SkinnedModelType::Weapon);
 	weapon.SetScale(XMFLOAT3(WEAPON_SIZE, WEAPON_SIZE, WEAPON_SIZE));
 	weapon.SetPosition(XMFLOAT3(WEAPON_ON_HANDS_POS_OFFSET_X, WEAPON_ON_HANDS_POS_OFFSET_Y, WEAPON_ON_HANDS_POS_OFFSET_Z));
 	weapon.SetRotation(XMFLOAT3(WEAPON_ON_HANDS_ROT_OFFSET_X, WEAPON_ON_HANDS_ROT_OFFSET_Y, WEAPON_ON_HANDS_ROT_OFFSET_Z));
@@ -90,9 +90,9 @@ void Hilichurl::Update(void)
 {
 	Enemy::Update();
 
-	stateMachine->Update(ANIM_BLEND_SPD, dynamic_cast<ISkinnedMeshModelChar*>(this));
+	m_stateMachine->Update(ANIM_BLEND_SPD, dynamic_cast<ISkinnedMeshModelChar*>(this));
 
-	switch (stateMachine->GetCurrentState())
+	switch (m_stateMachine->GetCurrentState())
 	{
 	case STATE(EnemyState::IDLE):
 		PlayIdleAnim();
@@ -128,7 +128,7 @@ void Hilichurl::Update(void)
 		break;
 	}
 
-	instance.pModel->UpdateBoneTransform(stateMachine->GetBoneMatrices());
+	instance.pModel->UpdateBoneTransform(m_stateMachine->GetBoneMatrices());
 
 	UpdateWeapon();
 
@@ -160,123 +160,138 @@ void Hilichurl::UpdateWeapon(void)
 	weaponMtx = XMMatrixMultiply(weaponMtx, instance.transform.mtxWorld);
 
 	weapon.SetWorldMatrix(weaponMtx);
+
+	// ローカル空間のAABBを取得
 	BOUNDING_BOX weaponBB = weapon.GetSkinnedMeshModel()->GetBoundingBox();
-	XMVECTOR maxPointVect = XMVectorSet(weaponBB.maxPoint.x, weaponBB.maxPoint.y, weaponBB.maxPoint.z, 1.0f);
-	XMVECTOR minPointVect = XMVectorSet(weaponBB.minPoint.x, weaponBB.minPoint.y, weaponBB.minPoint.z, 1.0f);
+	XMFLOAT3 localMin = weaponBB.minPoint;
+	XMFLOAT3 localMax = weaponBB.maxPoint;
 
-	XMVECTOR transformedMaxPoint = XMVector3TransformCoord(maxPointVect, weaponMtx);
-	XMVECTOR transformedMinPoint = XMVector3TransformCoord(minPointVect, weaponMtx);
+	// ローカルAABBの8頂点を生成
+	XMVECTOR localCorners[8] = {
+		XMVectorSet(localMin.x, localMin.y, localMin.z, 1.0f),
+		XMVectorSet(localMax.x, localMin.y, localMin.z, 1.0f),
+		XMVectorSet(localMin.x, localMax.y, localMin.z, 1.0f),
+		XMVectorSet(localMax.x, localMax.y, localMin.z, 1.0f),
+		XMVectorSet(localMin.x, localMin.y, localMax.z, 1.0f),
+		XMVectorSet(localMax.x, localMin.y, localMax.z, 1.0f),
+		XMVectorSet(localMin.x, localMax.y, localMax.z, 1.0f),
+		XMVectorSet(localMax.x, localMax.y, localMax.z, 1.0f),
+	};
 
-	XMFLOAT3 newMaxPoint, newMinPoint;
-	XMStoreFloat3(&newMaxPoint, transformedMaxPoint);
-	XMStoreFloat3(&newMinPoint, transformedMinPoint);
+	// 武器の変換行列（アニメーション＋ワールド行列）
+	weaponMtx = weapon.GetWorldMatrix(); // ※ここがボーン変形やアタッチ先の変換を含むこと！
 
-	weaponBB.maxPoint = XMFLOAT3(
-		max(newMaxPoint.x, newMinPoint.x),
-		max(newMaxPoint.y, newMinPoint.y),
-		max(newMaxPoint.z, newMinPoint.z)
-	);
+	// AABB初期化（最大／最小を初期値に設定）
+	XMVECTOR worldMin = XMVectorSet(FLT_MAX, FLT_MAX, FLT_MAX, 1.0f);
+	XMVECTOR worldMax = XMVectorSet(-FLT_MAX, -FLT_MAX, -FLT_MAX, 1.0f);
 
-	weaponBB.minPoint = XMFLOAT3(
-		min(newMaxPoint.x, newMinPoint.x),
-		min(newMaxPoint.y, newMinPoint.y),
-		min(newMaxPoint.z, newMinPoint.z)
-	);
+	// 各頂点を変換してAABB範囲を更新
+	for (int i = 0; i < 8; ++i)
+	{
+		XMVECTOR transformed = XMVector3TransformCoord(localCorners[i], weaponMtx);
+		worldMin = XMVectorMin(worldMin, transformed);
+		worldMax = XMVectorMax(worldMax, transformed);
+	}
 
+	// ワールド空間のAABBを格納
+	XMStoreFloat3(&weaponBB.minPoint, worldMin);
+	XMStoreFloat3(&weaponBB.maxPoint, worldMax);
+
+	// コライダーに反映
 	weapon.SetColliderBoundingBox(weaponBB);
 }
 
 AnimStateMachine* Hilichurl::GetStateMachine(void)
 {
-	return stateMachine;
+	return m_stateMachine;
 }
 
 void Hilichurl::SetupAnimStateMachine(EnemyState initState)
 {
-	stateMachine = new AnimStateMachine(dynamic_cast<ISkinnedMeshModelChar*>(this));
+	m_stateMachine = new AnimStateMachine(dynamic_cast<ISkinnedMeshModelChar*>(this));
 
-	stateMachine->AddState(STATE(EnemyState::IDLE), instance.pModel->GetAnimationClip(AnimClipName::ANIM_IDLE));
-	stateMachine->AddState(STATE(EnemyState::HILI_SIT), instance.pModel->GetAnimationClip(AnimClipName::ANIM_SIT));
-	stateMachine->AddState(STATE(EnemyState::HILI_ATTACK), instance.pModel->GetAnimationClip(AnimClipName::ANIM_STANDING_MELEE_ATTACK));
-	stateMachine->AddState(STATE(EnemyState::HILI_WALK), instance.pModel->GetAnimationClip(AnimClipName::ANIM_WALK));
-	stateMachine->AddState(STATE(EnemyState::HILI_RUN), instance.pModel->GetAnimationClip(AnimClipName::ANIM_RUN));
-	stateMachine->AddState(STATE(EnemyState::HILI_HIT1), instance.pModel->GetAnimationClip(AnimClipName::ANIM_HIT_REACTION_1));
-	stateMachine->AddState(STATE(EnemyState::HILI_HIT2), instance.pModel->GetAnimationClip(AnimClipName::ANIM_HIT_REACTION_2));
-	stateMachine->AddState(STATE(EnemyState::HILI_SURPRISED), instance.pModel->GetAnimationClip(AnimClipName::ANIM_SURPRISED));
+	m_stateMachine->AddState(STATE(EnemyState::IDLE), instance.pModel->GetAnimationClip(AnimClipName::ANIM_IDLE));
+	m_stateMachine->AddState(STATE(EnemyState::HILI_SIT), instance.pModel->GetAnimationClip(AnimClipName::ANIM_SIT));
+	m_stateMachine->AddState(STATE(EnemyState::HILI_ATTACK), instance.pModel->GetAnimationClip(AnimClipName::ANIM_STANDING_MELEE_ATTACK));
+	m_stateMachine->AddState(STATE(EnemyState::HILI_WALK), instance.pModel->GetAnimationClip(AnimClipName::ANIM_WALK));
+	m_stateMachine->AddState(STATE(EnemyState::HILI_RUN), instance.pModel->GetAnimationClip(AnimClipName::ANIM_RUN));
+	m_stateMachine->AddState(STATE(EnemyState::HILI_HIT1), instance.pModel->GetAnimationClip(AnimClipName::ANIM_HIT_REACTION_1));
+	m_stateMachine->AddState(STATE(EnemyState::HILI_HIT2), instance.pModel->GetAnimationClip(AnimClipName::ANIM_HIT_REACTION_2));
+	m_stateMachine->AddState(STATE(EnemyState::HILI_SURPRISED), instance.pModel->GetAnimationClip(AnimClipName::ANIM_SURPRISED));
 	instance.pModel->GetAnimationClip(AnimClipName::ANIM_DIE)->SetAnimPlayMode(AnimPlayMode::ONCE);
-	stateMachine->AddState(STATE(EnemyState::HILI_DIE), instance.pModel->GetAnimationClip(AnimClipName::ANIM_DIE));
-	stateMachine->AddState(STATE(EnemyState::HILI_DANCE), instance.pModel->GetAnimationClip(AnimClipName::ANIM_DANCE));
+	m_stateMachine->AddState(STATE(EnemyState::HILI_DIE), instance.pModel->GetAnimationClip(AnimClipName::ANIM_DIE));
+	m_stateMachine->AddState(STATE(EnemyState::HILI_DANCE), instance.pModel->GetAnimationClip(AnimClipName::ANIM_DANCE));
 
 	//状態遷移
-	stateMachine->AddTransition(STATE(EnemyState::IDLE), STATE(EnemyState::HILI_WALK), &ISkinnedMeshModelChar::CanWalk);
-	stateMachine->AddTransition(STATE(EnemyState::IDLE), STATE(EnemyState::HILI_ATTACK), &ISkinnedMeshModelChar::CanAttack);
-	stateMachine->AddTransition(STATE(EnemyState::IDLE), STATE(EnemyState::HILI_HIT1), &ISkinnedMeshModelChar::CanHit);
-	stateMachine->AddTransition(STATE(EnemyState::IDLE), STATE(EnemyState::HILI_SURPRISED), &ISkinnedMeshModelChar::CanSurprised);
-	stateMachine->AddTransition(STATE(EnemyState::IDLE), STATE(EnemyState::HILI_DIE), &ISkinnedMeshModelChar::CanDie);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_WALK), STATE(EnemyState::HILI_RUN), &ISkinnedMeshModelChar::CanRun);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_WALK), STATE(EnemyState::IDLE), &ISkinnedMeshModelChar::CanStopMoving);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_WALK), STATE(EnemyState::HILI_SURPRISED), &ISkinnedMeshModelChar::CanSurprised);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_WALK), STATE(EnemyState::HILI_ATTACK), &ISkinnedMeshModelChar::CanAttack);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_WALK), STATE(EnemyState::HILI_HIT1), &ISkinnedMeshModelChar::CanHit);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_WALK), STATE(EnemyState::HILI_DIE), &ISkinnedMeshModelChar::CanDie);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_RUN), STATE(EnemyState::IDLE), &ISkinnedMeshModelChar::CanStopMoving);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_RUN), STATE(EnemyState::HILI_WALK), &ISkinnedMeshModelChar::CanStopRunning);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_RUN), STATE(EnemyState::HILI_WALK), &ISkinnedMeshModelChar::CanHit);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_RUN), STATE(EnemyState::HILI_DIE), &ISkinnedMeshModelChar::CanDie);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_HIT1), STATE(EnemyState::HILI_HIT2), &ISkinnedMeshModelChar::CanHit2, false);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_HIT1), STATE(EnemyState::HILI_DIE), &ISkinnedMeshModelChar::CanDie);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_HIT2), STATE(EnemyState::HILI_HIT1), &ISkinnedMeshModelChar::CanHit, false);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_HIT2), STATE(EnemyState::HILI_DIE), &ISkinnedMeshModelChar::CanDie);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_HIT1), STATE(EnemyState::IDLE), &ISkinnedMeshModelChar::AlwaysTrue, true);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_HIT2), STATE(EnemyState::IDLE), &ISkinnedMeshModelChar::AlwaysTrue, true);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_SURPRISED), STATE(EnemyState::IDLE), &ISkinnedMeshModelChar::AlwaysTrue, true);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_SURPRISED), STATE(EnemyState::HILI_HIT1), &ISkinnedMeshModelChar::CanHit, true);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_SURPRISED), STATE(EnemyState::HILI_DIE), &ISkinnedMeshModelChar::CanDie);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_ATTACK), STATE(EnemyState::IDLE), &ISkinnedMeshModelChar::AlwaysTrue, true);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_ATTACK), STATE(EnemyState::HILI_HIT1), &ISkinnedMeshModelChar::CanHit, true);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_ATTACK), STATE(EnemyState::HILI_DIE), &ISkinnedMeshModelChar::CanDie);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_DIE), STATE(EnemyState::HILI_DIE), &ISkinnedMeshModelChar::AlwaysTrue, true);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_DANCE), STATE(EnemyState::HILI_SURPRISED), &ISkinnedMeshModelChar::CanSurprised);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_DANCE), STATE(EnemyState::HILI_HIT1), &ISkinnedMeshModelChar::CanHit);
-	stateMachine->AddTransition(STATE(EnemyState::HILI_HIT1), STATE(EnemyState::HILI_SURPRISED), &ISkinnedMeshModelChar::CanHit);
+	m_stateMachine->AddTransition(STATE(EnemyState::IDLE), STATE(EnemyState::HILI_WALK), &ISkinnedMeshModelChar::CanWalk);
+	m_stateMachine->AddTransition(STATE(EnemyState::IDLE), STATE(EnemyState::HILI_ATTACK), &ISkinnedMeshModelChar::CanAttack);
+	m_stateMachine->AddTransition(STATE(EnemyState::IDLE), STATE(EnemyState::HILI_HIT1), &ISkinnedMeshModelChar::CanHit);
+	m_stateMachine->AddTransition(STATE(EnemyState::IDLE), STATE(EnemyState::HILI_SURPRISED), &ISkinnedMeshModelChar::CanSurprised);
+	m_stateMachine->AddTransition(STATE(EnemyState::IDLE), STATE(EnemyState::HILI_DIE), &ISkinnedMeshModelChar::CanDie);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_WALK), STATE(EnemyState::HILI_RUN), &ISkinnedMeshModelChar::CanRun);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_WALK), STATE(EnemyState::IDLE), &ISkinnedMeshModelChar::CanStopMoving);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_WALK), STATE(EnemyState::HILI_SURPRISED), &ISkinnedMeshModelChar::CanSurprised);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_WALK), STATE(EnemyState::HILI_ATTACK), &ISkinnedMeshModelChar::CanAttack);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_WALK), STATE(EnemyState::HILI_HIT1), &ISkinnedMeshModelChar::CanHit);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_WALK), STATE(EnemyState::HILI_DIE), &ISkinnedMeshModelChar::CanDie);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_RUN), STATE(EnemyState::IDLE), &ISkinnedMeshModelChar::CanStopMoving);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_RUN), STATE(EnemyState::HILI_WALK), &ISkinnedMeshModelChar::CanStopRunning);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_RUN), STATE(EnemyState::HILI_WALK), &ISkinnedMeshModelChar::CanHit);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_RUN), STATE(EnemyState::HILI_DIE), &ISkinnedMeshModelChar::CanDie);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_HIT1), STATE(EnemyState::HILI_HIT2), &ISkinnedMeshModelChar::CanHit2, false);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_HIT1), STATE(EnemyState::HILI_DIE), &ISkinnedMeshModelChar::CanDie);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_HIT2), STATE(EnemyState::HILI_HIT1), &ISkinnedMeshModelChar::CanHit, false);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_HIT2), STATE(EnemyState::HILI_DIE), &ISkinnedMeshModelChar::CanDie);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_HIT1), STATE(EnemyState::IDLE), &ISkinnedMeshModelChar::AlwaysTrue, true);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_HIT2), STATE(EnemyState::IDLE), &ISkinnedMeshModelChar::AlwaysTrue, true);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_SURPRISED), STATE(EnemyState::IDLE), &ISkinnedMeshModelChar::AlwaysTrue, true);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_SURPRISED), STATE(EnemyState::HILI_HIT1), &ISkinnedMeshModelChar::CanHit, true);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_SURPRISED), STATE(EnemyState::HILI_DIE), &ISkinnedMeshModelChar::CanDie);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_ATTACK), STATE(EnemyState::IDLE), &ISkinnedMeshModelChar::AlwaysTrue, true);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_ATTACK), STATE(EnemyState::HILI_HIT1), &ISkinnedMeshModelChar::CanHit, true);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_ATTACK), STATE(EnemyState::HILI_DIE), &ISkinnedMeshModelChar::CanDie);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_DIE), STATE(EnemyState::HILI_DIE), &ISkinnedMeshModelChar::AlwaysTrue, true);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_DANCE), STATE(EnemyState::HILI_SURPRISED), &ISkinnedMeshModelChar::CanSurprised);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_DANCE), STATE(EnemyState::HILI_HIT1), &ISkinnedMeshModelChar::CanHit);
+	m_stateMachine->AddTransition(STATE(EnemyState::HILI_HIT1), STATE(EnemyState::HILI_SURPRISED), &ISkinnedMeshModelChar::CanHit);
 
-	stateMachine->SetEndCallback(STATE(EnemyState::HILI_ATTACK), &ISkinnedMeshModelChar::OnAttackAnimationEnd);
-	stateMachine->SetEndCallback(STATE(EnemyState::HILI_HIT1), &ISkinnedMeshModelChar::OnHitAnimationEnd);
-	stateMachine->SetEndCallback(STATE(EnemyState::HILI_HIT2), &ISkinnedMeshModelChar::OnHitAnimationEnd);
-	stateMachine->SetEndCallback(STATE(EnemyState::HILI_SURPRISED), &ISkinnedMeshModelChar::OnSurprisedEnd);
-	stateMachine->SetEndCallback(STATE(EnemyState::HILI_DIE), &ISkinnedMeshModelChar::OnDieAnimationEnd);
+	m_stateMachine->SetEndCallback(STATE(EnemyState::HILI_ATTACK), &ISkinnedMeshModelChar::OnAttackAnimationEnd);
+	m_stateMachine->SetEndCallback(STATE(EnemyState::HILI_HIT1), &ISkinnedMeshModelChar::OnHitAnimationEnd);
+	m_stateMachine->SetEndCallback(STATE(EnemyState::HILI_HIT2), &ISkinnedMeshModelChar::OnHitAnimationEnd);
+	m_stateMachine->SetEndCallback(STATE(EnemyState::HILI_SURPRISED), &ISkinnedMeshModelChar::OnSurprisedEnd);
+	m_stateMachine->SetEndCallback(STATE(EnemyState::HILI_DIE), &ISkinnedMeshModelChar::OnDieAnimationEnd);
 	
 
-	enemyAttr.initState = initState;
-	stateMachine->SetCurrentState(STATE(initState));
+	m_enemyAttr.initState = initState;
+	m_stateMachine->SetCurrentState(STATE(initState));
 }
 
 void Hilichurl::PlayWalkAnim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_WALK)
-		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
-	instance.pModel->PlayCurrentAnim(playAnimSpeed);
+		instance.pModel->SetCurrentAnim(m_stateMachine->GetCurrentAnimClip());
+	instance.pModel->PlayCurrentAnim(m_playAnimSpeed);
 }
 
 void Hilichurl::PlayRunAnim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_RUN)
-		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
-	instance.pModel->PlayCurrentAnim(playAnimSpeed);
+		instance.pModel->SetCurrentAnim(m_stateMachine->GetCurrentAnimClip());
+	instance.pModel->PlayCurrentAnim(m_playAnimSpeed);
 }
 
 void Hilichurl::PlayIdleAnim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_IDLE)
-		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
-	instance.pModel->PlayCurrentAnim(playAnimSpeed);
+		instance.pModel->SetCurrentAnim(m_stateMachine->GetCurrentAnimClip());
+	instance.pModel->PlayCurrentAnim(m_playAnimSpeed);
 }
 
 void Hilichurl::PlayAttackAnim(void)
 {
-	float curAnimTime = stateMachine->GetCurrentAnimTime();
-	if (curAnimTime >= stateMachine->GetCurrentAnimClip()->animInfo.animPhase.startAttackFraction
-		&& curAnimTime <= stateMachine->GetCurrentAnimClip()->animInfo.animPhase.endAttackFraction)
+	float curAnimTime = m_stateMachine->GetCurrentAnimTime();
+	if (curAnimTime >= m_stateMachine->GetCurrentAnimClip()->animInfo.animPhase.startAttackFraction
+		&& curAnimTime <= m_stateMachine->GetCurrentAnimClip()->animInfo.animPhase.endAttackFraction)
 	{
 		weapon.SetColliderEnable(true);
 	}
@@ -285,16 +300,16 @@ void Hilichurl::PlayAttackAnim(void)
 		weapon.SetColliderEnable(false);
 	}
 
-	float dist = enemyAttr.distPlayerSq;
+	float dist = m_enemyAttr.distPlayerSq;
 
-	if (dist > enemyAttr.attackRange * enemyAttr.attackRange)
+	if (dist > m_enemyAttr.attackRange * m_enemyAttr.attackRange)
 	{
-		const AnimationClip* currentAnimClip = stateMachine->GetCurrentAnimClip();
+		const AnimationClip* currentAnimClip = m_stateMachine->GetCurrentAnimClip();
 
 		// アニメーションの再生進捗を取得
-		float attackAnimTime = stateMachine->GetCurrentAnimTime();
+		float attackAnimTime = m_stateMachine->GetCurrentAnimTime();
 		// 最大移動距離
-		float moveStep = min(dist - enemyAttr.attackRange, HILI_MAX_ATTACK_STEP);
+		float moveStep = min(dist - m_enemyAttr.attackRange, HILI_MAX_ATTACK_STEP);
 		// どのくらいの割合の時間が移動に使われるか計算
 		float moveTimeFraction = currentAnimClip->animInfo.animPhase.endMoveFraction - currentAnimClip->animInfo.animPhase.startMoveFraction;
 
@@ -324,7 +339,7 @@ void Hilichurl::PlayAttackAnim(void)
 			instance.attributes.spd = MAX_SPEED * speedFactor;
 
 			// すでに攻撃範囲内にいる場合、速度を急激に減衰させる
-			if (dist <= enemyAttr.attackRange * enemyAttr.attackRange)
+			if (dist <= m_enemyAttr.attackRange * m_enemyAttr.attackRange)
 			{
 				instance.attributes.spd *= (1.0f - attackPhase * attackPhase); // 速度を急激に減少
 			}
@@ -337,50 +352,50 @@ void Hilichurl::PlayAttackAnim(void)
 
 
 	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_STANDING_MELEE_ATTACK)
-		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
-	instance.pModel->PlayCurrentAnim(playAnimSpeed);
+		instance.pModel->SetCurrentAnim(m_stateMachine->GetCurrentAnimClip());
+	instance.pModel->PlayCurrentAnim(m_playAnimSpeed);
 }
 
 void Hilichurl::PlayHitAnim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_HIT_REACTION_1)
-		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
-	instance.pModel->PlayCurrentAnim(playAnimSpeed);
+		instance.pModel->SetCurrentAnim(m_stateMachine->GetCurrentAnimClip());
+	instance.pModel->PlayCurrentAnim(m_playAnimSpeed);
 }
 
 void Hilichurl::PlayHit2Anim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_HIT_REACTION_2)
-		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
-	instance.pModel->PlayCurrentAnim(playAnimSpeed);
+		instance.pModel->SetCurrentAnim(m_stateMachine->GetCurrentAnimClip());
+	instance.pModel->PlayCurrentAnim(m_playAnimSpeed);
 }
 
 void Hilichurl::PlaySitAnim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_SIT)
-		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
-	instance.pModel->PlayCurrentAnim(playAnimSpeed);
+		instance.pModel->SetCurrentAnim(m_stateMachine->GetCurrentAnimClip());
+	instance.pModel->PlayCurrentAnim(m_playAnimSpeed);
 }
 
 void Hilichurl::PlaySurprisedAnim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_SURPRISED)
-		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
-	instance.pModel->PlayCurrentAnim(playAnimSpeed * 1.2f);
+		instance.pModel->SetCurrentAnim(m_stateMachine->GetCurrentAnimClip());
+	instance.pModel->PlayCurrentAnim(m_playAnimSpeed * 1.2f);
 }
 
 void Hilichurl::PlayDieAnim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_DIE)
-		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
-	instance.pModel->PlayCurrentAnim(playAnimSpeed);
+		instance.pModel->SetCurrentAnim(m_stateMachine->GetCurrentAnimClip());
+	instance.pModel->PlayCurrentAnim(m_playAnimSpeed);
 }
 
 void Hilichurl::PlayDanceAnim(void)
 {
 	if (instance.pModel->GetCurrentAnim() != AnimClipName::ANIM_DANCE)
-		instance.pModel->SetCurrentAnim(stateMachine->GetCurrentAnimClip());
-	instance.pModel->PlayCurrentAnim(playAnimSpeed);
+		instance.pModel->SetCurrentAnim(m_stateMachine->GetCurrentAnimClip());
+	instance.pModel->PlayCurrentAnim(m_playAnimSpeed);
 }
 
 bool Hilichurl::CanWalk(void) const
@@ -420,12 +435,12 @@ bool Hilichurl::CanHit2(void) const
 
 bool Hilichurl::CanSurprised(void) const
 {
-	return enemyAttr.isSurprised;
+	return m_enemyAttr.isSurprised;
 }
 
 bool Hilichurl::CanDie(void) const
 {
-	return enemyAttr.die;
+	return m_enemyAttr.die;
 }
 
 void Hilichurl::OnAttackAnimationEnd(void)
@@ -434,9 +449,9 @@ void Hilichurl::OnAttackAnimationEnd(void)
 
 	instance.attributes.isAttacking = false;
 
-	enemyAttr.isInCooldown = true;
-	enemyAttr.attackCooldownTimer = GetRandFloat(HILI_MIN_ATTACK_CDTIME, HILI_MAX_ATTACK_CDTIME);
-	enemyAttr.cooldownProbability = 0.5f;
+	m_enemyAttr.isInCooldown = true;
+	m_enemyAttr.attackCooldownTimer = GetRandFloat(HILI_MIN_ATTACK_CDTIME, HILI_MAX_ATTACK_CDTIME);
+	m_enemyAttr.cooldownProbability = 0.5f;
 	instance.attributes.isMoving = false;
 }
 
@@ -446,17 +461,17 @@ void Hilichurl::OnHitAnimationEnd(void)
 	instance.attributes.isHit2 = false;
 	instance.attributes.hitTimer = 0;
 
-	enemyAttr.isChasingPlayer = true;
+	m_enemyAttr.isChasingPlayer = true;
 }
 
 void Hilichurl::OnSurprisedEnd(void)
 {
-	enemyAttr.isSurprised = false;
-	enemyAttr.isChasingPlayer = true;
-	enemyAttr.randomMove = true;
+	m_enemyAttr.isSurprised = false;
+	m_enemyAttr.isChasingPlayer = true;
+	m_enemyAttr.randomMove = true;
 }
 
 void Hilichurl::OnDieAnimationEnd()
 {
-	enemyAttr.startFadeOut = true;
+	m_enemyAttr.startFadeOut = true;
 }

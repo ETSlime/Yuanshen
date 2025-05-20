@@ -150,16 +150,16 @@ public:
 	Enemy(EnemyType enemyType, Transform trans);
 	~Enemy();
 
-	inline const EnemyAttributes& GetEnemyAttribute(void) { return enemyAttr; }
+	inline const EnemyAttributes& GetEnemyAttribute(void) { return m_enemyAttr; }
 	void Update(void) override;
 	void Draw(void) override;
 	void DrawUI(EnemyUIType type);
 
-	void SetPlayer(const Player* player) { this->player = player; }
+	void SetPlayer(const Player* player) { m_player = player; }
 
-	void ReduceHP(float amount) { enemyAttr.HP -= amount; }
+	void ReduceHP(float amount) { m_enemyAttr.HP -= amount; }
 
-	void SetRandomMove(bool random) { enemyAttr.randomMove = random; }
+	void SetRandomMove(bool random) { m_enemyAttr.randomMove = random; }
 
 	void InitHPGauge(void);
 	void UpdateHPGauge(void);
@@ -173,8 +173,8 @@ public:
 	bool CheckAvailableToMove(void);
 
 protected:
-	EnemyAttributes enemyAttr;
-	const Player* player;
+	EnemyAttributes m_enemyAttr;
+	const Player* m_player;
 	virtual void Initialize(void);
 private:
 	void SetNewPosTarget(void);
@@ -186,16 +186,16 @@ private:
 	void DrawHPGauge(void);
 	void DrawHPGaugeCover(void);
 
-	BehaviorTree*				behaviorTree;  // 敵AIの行動ツリー
+	BehaviorTree*				m_behaviorTree;  // 敵AIの行動ツリー
 
 	// テクスチャ情報
-	ID3D11ShaderResourceView*	HPGaugeTex = nullptr;
-	ID3D11ShaderResourceView*	HPGaugeCoverTex = nullptr;
+	ID3D11ShaderResourceView*	m_HPGaugeTex = nullptr;
+	ID3D11ShaderResourceView*	m_HPGaugeCoverTex = nullptr;
 
 	// 頂点バッファ
-	ID3D11Buffer*				HPGaugeVertexBuffer = nullptr;
-	ID3D11Buffer*				HPGaugeCoverVertexBuffer = nullptr;
-	UISprite					HPGauge;
+	ID3D11Buffer*				m_HPGaugeVertexBuffer = nullptr;
+	ID3D11Buffer*				m_HPGaugeCoverVertexBuffer = nullptr;
+	UISprite					m_HPGauge;
 
 	//void UpdateEditorSelect(int sx, int sy);
 };

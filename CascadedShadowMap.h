@@ -24,6 +24,9 @@
 #define MIN_SHADOW_DISTANCE 15.0f
 #define MAX_SHADOW_DISTANCE 40000.0f
 
+// デバッグ用のカスケード境界可視化
+#define DEBUG_CASCADE_BOUND     0
+
 enum class ShadowRadiusStrategy
 {
     FitBoundingSphere,
@@ -37,6 +40,7 @@ enum class ShadowRadiusStrategy
 struct CascadedShadowConfig
 {
     int numCascades = MAX_CASCADES;
+    int shadowMapSize = CSM_SHADOW_MAP_SIZE;
     float manualSplits[MAX_CASCADES] = { 0.05f, 0.15f, 0.3f, 1.0f };
 
     // 分割のタイプを制御する係数（0.0 = 線形、1.0 = 対数、0.95ならほぼ対数）
@@ -54,7 +58,7 @@ struct CascadedShadowConfig
     float minShadowDistance = MIN_SHADOW_DISTANCE;
 };
 
-struct CascadeData
+struct CBCascadeData
 {
     XMMATRIX lightViewProj;
     XMMATRIX lightView;
@@ -63,9 +67,15 @@ struct CascadeData
     float padding[3]; // 16バイトアライメント
 };
 
-struct CascadeCBuffer
+struct CascadePrivateData
 {
-    CascadeData cascadeArray[MAX_CASCADES];    // 最大4レイヤーのシャドウ
+    XMMATRIX lightViewProjLocal;
+    XMVECTOR viewFrustumCenter;
+};
+
+struct CBCascadeDataArray
+{
+    CBCascadeData cascadeArray[MAX_CASCADES];    // 最大4レイヤーのシャドウ
     XMFLOAT4 cascadeSplits;                    // ピクセルシェーダーでの深度比較用
 };
 
@@ -92,11 +102,11 @@ public:
     void BindShadowSRVsToPixelShader(int lightIndex, int startSlot);
     ID3D11ShaderResourceView* GetSRV(int lightIndex, int cascadeIndex) const;
 
-    void RenderImGui(void);
-
     // モデルの影を収集する
     void CollectFromScene_NoCulling(int cascadeIndex, const SimpleArray<IGameObject*>& objects);
     void CollectFromScene(int cascadeIndex, const SimpleArray<IGameObject*>& objects);
+
+	// カスケードのコレクタを取得
     ShadowMeshCollector& GetCascadeCollector(int i) { return m_perCascadeCollector[i]; }
     int GetCascadeObjectCount(int i) const { return m_cascadeObjectCount[i]; }
 
@@ -107,25 +117,29 @@ public:
     // ある光源の全カスケード分のSRV配列を取得
     ID3D11ShaderResourceView** GetAllShadowSRVs(int lightIndex);
 
-    const CascadeData& GetCascadeData(int index) const { return m_cascadeData[index]; }
-    const CascadeData& GetCurrentCascadeData(void) { return m_cascadeData[m_currentCascadeIndex]; }
-
+    const CBCascadeData& GetCascadeData(int index) const { return m_cascadeData[index]; }
+    const CBCascadeData& GetCurrentCascadeData(void) { return m_cascadeData[m_currentCascadeIndex]; }
     int GetCascadeCount() const { return m_config.numCascades; }
 
-    void VisualizeCascadeBounds(void);
+    void RenderImGui(void); // ImGuiでの設定表示
+	void VisualizeCascadeBounds(void); // デバッグ用のカスケード境界可視化
 
 private:
+	// カスケードの分割を計算する関数
     void ComputeCascadeMatrices(int cascadeIndex, float splitNear, float splitFar, const XMVECTOR& lightDir);
-
-    void InitCascadeCBuffer(void);
+    // カスケード用のCBufferを初期化
+	void InitCascadeCBuffer(void); 
 
     // シャドウマップのテクセルグリッドにスナップする補正関数
+    XMMATRIX SnapShadowMatrixToTexelGrid(const XMMATRIX& lightViewProjLocal);
     XMMATRIX SnapShadowMatrixToTexelGrid(const XMMATRIX& lightView, const XMMATRIX& lightProj, XMVECTOR center);
 
     // カスケードシャドウマップの半径を計算するユーティリティ関数
     float ComputeCascadeRadius(XMVECTOR* corners, XMVECTOR center, ShadowRadiusStrategy strategy, float padding);
-
-    bool IsAABBInsideLightFrustum(const BOUNDING_BOX& worldAABB, const XMMATRIX& lightViewProj);
+    // 可視インスタンスをカリングする
+    void CullVisibleInstancesForShadow(InstanceModelAttribute& attribute, int cascadeIndex);
+	// AABBがライトの視野に入っているかどうかを確認する関数
+    bool IsAABBInsideLightFrustum(const BOUNDING_BOX& worldAABB, int cascadeIndex);
 
     // CascadedShadowMapと相同のmaxDistanceを持つカメラの視野を再構築する関数
     XMMATRIX ComputeCSMViewProjMatrixWithMaxDistance(float maxDistance);
@@ -135,10 +149,10 @@ private:
 
     void AdjustCascadePadding(void);
 
-    int m_shadowMapSize = CSM_SHADOW_MAP_SIZE;
     int m_currentCascadeIndex = 0;
 
-    CascadeData m_cascadeData[MAX_CASCADES];
+	CBCascadeData m_cascadeData[MAX_CASCADES]; // カスケードデータ
+	CascadePrivateData m_cascadePrivateData[MAX_CASCADES]; // カスケードプライベートデータ
 
     ShadowMeshCollector m_perCascadeCollector[MAX_CASCADES]; // 各レイヤーのコレクタ
     int m_cascadeObjectCount[MAX_CASCADES]; // 各レイヤーのカウント
@@ -146,19 +160,19 @@ private:
     float m_lastCascadeRadius;
     XMVECTOR m_lastLightDir;
 
-    CascadedShadowConfig m_config{};
+	CascadedShadowConfig m_config{}; // シャドウマップの設定
 
-    ID3D11Texture2D* m_shadowMaps[SHADOW_CASTING_LIGHT_MAX][MAX_CASCADES] = {};
-    ID3D11DepthStencilView* m_dsvs[SHADOW_CASTING_LIGHT_MAX][MAX_CASCADES] = {};
-    ID3D11ShaderResourceView* m_srvs[SHADOW_CASTING_LIGHT_MAX][MAX_CASCADES] = {};
+	ID3D11Texture2D* m_shadowMaps[SHADOW_CASTING_LIGHT_MAX][MAX_CASCADES] = {}; // シャドウマップ  
+	ID3D11DepthStencilView* m_dsvs[SHADOW_CASTING_LIGHT_MAX][MAX_CASCADES] = {}; // 深度ステンシルビュー
+	ID3D11ShaderResourceView* m_srvs[SHADOW_CASTING_LIGHT_MAX][MAX_CASCADES] = {}; // シャドウSRV
 
-    D3D11_VIEWPORT m_shadowViewport = {};
+	D3D11_VIEWPORT m_shadowViewport = {}; // ビューポート
 
-    ID3D11Buffer* m_cascadeSingleCBuffer = nullptr;
-    ID3D11Buffer* m_cascadeArrayCBuffer = nullptr;
+	ID3D11Buffer* m_cascadeSingleCBuffer = nullptr; // 単一カスケード用のCBuffer
+	ID3D11Buffer* m_cascadeArrayCBuffer = nullptr; // カスケード配列用のCBuffer
 
-    // Store previous render targets
-    ID3D11RenderTargetView* m_savedRTV = nullptr;
+    // 保存されたRTV&DSV
+	ID3D11RenderTargetView* m_savedRTV = nullptr; 
     ID3D11DepthStencilView* m_savedDSV = nullptr;
 
     ID3D11Device* m_device = nullptr;

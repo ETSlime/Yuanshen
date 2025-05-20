@@ -17,18 +17,18 @@
 struct Triangle
 {
     XMFLOAT3 v0, v1, v2;
-    BOUNDING_BOX bbox;
+    BOUNDING_BOX aabb;
     XMFLOAT3 normal;
 
     // AABBを計算
     Triangle(const XMFLOAT3& a, const XMFLOAT3& b, const XMFLOAT3& c, bool alwaysFaceUp = false) : v0(a), v1(b), v2(c)
     {
-        bbox.minPoint.x = min(min(v0.x, v1.x), v2.x);
-        bbox.minPoint.y = min(min(v0.y, v1.y), v2.y);
-        bbox.minPoint.z = min(min(v0.z, v1.z), v2.z);
-        bbox.maxPoint.x = max(max(v0.x, v1.x), v2.x);
-        bbox.maxPoint.y = max(max(v0.y, v1.y), v2.y);
-        bbox.maxPoint.z = max(max(v0.z, v1.z), v2.z);
+        aabb.minPoint.x = min(min(v0.x, v1.x), v2.x);
+        aabb.minPoint.y = min(min(v0.y, v1.y), v2.y);
+        aabb.minPoint.z = min(min(v0.z, v1.z), v2.z);
+        aabb.maxPoint.x = max(max(v0.x, v1.x), v2.x);
+        aabb.maxPoint.y = max(max(v0.y, v1.y), v2.y);
+        aabb.maxPoint.z = max(max(v0.z, v1.z), v2.z);
 
         // 法線を計算する（頂点座標から交叉積を利用して正規化する）
         XMVECTOR v0Vec = XMLoadFloat3(&v0);
@@ -51,12 +51,12 @@ struct Triangle
     Triangle(const XMFLOAT3& a, const XMFLOAT3& b, const XMFLOAT3& c, const XMFLOAT3& norm)
         : v0(a), v1(b), v2(c), normal(norm)
     {
-        bbox.minPoint.x = min(min(v0.x, v1.x), v2.x);
-        bbox.minPoint.y = min(min(v0.y, v1.y), v2.y);
-        bbox.minPoint.z = min(min(v0.z, v1.z), v2.z);
-        bbox.maxPoint.x = max(max(v0.x, v1.x), v2.x);
-        bbox.maxPoint.y = max(max(v0.y, v1.y), v2.y);
-        bbox.maxPoint.z = max(max(v0.z, v1.z), v2.z);
+        aabb.minPoint.x = min(min(v0.x, v1.x), v2.x);
+        aabb.minPoint.y = min(min(v0.y, v1.y), v2.y);
+        aabb.minPoint.z = min(min(v0.z, v1.z), v2.z);
+        aabb.maxPoint.x = max(max(v0.x, v1.x), v2.x);
+        aabb.maxPoint.y = max(max(v0.y, v1.y), v2.y);
+        aabb.maxPoint.z = max(max(v0.z, v1.z), v2.z);
     }
 };
 
@@ -117,7 +117,7 @@ public:
     bool insert(Triangle* tri) 
     {
         // 三角形の AABB がこのノードの境界と交差しなければ挿入しない
-        if (!boundary.intersects(tri->bbox))
+        if (!boundary.intersects(tri->aabb))
             return false;
 
         // 現在のノードが葉で、容量があるかまたは最大深さに達している場合はここに格納する
@@ -158,7 +158,7 @@ public:
         int size = triangles.getSize();
         for (int i = 0; i < size; i++)
         {
-            if (triangles[i]->bbox.intersects(range))
+            if (triangles[i]->aabb.intersects(range))
                 result.push_back(triangles[i]);
         }
 

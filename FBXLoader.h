@@ -106,7 +106,7 @@ enum AnimClipName
 
 };
 
-enum class ModelType
+enum class SkinnedModelType
 {
 	Default,
 	Sigewinne,
@@ -409,7 +409,7 @@ class FBXLoader : public SingletonBase<FBXLoader>
 public:
 	FBXLoader() {};
 	bool LoadModel(ID3D11Device* device, TextureMgr& texMgr, SkinnedMeshModel& model, 
-		const char* modelPath, const char* modelName, const char* texturePath, AnimClipName name = AnimClipName::ANIM_NONE, ModelType modelType = ModelType::Default);
+		const char* modelPath, const char* modelName, const char* texturePath, AnimClipName name = AnimClipName::ANIM_NONE, SkinnedModelType modelType = SkinnedModelType::Default);
 
 	bool LoadAnimation(ID3D11Device* device, SkinnedMeshModel& model,
 		const char* modelPath, const char* modelName, AnimClipName name);

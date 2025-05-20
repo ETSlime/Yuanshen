@@ -216,10 +216,10 @@ public:
 	const XMMATRIX* GetFinalBoneMatrices(void);
 
 	const SimpleArray<SkinnedMeshPart>& GetMeshParts() const;
-	ModelType GetModelType(void) const { return modelType; }
+	SkinnedModelType GetModelType(void) const { return modelType; }
 
 	static SkinnedMeshModel* StoreModel(char* modelPath, char* modelName, char* modelFullPath, 
-		ModelType modelType, AnimClipName clipName);
+		SkinnedModelType modelType, AnimClipName clipName);
 	static SkinnedMeshModelPool* GetModel(char* modelFullPath);
 	static void RemoveModel(char* modelPath);
 
@@ -253,8 +253,8 @@ private:
 	UINT MeshDataCnt = 0;
 	UINT currentRootNodeID;
 	UINT numBones;
-	ModelType modelType;
-	bool drawBoundingBox;
+	SkinnedModelType modelType;
+	bool drawBoundingBox = false;
 	BoneTransformData boneTransformData;
 	UINT weaponTransformIdx;
 

@@ -37,97 +37,6 @@
 #define	HPGAUGE_COVER_PATH	"data/TEXTURE/EnemyHPGauge_bg.png"
 #define HPGAUGE_WIDTH_SCL	(0.5f)
 #define HPGAUGE_HEIGHT		(5.0f)
-//*****************************************************************************
-// プロトタイプ宣言
-//*****************************************************************************
-
-//void Enemy::UpdateEditorSelect(int sx, int sy)
-//{
-//	if (MapEditor::get_instance().GetOnEditorCursor() == TRUE)
-//	{
-//		return;
-//	}
-//		
-//	this->SetIsCursorIn(FALSE);
-//
-//	CAMERA* camera = GetCamera();
-//	XMMATRIX P = XMLoadFloat4x4(&camera->mtxProjection);
-//
-//	// Compute picking ray in view space.
-//	float vx = (+2.0f * sx / SCREEN_WIDTH - 1.0f) / P.r[0].m128_f32[0];
-//	float vy = (-2.0f * sy / SCREEN_HEIGHT + 1.0f) / P.r[1].m128_f32[1];
-//
-//	// Ray definition in view space.
-//	XMVECTOR rayOrigin = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
-//	XMVECTOR rayDir = XMVectorSet(vx, vy, 1.0f, 0.0f);
-//
-//	// Tranform ray to local space of Mesh.
-//	XMMATRIX V = XMLoadFloat4x4(&camera->mtxView);
-//	XMMATRIX invView = XMLoadFloat4x4(&camera->mtxInvView);
-//
-//	XMMATRIX W = instance.transform.mtxWorld;
-//	XMMATRIX invWorld = XMMatrixInverse(&XMMatrixDeterminant(W), W);
-//
-//	XMMATRIX toLocal = XMMatrixMultiply(invView, invWorld);
-//
-//	rayOrigin = XMVector3TransformCoord(rayOrigin, toLocal);
-//	rayDir = XMVector3TransformNormal(rayDir, toLocal);
-//
-//	// Make the ray direction unit length for the intersection tests.
-//	rayDir = XMVector3Normalize(rayDir);
-//	
-//	XMVECTOR minPoint = XMLoadFloat3(&instance.pModel->GetBoundingBox().minPoint);
-//	XMVECTOR maxPoint = XMLoadFloat3(&instance.pModel->GetBoundingBox().maxPoint);
-//
-//
-//	float tMin = 0.0f;
-//	float tMax = FLT_MAX;
-//	BOOL intersect = FALSE;
-//	for (int i = 0; i < 3; ++i) 
-//	{
-//		float rayOriginComponent = XMVectorGetByIndex(rayOrigin, i);
-//		float rayDirComponent = XMVectorGetByIndex(rayDir, i);
-//		float minComponent = XMVectorGetByIndex(minPoint, i);
-//		float maxComponent = XMVectorGetByIndex(maxPoint, i);
-//
-//		if (fabs(rayDirComponent) < 1e-8f) {
-//			if (rayOriginComponent < minComponent || rayOriginComponent > maxComponent) 
-//			{
-//				intersect =  FALSE;
-//				return;
-//			}
-//		}
-//		else 
-//		{
-//			float t1 = (minComponent - rayOriginComponent) / rayDirComponent;
-//			float t2 = (maxComponent - rayOriginComponent) / rayDirComponent;
-//
-//			if (t1 > t2) 
-//			{
-//				float temp = t1;
-//				t1 = t2;
-//				t2 = temp;
-//			}
-//
-//			tMin = max(tMin, t1);
-//			tMax = min(tMax, t2);
-//
-//			if (tMin > tMax) 
-//			{
-//				intersect = FALSE;
-//				return;
-//			}
-//		}
-//	}
-//
-//	this->SetIsCursorIn(TRUE);
-//
-//
-//	this->UpdateModelEditor();
-//
-//	PrintDebugProc("Enemy:X:%f Y:%f Z:%f\n", instance.transform.pos.x, instance.transform.pos.y, instance.transform.pos.z);
-//
-//}
 
 //=============================================================================
 // 初期化処理
@@ -136,25 +45,25 @@ Enemy::Enemy(EnemyType enemyType, Transform trans)
 {
 
 	//MapEditor::get_instance().AddToList(this);
-	enemyAttr.enemyType = enemyType;
+	m_enemyAttr.enemyType = enemyType;
 
 	instance.load = true;
-	behaviorTree = nullptr;
-	player = nullptr;
+	m_behaviorTree = nullptr;
+	m_player = nullptr;
 
 	instance.attributes.spd = 0.0f;
 
-	switch (enemyAttr.enemyType)
+	switch (m_enemyAttr.enemyType)
 	{
 	case EnemyType::Hilichurl:
-		enemyAttr.maxHP = HILI_MAX_HP;
-		enemyAttr.HP = HILI_MAX_HP;
-		enemyAttr.viewAngle = HILI_VIEW_ANGLE;
-		enemyAttr.viewDistance = HILI_VIEW_DISTANCE;
-		enemyAttr.chaseRange = HILI_CHASING_RANGE;
-		enemyAttr.attackRange = HILI_ATTACK_RANGE;
+		m_enemyAttr.maxHP = HILI_MAX_HP;
+		m_enemyAttr.HP = HILI_MAX_HP;
+		m_enemyAttr.viewAngle = HILI_VIEW_ANGLE;
+		m_enemyAttr.viewDistance = HILI_VIEW_DISTANCE;
+		m_enemyAttr.chaseRange = HILI_CHASING_RANGE;
+		m_enemyAttr.attackRange = HILI_ATTACK_RANGE;
 
-		behaviorTree = new BehaviorTree(this);
+		m_behaviorTree = new BehaviorTree(this);
 		break;
 	default:
 		break;
@@ -163,21 +72,21 @@ Enemy::Enemy(EnemyType enemyType, Transform trans)
 	instance.transform.pos = trans.pos;
 	instance.transform.rot = trans.rot;
 	instance.transform.scl = trans.scl;
-	enemyAttr.initTrans.pos = trans.pos;
-	enemyAttr.initTrans.rot = trans.rot;
-	enemyAttr.initTrans.scl = trans.scl;
+	m_enemyAttr.initTrans.pos = trans.pos;
+	m_enemyAttr.initTrans.rot = trans.rot;
+	m_enemyAttr.initTrans.scl = trans.scl;
 
-	HPGaugeTex = TextureMgr::get_instance().CreateTexture(HPGAUGE_PATH);
-	HPGaugeCoverTex = TextureMgr::get_instance().CreateTexture(HPGAUGE_COVER_PATH);
+	m_HPGaugeTex = TextureMgr::get_instance().CreateTexture(HPGAUGE_PATH);
+	m_HPGaugeCoverTex = TextureMgr::get_instance().CreateTexture(HPGAUGE_COVER_PATH);
 
 	instance.use = true;		// true:生きてる
 }
 
 Enemy::~Enemy()
 {
-	SafeRelease(&HPGaugeTex);
-	SafeRelease(&HPGaugeCoverTex);
-	SafeRelease(&HPGaugeVertexBuffer);
+	SafeRelease(&m_HPGaugeTex);
+	SafeRelease(&m_HPGaugeCoverTex);
+	SafeRelease(&m_HPGaugeVertexBuffer);
 }
 
 //=============================================================================
@@ -186,9 +95,7 @@ Enemy::~Enemy()
 void Enemy::Update(void)
 {
 	if (instance.use == true)		// このエネミーが使われている？
-	{								// Yes
-
-
+	{
 
 		if (!UpdateAliveState())
 			return;
@@ -199,10 +106,10 @@ void Enemy::Update(void)
 
 		BOUNDING_BOX aabb = instance.pModel->GetBoundingBox();
 		float height = aabb.maxPoint.y - aabb.minPoint.y;
-		HPGauge.pos = instance.transform.pos;
-		HPGauge.pos.y += height;
+		m_HPGauge.pos = instance.transform.pos;
+		m_HPGauge.pos.y += height;
 
-		enemyAttr.timer += timer.GetScaledDeltaTime();
+		m_enemyAttr.timer += timer.GetScaledDeltaTime();
 
 		if (instance.attributes.isGrounded == false)
 		{
@@ -212,7 +119,7 @@ void Enemy::Update(void)
 		if (!CheckAvailableToMove())
 			return;
 
-		behaviorTree->RunBehaviorTree();
+		m_behaviorTree->RunBehaviorTree();
 
 		float deltaDir = instance.attributes.targetDir - instance.attributes.dir;
 		if (deltaDir > XM_PI) deltaDir -= XM_2PI;
@@ -223,12 +130,12 @@ void Enemy::Update(void)
 		if (instance.attributes.isMoveBlocked)
 			return;
 
-		if (enemyAttr.fixedDirMove)
+		if (m_enemyAttr.fixedDirMove)
 		{
 			// 角度の増分を計算（速度に基づく回転量）
-			float deltaTheta = (instance.attributes.spd / enemyAttr.cooldownOrbitRadius)* enemyAttr.cooldownMoveDirection;
+			float deltaTheta = (instance.attributes.spd / m_enemyAttr.cooldownOrbitRadius)* m_enemyAttr.cooldownMoveDirection;
 
-			XMVECTOR fixedDirVec = XMVectorReplicate(enemyAttr.fixedDir);
+			XMVECTOR fixedDirVec = XMVectorReplicate(m_enemyAttr.fixedDir);
 			XMVECTOR deltaThetaVec = XMVectorReplicate(deltaTheta);
 
 			// 角度がdeltaThetaだけ変化した後のcosとsinを計算
@@ -238,9 +145,9 @@ void Enemy::Update(void)
 			XMVECTOR sinOld = XMVectorSin(fixedDirVec);
 
 			// X 軸方向の増分
-			XMVECTOR dxVec = XMVectorScale(XMVectorSubtract(sinNew, sinOld), enemyAttr.cooldownOrbitRadius);
+			XMVECTOR dxVec = XMVectorScale(XMVectorSubtract(sinNew, sinOld), m_enemyAttr.cooldownOrbitRadius);
 			// Z 軸方向の増分
-			XMVECTOR dzVec = XMVectorScale(XMVectorSubtract(cosNew, cosOld), enemyAttr.cooldownOrbitRadius);
+			XMVECTOR dzVec = XMVectorScale(XMVectorSubtract(cosNew, cosOld), m_enemyAttr.cooldownOrbitRadius);
 
 			float dx = XMVectorGetX(dxVec);
 			float dz = XMVectorGetX(dzVec);
@@ -266,19 +173,19 @@ void Enemy::Update(void)
 
 bool Enemy::UpdateAliveState(void)
 {
-	if (enemyAttr.isDead == true)
+	if (m_enemyAttr.isDead == true)
 	{
-		enemyAttr.respawnTimer -= timer.GetScaledDeltaTime();
-		if (enemyAttr.respawnTimer <= 0.0f)
+		m_enemyAttr.respawnTimer -= timer.GetScaledDeltaTime();
+		if (m_enemyAttr.respawnTimer <= 0.0f)
 		{
-			enemyAttr.respawnTimer = 0.0f;
-			Initialize();
+			m_enemyAttr.respawnTimer = 0.0f;
+			Initialize(); // 敵を初期化
 		}
 		else
 			return false;
 	}
 
-	if (instance.renderProgress.progress < 1.0f && !enemyAttr.startFadeOut)
+	if (instance.renderProgress.progress < 1.0f && !m_enemyAttr.startFadeOut)
 	{
 		instance.renderProgress.isRandomFade = true;
 		instance.renderProgress.progress += 0.01f * timer.GetScaledDeltaTime();
@@ -288,7 +195,7 @@ bool Enemy::UpdateAliveState(void)
 			instance.renderProgress.progress = 1.0f;
 		}
 	}
-	else if (enemyAttr.startFadeOut == true)
+	else if (m_enemyAttr.startFadeOut == true)
 	{
 		instance.renderProgress.isRandomFade = true;
 		instance.renderProgress.progress -= 0.01f * timer.GetScaledDeltaTime();
@@ -296,16 +203,17 @@ bool Enemy::UpdateAliveState(void)
 		{
 			instance.renderProgress.isRandomFade = false;
 			instance.renderProgress.progress = 0.0f;
-			enemyAttr.isDead = true;
-			instance.collider.enable = false;
+			m_enemyAttr.isDead = true;
+			instance.collider.enable = false; // 当たり判定を無効化
+			instance.castShadow = false; // 影を落とさない
 		}
 		return false;
 	}
 
-	if (enemyAttr.HP <= 0.0f)
+	if (m_enemyAttr.HP <= 0.0f)
 	{
-		enemyAttr.respawnTimer = ENEMY_RESPAWN_TIME;
-		enemyAttr.die = true;
+		m_enemyAttr.respawnTimer = ENEMY_RESPAWN_TIME;
+		m_enemyAttr.die = true;
 		return false;
 	}
 
@@ -325,11 +233,11 @@ void Enemy::DrawUI(EnemyUIType type)
 	switch (type)
 	{
 	case EnemyUIType::HPGauge:
-		if (HPGauge.bUse)
+		if (m_HPGauge.bUse)
 			DrawHPGauge();
 		break;
 	case EnemyUIType::HPGaugeCover:
-		if (HPGauge.bUse)
+		if (m_HPGauge.bUse)
 			DrawHPGaugeCover();
 		break;
 	default:
@@ -341,40 +249,40 @@ void Enemy::DrawHPGauge(void)
 {
 	XMMATRIX mtxWorld;
 
-	float ratio = enemyAttr.HP / enemyAttr.maxHP;
+	float ratio = m_enemyAttr.HP / m_enemyAttr.maxHP;
 
 	// 血条のワールド座標を計算
-	XMMATRIX worldPosition = XMMatrixTranslation(HPGauge.pos.x, HPGauge.pos.y, HPGauge.pos.z);
+	XMMATRIX worldPosition = XMMatrixTranslation(m_HPGauge.pos.x, m_HPGauge.pos.y, m_HPGauge.pos.z);
 	// 左端をローカル座標の原点に移動
-	XMMATRIX moveToLeft = XMMatrixTranslation(HPGauge.fWidth * 0.5f, 0.0f, 0.0f);
+	XMMATRIX moveToLeft = XMMatrixTranslation(m_HPGauge.fWidth * 0.5f, 0.0f, 0.0f);
 	// 原点を基準にスケーリング
 	XMMATRIX scaleMatrix = XMMatrixScaling(ratio, 1.0f, 1.0f);
 	// 左端を固定するための補正移動
-	XMMATRIX moveBack = XMMatrixTranslation(-HPGauge.fWidth * 0.5f, 0.0f, 0.0f);
+	XMMATRIX moveBack = XMMatrixTranslation(-m_HPGauge.fWidth * 0.5f, 0.0f, 0.0f);
 
 	// 左端を原点に移動
 	mtxWorld = XMMatrixMultiply(moveToLeft, scaleMatrix);
 	// 左端を固定するための補正移動
 	mtxWorld = XMMatrixMultiply(mtxWorld, moveBack);
 	// ビルボードの回転を適用
-	mtxWorld = XMMatrixMultiply(mtxWorld, HPGauge.rot);
+	mtxWorld = XMMatrixMultiply(mtxWorld, m_HPGauge.rot);
 	// 最終的なワールド座標に移動
 	mtxWorld = XMMatrixMultiply(mtxWorld, worldPosition);
 
 	// ワールドマトリックスの設定
 	Renderer::get_instance().SetCurrentWorldMatrix(&mtxWorld);
 
-	HPGauge.material.Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	Renderer::get_instance().SetMaterial(HPGauge.material);
+	m_HPGauge.material.Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	Renderer::get_instance().SetMaterial(m_HPGauge.material);
 
 	// プリミティブトポロジ設定
 	Renderer::get_instance().GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 	UINT stride = sizeof(VERTEX_3D);
 	UINT offset = 0;
-	Renderer::get_instance().GetDeviceContext()->IASetVertexBuffers(0, 1, &HPGaugeVertexBuffer, &stride, &offset);
+	Renderer::get_instance().GetDeviceContext()->IASetVertexBuffers(0, 1, &m_HPGaugeVertexBuffer, &stride, &offset);
 
-	Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &HPGaugeTex);
+	Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &m_HPGaugeTex);
 
 	// ポリゴンの描画
 	Renderer::get_instance().GetDeviceContext()->Draw(4, 0);
@@ -386,15 +294,15 @@ void Enemy::DrawHPGaugeCover(void)
 {
 	XMMATRIX mtxTranslate, mtxWorld;
 
-	mtxTranslate = XMMatrixTranslation(HPGauge.pos.x, HPGauge.pos.y, HPGauge.pos.z);
-	mtxWorld = XMMatrixMultiply(HPGauge.rot, mtxTranslate);
+	mtxTranslate = XMMatrixTranslation(m_HPGauge.pos.x, m_HPGauge.pos.y, m_HPGauge.pos.z);
+	mtxWorld = XMMatrixMultiply(m_HPGauge.rot, mtxTranslate);
 
 	// ワールドマトリックスの設定
 	Renderer::get_instance().SetCurrentWorldMatrix(&mtxWorld);
 
 	// マテリアル設定
-	HPGauge.material.Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.3f);
-	Renderer::get_instance().SetMaterial(HPGauge.material);
+	m_HPGauge.material.Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.3f);
+	Renderer::get_instance().SetMaterial(m_HPGauge.material);
 
 	// プリミティブトポロジ設定
 	Renderer::get_instance().GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
@@ -402,10 +310,10 @@ void Enemy::DrawHPGaugeCover(void)
 	// 頂点バッファ設定
 	UINT stride = sizeof(VERTEX_3D);
 	UINT offset = 0;
-	Renderer::get_instance().GetDeviceContext()->IASetVertexBuffers(0, 1, &HPGaugeVertexBuffer, &stride, &offset);
+	Renderer::get_instance().GetDeviceContext()->IASetVertexBuffers(0, 1, &m_HPGaugeVertexBuffer, &stride, &offset);
 
 	// テクスチャ設定
-	Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &HPGaugeCoverTex);
+	Renderer::get_instance().GetDeviceContext()->PSSetShaderResources(0, 1, &m_HPGaugeCoverTex);
 
 	// ポリゴンの描画
 	Renderer::get_instance().GetDeviceContext()->Draw(4, 0);
@@ -417,13 +325,13 @@ void Enemy::InitHPGauge(void)
 	float height = aabb.maxPoint.y - aabb.minPoint.y;
 	float width = (aabb.maxPoint.x - aabb.minPoint.x) * HPGAUGE_WIDTH_SCL;
 
-	HPGauge.pos = instance.transform.pos;
-	HPGauge.pos.y += height;
-	HPGauge.fWidth = width;
-	HPGauge.fHeight = HPGAUGE_HEIGHT;
-	MakeVertexHPGauge(HPGauge.fWidth, HPGauge.fHeight);
+	m_HPGauge.pos = instance.transform.pos;
+	m_HPGauge.pos.y += height;
+	m_HPGauge.fWidth = width;
+	m_HPGauge.fHeight = HPGAUGE_HEIGHT;
+	MakeVertexHPGauge(m_HPGauge.fWidth, m_HPGauge.fHeight);
 
-	HPGauge.bUse = true;
+	m_HPGauge.bUse = true;
 }
 
 void Enemy::UpdateHPGauge(void)
@@ -439,23 +347,22 @@ void Enemy::UpdateHPGauge(void)
 	billboardRotation.r[1] = XMVectorSet(mtxView.r[0].m128_f32[1], mtxView.r[1].m128_f32[1], mtxView.r[2].m128_f32[1], 0.0f);
 	billboardRotation.r[2] = XMVectorSet(mtxView.r[0].m128_f32[2], mtxView.r[1].m128_f32[2], mtxView.r[2].m128_f32[2], 0.0f);
 	
-	HPGauge.rot = billboardRotation;
+	m_HPGauge.rot = billboardRotation;
 }
 
 void Enemy::Initialize(void)
 {
-	enemyAttr.Initialize();
+	m_enemyAttr.Initialize();
 
-	instance.collider.enable = true;
-	instance.transform.pos = enemyAttr.initTrans.pos;
-	instance.transform.rot = enemyAttr.initTrans.rot;
-	instance.transform.scl = enemyAttr.initTrans.scl;
+	instance.transform.pos = m_enemyAttr.initTrans.pos;
+	instance.transform.rot = m_enemyAttr.initTrans.rot;
+	instance.transform.scl = m_enemyAttr.initTrans.scl;
 
-	switch (enemyAttr.enemyType)
+	switch (m_enemyAttr.enemyType)
 	{
 	case EnemyType::Hilichurl:
-		enemyAttr.maxHP = HILI_MAX_HP;
-		enemyAttr.HP = HILI_MAX_HP;
+		m_enemyAttr.maxHP = HILI_MAX_HP;
+		m_enemyAttr.HP = HILI_MAX_HP;
 		break;
 	default:
 		break;
@@ -463,51 +370,53 @@ void Enemy::Initialize(void)
 
 	instance.renderProgress.isRandomFade = true;
 	instance.renderProgress.progress = 0.0f;
+	instance.collider.enable = true;
+	instance.castShadow = true; // 影を落とす
 
 }
 
 void Enemy::SetNewPosTarget()
 {
 	instance.attributes.targetDir = GetRandFloat(0.0f, XM_2PI);
-	enemyAttr.moveDuration = GetRandFloat(100.0f, 800.0f);  // 移動時間
-	enemyAttr.moveTimer = 0.0f;
-	enemyAttr.timer = 0.0f;
+	m_enemyAttr.moveDuration = GetRandFloat(100.0f, 800.0f);  // 移動時間
+	m_enemyAttr.moveTimer = 0.0f;
+	m_enemyAttr.timer = 0.0f;
 }
 
 void  Enemy::StartWaiting() 
 {
-	enemyAttr.isWaiting = true;
-	enemyAttr.waitTime = GetRandFloat(300.0f, 900.0f);
-	enemyAttr.timer = 0.0f;
+	m_enemyAttr.isWaiting = true;
+	m_enemyAttr.waitTime = GetRandFloat(300.0f, 900.0f);
+	m_enemyAttr.timer = 0.0f;
 }
 
 void Enemy::CooldownWait(void)
 {
 	// 敵からプレイヤーへの方向ベクトル
 	XMVECTOR enemyPosVec = XMLoadFloat3(&instance.transform.pos);
-	XMVECTOR playerPosVec = XMLoadFloat3(&player->GetTransform().pos);
+	XMVECTOR playerPosVec = XMLoadFloat3(&m_player->GetTransform().pos);
 	XMVECTOR toPlayerVec = XMVectorSubtract(playerPosVec, enemyPosVec);
 	toPlayerVec = XMVector3Normalize(toPlayerVec);
 
 	instance.attributes.targetDir = atan2f(XMVectorGetX(toPlayerVec), XMVectorGetZ(toPlayerVec));
-	enemyAttr.fixedDirMove = false;
+	m_enemyAttr.fixedDirMove = false;
 	instance.attributes.spd = 0.0f;
 	instance.attributes.isMoving = false;
 }
 
 bool Enemy::DetectPlayer(void)
 {
-	if (enemyAttr.isChasingPlayer == true) return true;
+	if (m_enemyAttr.isChasingPlayer == true) return true;
 
 	XMVECTOR enemyPosVec = XMLoadFloat3(&instance.transform.pos);
-	XMVECTOR playerPosVec = XMLoadFloat3(&player->GetTransform().pos);
+	XMVECTOR playerPosVec = XMLoadFloat3(&m_player->GetTransform().pos);
 
 	// プレイヤーへの方向ベクトル
 	XMVECTOR diff = XMVectorSubtract(playerPosVec, enemyPosVec);
 	float distSq = XMVectorGetX(XMVector3LengthSq(diff));
 
 	// 視認範囲外なら発見しない
-	if (distSq > enemyAttr.viewDistance * enemyAttr.viewDistance) return false;
+	if (distSq > m_enemyAttr.viewDistance * m_enemyAttr.viewDistance) return false;
 
 	// 正面方向ベクトル（Z軸方向）
 	XMVECTOR forward = XMVectorSet(sinf(instance.transform.rot.y), 0.0f, cosf(instance.transform.rot.y), 0.0f);
@@ -517,7 +426,7 @@ bool Enemy::DetectPlayer(void)
 	float dot = XMVectorGetX(XMVector3Dot(forward, diff));
 	float angle = acosf(dot);
 
-	return angle <= enemyAttr.viewAngle * 0.5f;
+	return angle <= m_enemyAttr.viewAngle * 0.5f;
 }
 
 bool Enemy::CheckAvailableToMove(void)
@@ -543,11 +452,11 @@ bool Enemy::CheckAvailableToMove(void)
 
 void Enemy::ChasePlayer(void)
 {
-	if (player == nullptr) return;
+	if (m_player == nullptr) return;
 
-	if (enemyAttr.isChasingPlayer == false) return;
+	if (m_enemyAttr.isChasingPlayer == false) return;
 
-	Transform playerTransform = player->GetTransform();
+	Transform playerTransform = m_player->GetTransform();
 
 	// 敵からプレイヤーへの方向ベクトル
 	XMVECTOR enemyPosVec = XMLoadFloat3(&instance.transform.pos);
@@ -556,25 +465,25 @@ void Enemy::ChasePlayer(void)
 	// プレイヤーまでの距離
 	XMVECTOR diff = XMVectorSubtract(playerPosVec, enemyPosVec);
 	float distSq = XMVectorGetX(XMVector3LengthSq(diff));
-	enemyAttr.distPlayerSq = distSq;
+	m_enemyAttr.distPlayerSq = distSq;
 
-	if (distSq < enemyAttr.attackRange * enemyAttr.attackRange * 1.5f)
+	if (distSq < m_enemyAttr.attackRange * m_enemyAttr.attackRange * 1.5f)
 	{
 		// 攻撃範囲に入ったら攻撃モード
 		AttackPlayer();
 		return;
 	}
-	else if (distSq > enemyAttr.chaseRange * enemyAttr.chaseRange)
+	else if (distSq > m_enemyAttr.chaseRange * m_enemyAttr.chaseRange)
 	{
 		// 追跡範囲を超えたらランダム移動に戻る
-		enemyAttr.isChasingPlayer = false;
-		enemyAttr.fixedDirMove = false;
+		m_enemyAttr.isChasingPlayer = false;
+		m_enemyAttr.fixedDirMove = false;
 		instance.attributes.isMoving = false;
 		SetNewPosTarget();
 		return;
 	}
 	else
-		enemyAttr.fixedDirMove = false;
+		m_enemyAttr.fixedDirMove = false;
 
 	// 目標方向を計算
 	float dx = instance.transform.pos.x - playerTransform.pos.x;
@@ -595,21 +504,21 @@ void Enemy::AttackPlayer(void)
 void Enemy::Patrol(void)
 {
 	// 通常の移動ロジック
-	if (enemyAttr.isWaiting)
+	if (m_enemyAttr.isWaiting)
 	{
-		if (enemyAttr.timer >= enemyAttr.waitTime)
+		if (m_enemyAttr.timer >= m_enemyAttr.waitTime)
 		{
-			enemyAttr.isWaiting = false;
+			m_enemyAttr.isWaiting = false;
 			SetNewPosTarget();
 		}
 	}
 	else
 	{
 		// 移動処理
-		enemyAttr.moveTimer += timer.GetScaledDeltaTime();
+		m_enemyAttr.moveTimer += timer.GetScaledDeltaTime();
 
 		// 目標時間に達した場合、待機モードに入る
-		if (enemyAttr.moveTimer >= enemyAttr.moveDuration)
+		if (m_enemyAttr.moveTimer >= m_enemyAttr.moveDuration)
 		{
 			instance.attributes.isMoving = false;
 			StartWaiting();
@@ -627,18 +536,18 @@ void Enemy::CooldownMove(void)
 {
 	// 敵からプレイヤーへの方向ベクトル
 	XMVECTOR enemyPosVec = XMLoadFloat3(&instance.transform.pos);
-	XMVECTOR playerPosVec = XMLoadFloat3(&player->GetTransform().pos);
+	XMVECTOR playerPosVec = XMLoadFloat3(&m_player->GetTransform().pos);
 	XMVECTOR toPlayerVec = XMVectorSubtract(playerPosVec, enemyPosVec);
 
 	// プレイヤーまでの距離
 	float distSq = XMVectorGetX(XMVector3LengthSq(toPlayerVec));
-	enemyAttr.distPlayerSq = distSq;
+	m_enemyAttr.distPlayerSq = distSq;
 
 	toPlayerVec = XMVector3Normalize(toPlayerVec);
-	enemyAttr.fixedDir = atan2f(XMVectorGetX(toPlayerVec), XMVectorGetZ(toPlayerVec)) * enemyAttr.cooldownMoveDirection;
-	enemyAttr.fixedDirMove = true;
-	enemyAttr.cooldownOrbitRadius = sqrtf(enemyAttr.distPlayerSq);
-	instance.attributes.targetDir = enemyAttr.fixedDir;
+	m_enemyAttr.fixedDir = atan2f(XMVectorGetX(toPlayerVec), XMVectorGetZ(toPlayerVec)) * m_enemyAttr.cooldownMoveDirection;
+	m_enemyAttr.fixedDirMove = true;
+	m_enemyAttr.cooldownOrbitRadius = sqrtf(m_enemyAttr.distPlayerSq);
+	instance.attributes.targetDir = m_enemyAttr.fixedDir;
 	instance.attributes.spd = VALUE_MOVE * 0.5f;
 	instance.attributes.isMoving = true;
 }
@@ -656,23 +565,23 @@ HRESULT Enemy::MakeVertexHPGauge(float width, float height)
 	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-	Renderer::get_instance().GetDevice()->CreateBuffer(&bd, NULL, &HPGaugeVertexBuffer);
+	Renderer::get_instance().GetDevice()->CreateBuffer(&bd, NULL, &m_HPGaugeVertexBuffer);
 
 	// 頂点バッファに値をセットする
 	D3D11_MAPPED_SUBRESOURCE msr;
-	Renderer::get_instance().GetDeviceContext()->Map(HPGaugeVertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &msr);
+	Renderer::get_instance().GetDeviceContext()->Map(m_HPGaugeVertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &msr);
 
 	VERTEX_3D* vertex = (VERTEX_3D*)msr.pData;
 
-	HPGauge.fHeight = height;
-	HPGauge.fWidth = width;
-	ZeroMemory(&HPGauge.material, sizeof(HPGauge.material));
+	m_HPGauge.fHeight = height;
+	m_HPGauge.fWidth = width;
+	ZeroMemory(&m_HPGauge.material, sizeof(m_HPGauge.material));
 
 	// 頂点座標の設定
-	vertex[0].Position = XMFLOAT3(-HPGauge.fWidth / 2.0f, HPGauge.fHeight, 0.0f);
-	vertex[1].Position = XMFLOAT3(HPGauge.fWidth / 2.0f, HPGauge.fHeight, 0.0f);
-	vertex[2].Position = XMFLOAT3(-HPGauge.fWidth / 2.0f, 0.0f, 0.0f);
-	vertex[3].Position = XMFLOAT3(HPGauge.fWidth / 2.0f, 0.0f, 0.0f);
+	vertex[0].Position = XMFLOAT3(-m_HPGauge.fWidth / 2.0f, m_HPGauge.fHeight, 0.0f);
+	vertex[1].Position = XMFLOAT3(m_HPGauge.fWidth / 2.0f, m_HPGauge.fHeight, 0.0f);
+	vertex[2].Position = XMFLOAT3(-m_HPGauge.fWidth / 2.0f, 0.0f, 0.0f);
+	vertex[3].Position = XMFLOAT3(m_HPGauge.fWidth / 2.0f, 0.0f, 0.0f);
 
 	// 法線の設定
 	vertex[0].Normal = XMFLOAT3(0.0f, 0.0f, -1.0f);
@@ -692,7 +601,7 @@ HRESULT Enemy::MakeVertexHPGauge(float width, float height)
 	vertex[2].TexCoord = XMFLOAT2(0.0f, 1.0f);
 	vertex[3].TexCoord = XMFLOAT2(1.0f, 1.0f);
 
-	renderer.GetDeviceContext()->Unmap(HPGaugeVertexBuffer, 0);
+	renderer.GetDeviceContext()->Unmap(m_HPGaugeVertexBuffer, 0);
 
 	return S_OK;
 }

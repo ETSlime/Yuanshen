@@ -68,7 +68,7 @@ Ground::Ground()
 	XMMATRIX worldMatrix;
 
 	GameObject<SkinnedMeshModelInstance>* fieldGO = new GameObject<SkinnedMeshModelInstance>();
-	fieldGO->Instantiate(MODEL_ENVIRONMENT_PATH, MODEL_FIELD_NAME, ModelType::Field);
+	fieldGO->Instantiate(MODEL_ENVIRONMENT_PATH, MODEL_FIELD_NAME, SkinnedModelType::Field);
 	fieldGO->SetScale(XMFLOAT3(FIELD_SIZE, FIELD_SIZE, FIELD_SIZE));
 	fieldGO->SetRotation(XMFLOAT3(XM_PI / 2, XM_PI, 0.0f));
 	fieldGO->SetPosition(XMFLOAT3(0.0f, -650.0f, 0.0f));
@@ -100,7 +100,7 @@ Ground::Ground()
 	bonfireGO->Update();
 	bonfireGO->SetCastShadow(true);
 	worldMatrix = bonfireGO->GetWorldMatrix();
-	BOUNDING_BOX boundingBox = bonfireGO->GetCollider().bbox;
+	BOUNDING_BOX boundingBox = bonfireGO->GetCollider().aabb;
 	bonfireGO->GetModel()->BuildTrianglesByBoundingBox(boundingBox);
 	bonfireGO->GetModel()->BuildOctree();
 	bonfireGO->GetModel()->SetDrawBoundingBox(true);
@@ -155,8 +155,15 @@ Ground::Ground()
 		0.3f
 	));
 
+	instanceParams.transformArray.push_back(InstanceTransformInfo(
+		12482.0f,
+		-17385.0f,
+		0.5,
+		0.3f
+	));
+
 	environment = new Environment();
-	environment->GenerateInstanceByParams(instanceParams, fieldGO->GetSkinnedMeshModel());
+	environment->GenerateInstanceByParams(instanceParams, fieldGO->GetSkinnedMeshModel(), fieldGO->GetBoundingBoxWorld());
 	//environment->GenerateRandomInstances(EnvironmentObjectType::Shrubbery_1, fieldGO->GetSkinnedMeshModel(), 15);
 }
 

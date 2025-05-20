@@ -22,11 +22,18 @@ public:
 
     SimpleArray(UINT initialCapacity): size(0)
     {
-        if (initialCapacity < 0)
-            return;
-
         capacity = initialCapacity;
         array = new T[capacity];
+    }
+
+    SimpleArray(UINT count, const T& defaultValue)
+    {
+        capacity = count;
+        size = count;
+        array = new T[capacity];
+        for (UINT i = 0; i < size; i++) {
+            array[i] = defaultValue;
+        }
     }
 
     SimpleArray(const SimpleArray& other) : array(nullptr), capacity(0), size(0)

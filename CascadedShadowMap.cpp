@@ -17,7 +17,7 @@ void CascadedShadowMap::Initialize(int shadowMapSize, int numCascades)
 
     assert(numCascades <= MAX_CASCADES);
 
-    m_shadowMapSize = shadowMapSize;
+    m_config.shadowMapSize = shadowMapSize;
     m_config.numCascades = max(1, numCascades); // 1以上に制限
 
     m_shadowViewport = {};
@@ -70,7 +70,7 @@ void CascadedShadowMap::Initialize(int shadowMapSize, int numCascades)
     InitCascadeCBuffer();
 
 
-#ifdef _DEBUG
+#if DEBUG_CASCADE_BOUND
     for (int cascadeIndex = 0; cascadeIndex < m_config.numCascades; ++cascadeIndex)
     {
         char name[DEBUG_BOUNDING_BOX_NAME_LENGTH] = "Cascade BoundingBox: ";
@@ -191,16 +191,6 @@ void CascadedShadowMap::RenderImGui(void)
             XMFLOAT3 center;
             XMStoreFloat3(&center, m_tempFrustumCenter[i]);
             ImGui::Text("Cascade[%d] Center: (%.2f, %.2f, %.2f)", i, center.x, center.y, center.z);
-
-            //XMMATRIX mat = m_tempInvViewProj;
-            //for (int i = 0; i < 4; ++i)
-            //{
-            //    ImGui::Text("%.2e %.2e %.2e %.2e",
-            //        mat.r[i].m128_f32[0],
-            //        mat.r[i].m128_f32[1],
-            //        mat.r[i].m128_f32[2],
-            //        mat.r[i].m128_f32[3]);
-            //}
         }
 
 
@@ -241,11 +231,66 @@ void CascadedShadowMap::CollectFromScene(int cascadeIndex, const SimpleArray<IGa
     {
         if (!obj->GetUse() || !obj->GetCastShadow()) continue;
 
-        const BOUNDING_BOX& worldAABB = obj->GetBoundingBoxWorld();
-        if (!IsAABBInsideLightFrustum(worldAABB, m_cascadeData[cascadeIndex].lightViewProj)) continue;
+		if (obj->GetModelType() == ModelType::Instanced)
+		{
+			// Instancedモデルの場合、インスタンスの可視性を確認
+			GameObject<ModelInstance>* instancedObj = dynamic_cast<GameObject<ModelInstance>*>(obj);
+			if (!instancedObj) continue; // dynamic_cast失敗時はスキップ
+
+            InstanceModelAttribute& attribute = instancedObj->GetInstancedAttribute();
+			CullVisibleInstancesForShadow(attribute, cascadeIndex);
+            m_cascadeObjectCount[cascadeIndex] += attribute.visibleInstanceDataArray->getSize();
+		}
+        else
+        {
+            // StaticまたはSkinnedモデルの場合、AABBの可視性を確認
+            const BOUNDING_BOX& worldAABB = obj->GetBoundingBoxWorld();
+            if (!IsAABBInsideLightFrustum(worldAABB, cascadeIndex))
+                continue;
+
+            m_cascadeObjectCount[cascadeIndex]++;
+        }
 
         obj->CollectShadowMesh(m_perCascadeCollector[cascadeIndex]);
-        m_cascadeObjectCount[cascadeIndex]++;
+    }
+}
+
+void CascadedShadowMap::CullVisibleInstancesForShadow(InstanceModelAttribute& attribute, int cascadeIndex)
+{
+
+    // 削除前に配列をリセット（size=0, capacity保持）
+    if (attribute.visibleInstanceDataArray)
+        attribute.visibleInstanceDataArray->clear();
+    else
+        return; // visibleInstancesがnullptrの場合、何もしない
+
+    const XMMATRIX& lightViewProjLocal = m_cascadePrivateData[cascadeIndex].lightViewProjLocal;
+    const XMVECTOR& frustumCenter = m_cascadePrivateData[cascadeIndex].viewFrustumCenter;
+
+    for (UINT i = 0; i < attribute.instanceCount; ++i)
+    {
+        //if (attribute.visibleInstanceDraw && (*attribute.visibleInstanceDraw)[i]) continue;
+
+        const InstanceData& inst = attribute.instanceData[i];
+        XMVECTOR worldPos = XMLoadFloat3(&inst.OffsetPosition);
+
+		if (IsAABBInsideLightFrustum((*attribute.colliderArray)[i].aabb, cascadeIndex)) // AABBがライトの視野に入っている場合
+        {
+            attribute.visibleInstanceDataArray->push_back(inst);
+            (*attribute.visibleInstanceDraw)[i] = true; // 記録
+        }
+    }
+
+    // 可視インスタンスが存在する場合、GPUにアップロード
+    const UINT visibleCount = attribute.visibleInstanceDataArray->getSize();
+    if (visibleCount > 0)
+    {
+        D3D11_MAPPED_SUBRESOURCE mapped;
+        if (SUCCEEDED(m_context->Map(attribute.instanceBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+        {
+            memcpy(mapped.pData, attribute.visibleInstanceDataArray->data(), sizeof(InstanceData) * visibleCount);
+            m_context->Unmap(attribute.instanceBuffer, 0);
+        }
     }
 }
 
@@ -351,7 +396,7 @@ void CascadedShadowMap::UpdateCascadeCBufferArray(void)
     HRESULT hr = m_context->Map(m_cascadeArrayCBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
     if (FAILED(hr)) return;
 
-    CascadeCBuffer* buffer = reinterpret_cast<CascadeCBuffer*>(mapped.pData);
+    CBCascadeDataArray* buffer = reinterpret_cast<CBCascadeDataArray*>(mapped.pData);
 
     float splits[4] = { 1e6f, 1e6f, 1e6f, 1e6f };
     for (int i = 0; i < m_config.numCascades; ++i)
@@ -374,7 +419,7 @@ void CascadedShadowMap::UpdateCascadeCBuffer(int cascadeIndex)
     HRESULT hr = m_context->Map(m_cascadeSingleCBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
     if (FAILED(hr)) return;
 
-    memcpy(mapped.pData, &m_cascadeData[cascadeIndex], sizeof(CascadeData));
+    memcpy(mapped.pData, &m_cascadeData[cascadeIndex], sizeof(CBCascadeData));
     m_context->Unmap(m_cascadeSingleCBuffer, 0);
 
     // VS用の場合
@@ -456,9 +501,9 @@ void CascadedShadowMap::ComputeCascadeMatrices(int cascadeIndex, float splitNear
     for (int i = 0; i < 4; ++i) 
     {
         // near 面(0~3) splitNear 平面
-        sliceCorners[i] = XMVectorLerp(frustumCornersWS[i], frustumCornersWS[i + 4], (splitNear - 0.0f) / (1.0f - 0.0f));
+        sliceCorners[i] = XMVectorLerp(frustumCornersWS[i], frustumCornersWS[i + 4], splitNear);
         // far 面(4~7) splitFar 平面
-        sliceCorners[i + 4] = XMVectorLerp(frustumCornersWS[i], frustumCornersWS[i + 4], (splitFar - 0.0f) / (1.0f - 0.0f));
+        sliceCorners[i + 4] = XMVectorLerp(frustumCornersWS[i], frustumCornersWS[i + 4], splitFar);
     }
 
     // 視錐スライスの中心を計算
@@ -469,32 +514,40 @@ void CascadedShadowMap::ComputeCascadeMatrices(int cascadeIndex, float splitNear
     }
     frustumCenter /= 8.0f;
 
+    // ローカルスペースに中心化
+    XMVECTOR localCorners[8];
+    for (int i = 0; i < 8; ++i)
+        localCorners[i] = sliceCorners[i] - frustumCenter;
 
     // カスケードスライスの中心点とコーナー配列が計算済みであることを前提とする
     float radius = ComputeCascadeRadius(sliceCorners, frustumCenter, m_config.radiusStrategy, m_config.padding[cascadeIndex]);
+    float radiusLocal = ComputeCascadeRadius(localCorners, XMVectorZero(), m_config.radiusStrategy, m_config.padding[cascadeIndex]);
 
     // ライトビュー行列(光源方向からスライス中心を見下ろす)
     XMVECTOR lightPos = frustumCenter - lightDir * radius * 2.0f;
     XMMATRIX lightView = XMMatrixLookAtLH(lightPos, frustumCenter, XMVectorSet(0, 1, 0, 0));
+    XMVECTOR lightPosLocal = XMVectorZero() - lightDir * radiusLocal * 2.0f;
+    XMMATRIX lightViewLocal = XMMatrixLookAtLH(lightPosLocal, XMVectorZero(), XMVectorSet(0, 1, 0, 0));
 
     // 正射影行列(スライス全体をカバー)
     XMMATRIX lightProj = ComputeLightProjMatrixFromSliceCorners(sliceCorners, lightView, m_config.padding[cascadeIndex]);
+    XMMATRIX lightProjLocal = ComputeLightProjMatrixFromSliceCorners(localCorners, lightViewLocal, m_config.padding[cascadeIndex]);
     
-
-    // 最終ビュー行列を保存する前に、必要に応じてスナップ
-    m_lastCascadeRadius = radius;
+    XMMATRIX lightViewProjLocal = lightViewLocal * lightProjLocal;
+    XMMATRIX lightViewProj = lightView * lightProj;
+    m_cascadePrivateData[cascadeIndex].lightViewProjLocal = lightViewProjLocal;
+    m_cascadePrivateData[cascadeIndex].viewFrustumCenter = frustumCenter;
+    m_lastCascadeRadius = radiusLocal;
     m_lastLightDir = lightDir;
 
-    // 最終シャドウ行列を保存
+    // 最終ビュー行列を保存する前に、必要に応じてスナップ
     if (m_config.enableTexelSnap)
     {
-        m_cascadeData[cascadeIndex].lightViewProj = XMMatrixTranspose(SnapShadowMatrixToTexelGrid(lightView, lightProj, frustumCenter));
-    }
-    else
-    {
-        m_cascadeData[cascadeIndex].lightViewProj = XMMatrixTranspose(lightView * lightProj);
+        lightViewProj = SnapShadowMatrixToTexelGrid(lightView, lightProj, frustumCenter);
     }
 
+    // 最終シャドウ行列を保存
+	m_cascadeData[cascadeIndex].lightViewProj = XMMatrixTranspose(lightViewProj);
     m_cascadeData[cascadeIndex].lightView = XMMatrixTranspose(lightView);
     m_cascadeData[cascadeIndex].lightProj = XMMatrixTranspose(lightProj);
 
@@ -502,13 +555,13 @@ void CascadedShadowMap::ComputeCascadeMatrices(int cascadeIndex, float splitNear
     m_cascadeData[cascadeIndex].splitDepth = splitFar; // 通常はsplitFarを使う
 
 
-#ifdef _DEBUG
-    //m_tempFrustumCenter[cascadeIndex] = frustumCenter;
-    //m_tempInvViewProj = invViewProj;
-    //for (int i = 0; i < 8; ++i)
-    //{
-    //    m_tempSliceCorners[cascadeIndex][i] = sliceCorners[i];
-    //}
+#if DEBUG_CASCADE_BOUND
+    m_tempFrustumCenter[cascadeIndex] = frustumCenter;
+    m_tempInvViewProj = invViewProj;
+    for (int i = 0; i < 8; ++i)
+    {
+        m_tempSliceCorners[cascadeIndex][i] = sliceCorners[i];
+    }
 #endif // DEBUG
 
 }
@@ -516,7 +569,7 @@ void CascadedShadowMap::ComputeCascadeMatrices(int cascadeIndex, float splitNear
 void CascadedShadowMap::InitCascadeCBuffer(void)
 {
     D3D11_BUFFER_DESC cbd = {};
-    cbd.ByteWidth = sizeof(CascadeCBuffer);
+    cbd.ByteWidth = sizeof(CBCascadeDataArray);
     cbd.Usage = D3D11_USAGE_DYNAMIC;
     cbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     cbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
@@ -524,13 +577,32 @@ void CascadedShadowMap::InitCascadeCBuffer(void)
 
     m_device->CreateBuffer(&cbd, nullptr, &m_cascadeArrayCBuffer);
 
-    cbd.ByteWidth = sizeof(CascadeData);
+    cbd.ByteWidth = sizeof(CBCascadeData);
     cbd.Usage = D3D11_USAGE_DYNAMIC;
     cbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     cbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     cbd.MiscFlags = 0;
 
     m_device->CreateBuffer(&cbd, nullptr, &m_cascadeSingleCBuffer);
+}
+
+XMMATRIX CascadedShadowMap::SnapShadowMatrixToTexelGrid(const XMMATRIX& lightViewProjLocal)
+{
+    // シャドウマップのサイズを取得
+    float shadowMapSize = static_cast<float>(m_config.shadowMapSize);
+
+    // テクセルサイズを計算
+    float texelSize = (2.0f * m_lastCascadeRadius) / shadowMapSize;
+
+    // XY の位置を抽象
+    float offsetX = lightViewProjLocal.r[3].m128_f32[0];
+    float offsetY = lightViewProjLocal.r[3].m128_f32[1];
+
+    float snappedX = roundf(offsetX / texelSize) * texelSize - offsetX;
+    float snappedY = roundf(offsetY / texelSize) * texelSize - offsetY;
+
+    XMMATRIX snapOffset = XMMatrixTranslation(snappedX, snappedY, 0.0f);
+    return snapOffset * lightViewProjLocal;
 }
 
 XMMATRIX CascadedShadowMap::SnapShadowMatrixToTexelGrid(const XMMATRIX& lightView, const XMMATRIX& lightProj, XMVECTOR center)
@@ -542,7 +614,7 @@ XMMATRIX CascadedShadowMap::SnapShadowMatrixToTexelGrid(const XMMATRIX& lightVie
     XMVECTOR lightSpaceCenter = XMVector3TransformCoord(center, lightView);
 
     // シャドウマップのサイズを取得
-    float shadowMapSize = static_cast<float>(m_shadowMapSize);
+    float shadowMapSize = static_cast<float>(m_config.shadowMapSize);
 
     // テクセルサイズを計算
     float texelSize = (2.0f * m_lastCascadeRadius) / shadowMapSize;
@@ -602,18 +674,21 @@ float CascadedShadowMap::ComputeCascadeRadius(XMVECTOR* corners, XMVECTOR center
     }
 }
 
-bool CascadedShadowMap::IsAABBInsideLightFrustum(const BOUNDING_BOX& worldAABB, const XMMATRIX& lightViewProj)
+bool CascadedShadowMap::IsAABBInsideLightFrustum(const BOUNDING_BOX& worldAABB, int cascadeIndex)
 {
     // AABBの8つの頂点を取得
-    XMVECTOR corners[8];
-    worldAABB.GetCorners(corners);
+    XMVECTOR cornerWS[8];
+    worldAABB.GetCorners(cornerWS);
 
     for (int i = 0; i < 8; ++i)
     {
-        // ライトの視点空間へ変換
-        XMVECTOR clipPos = XMVector3Transform(corners[i], lightViewProj);
+        // カスケードスライスの中心を原点としたローカル空間へ変換
+        XMVECTOR localCorner = XMVectorSubtract(cornerWS[i], m_cascadePrivateData[cascadeIndex].viewFrustumCenter);
 
-        // 正規化デバイス座標(NDC)に変換
+        // ローカル空間のライトビュー射影行列で変換
+        XMVECTOR clipPos = XMVector3TransformCoord(localCorner, m_cascadePrivateData[cascadeIndex].lightViewProjLocal);
+
+        // 正規化デバイス座標（NDC）に変換（wで割る）
         XMVECTOR ndcPos = clipPos / XMVectorGetW(clipPos);
 
         float x = XMVectorGetX(ndcPos);
@@ -629,6 +704,7 @@ bool CascadedShadowMap::IsAABBInsideLightFrustum(const BOUNDING_BOX& worldAABB, 
         }
     }
 
+    // 全ての点が視野外
     return false;
 }
 

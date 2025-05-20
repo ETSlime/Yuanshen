@@ -61,14 +61,14 @@ private:
 
 	SwordTrail* swordTrail;
 
-	GameObject<SkinnedMeshModelInstance> weapon;
-	AnimStateMachine* stateMachine;
-	float playAnimSpeed;
+	GameObject<SkinnedMeshModelInstance> m_weapon;
+	AnimStateMachine* m_stateMachine;
+	float m_playAnimSpeed;
 	float weaponOnBackTimer;
 	float weaponOnHandTimer;
 	bool weaponOnBack;
 	bool storeWeaponOnBack;
 	bool storeWeapon;
-	FBXLoader& fbxLoader = FBXLoader::get_instance();
+	FBXLoader& m_fbxLoader = FBXLoader::get_instance();
 	InputManager& m_inputManager = InputManager::get_instance();
 };

@@ -64,13 +64,6 @@ struct FOG
     float Dummy[3]; //16byte境界用
 };
 
-struct LightViewProjBuffer
-{
-    matrix ProjView[LIGHT_MAX_NUM];
-    int LightIndex;
-    int padding[3];
-};
-
 struct MODE
 {
     int mode;
@@ -99,7 +92,7 @@ struct PixelInputType
     float2 texcoord : TEXCOORD;
     float4 color : COLOR;
     float4 worldPos : POSITION;
-    float4 shadowCoord[LIGHT_MAX_NUM] : TEXCOORD1;
+    float4 shadowCoord[LIGHT_MAX_NUM_CASCADE] : TEXCOORD1;
 };
 
 struct CascadeData
@@ -678,19 +671,6 @@ void SkinnedMeshPixelShader(PixelInputType input,
                     float currentDepth = shadowCoord.z / shadowCoord.w;
                     currentDepth -= 0.005f; // バイアス
                     
-
-                    //tempColor = float4(currentDepth, currentDepth, currentDepth, 1.0f);
-      //              float shadowMapValue = g_ShadowMap[2].Sample(g_SamplerState, shadowTexCoord).r;
-      //              tempColor = float4(shadowMapValue, shadowMapValue, shadowMapValue, 1.0f);
-                    
-                    //if (cascadeIdx == 0)
-                    //    tempColor = float4(1, 0, 0, 1);
-                    //if (cascadeIdx == 1)
-                    //    tempColor = float4(0, 1, 0, 1);
-                    //if (cascadeIdx == 2)
-                    //    tempColor = float4(0, 0, 1, 1);
-                    //if (cascadeIdx == 3)
-                    //    tempColor = float4(1, 1, 0, 1);
                     
                     float2 shadowMapDimensions = float2(SHADOWMAP_SIZE, SHADOWMAP_SIZE);
                     float2 texelSize = 1.0 / shadowMapDimensions;

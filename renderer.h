@@ -11,6 +11,7 @@
 #include "SingletonBase.h"
 #include "ShaderManager.h"
 #include "ShaderResourceBinder.h"
+#include "AABBUtils.h"
 
 //*********************************************************
 // マクロ定義
@@ -301,36 +302,29 @@ struct RenderProgressBuffer
 	XMFLOAT2 padding;
 };
 
-struct MeshRenderData 
+struct InstanceData
 {
-	ID3D11Buffer* vertexBuffer;
-	ID3D11Buffer* indexBuffer;
-	UINT stride;
-	UINT indexCount;
-	DXGI_FORMAT indexFormat;
-	XMMATRIX worldMatrix;
+	XMFLOAT3 OffsetPosition; // インスタンス位置オフセット (ワールド座標)
+	XMFLOAT4 Rotation;        // インスタンスの回転 (四元数)
+	XMFLOAT4 initialBillboardRot; // 初期ビルボード回転角度
+	float Scale;             // インスタンススケール
+	float Type;              // インスタンスの種類
 
-	ID3D11ShaderResourceView* opacityMapSRV = nullptr;
-	bool enableAlphaTest = false;
+	InstanceData()
+	{
+		OffsetPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		Rotation = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+		initialBillboardRot = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+		Scale = 1.0f;
+		Type = 0.0f;
+	}
+
+	InstanceData(XMFLOAT3 offset, XMFLOAT4 rot, XMFLOAT4 billboardRot, float scl, float type) :
+		OffsetPosition(offset), Rotation(rot), initialBillboardRot(billboardRot), Scale(scl), Type(type) {
+	}
 };
 
-struct StaticRenderData : public MeshRenderData
-{
-	UINT startIndexLocation = 0;
-};
 
-struct SkinnedRenderData : public MeshRenderData
-{
-	const XMMATRIX* pBoneMatrices = nullptr;
-};
-
-struct InstancedRenderData : public MeshRenderData
-{
-	ID3D11Buffer* instanceBuffer = nullptr;
-	UINT instanceCount = 0;
-	UINT startIndexLocation = 0;
-	UINT instanceStride = 0; // インスタンスストライド追加
-};
 
 
 //*****************************************************************************

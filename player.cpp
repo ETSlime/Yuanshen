@@ -43,6 +43,7 @@ Player::Player()
 	transform.pos = PLAYER_INIT_POS;
 	lumine->SetTransform(transform);
 	m_playerGO = lumine;
+	//m_playerGO->SetDrawWorldAABB(true);
 
 	m_light = new DirectionalLight();
 	m_light->SetEnable(true);

@@ -11,10 +11,10 @@
 //*****************************************************************************
 // マクロ定義
 //*****************************************************************************
-#define	VIEW_ANGLE		(XMConvertToRadians(45.0f))						// ビュー平面の視野角
-#define	VIEW_ASPECT		((float)SCREEN_WIDTH / (float)SCREEN_HEIGHT)	// ビュー平面のアスペクト比	
-#define	VIEW_NEAR_Z		(1.0f)											// ビュー平面のNearZ値
-#define	VIEW_FAR_Z		(3000.0f)										// ビュー平面のFarZ値
+#define	LIGHT_VIEW_ANGLE		(XMConvertToRadians(45.0f))						// ビュー平面の視野角
+#define	LIGHT_VIEW_ASPECT		((float)SCREEN_WIDTH / (float)SCREEN_HEIGHT)	// ビュー平面のアスペクト比	
+#define	LIGHT_VIEW_NEAR_Z		(1.0f)											// ビュー平面のNearZ値
+#define	LIGHT_VIEW_FAR_Z		(3000.0f)										// ビュー平面のFarZ値
 
 
 //*****************************************************************************
@@ -108,7 +108,7 @@ void DirectionalLight::Update(void)
 		pos + lightDir,
 		XMLoadFloat3(&lightUp)
 	);
-	XMMATRIX lightProj = XMMatrixOrthographicLH(SHADOWMAP_SIZE, SHADOWMAP_SIZE, VIEW_NEAR_Z, VIEW_FAR_Z);
+	XMMATRIX lightProj = XMMatrixOrthographicLH(SHADOWMAP_SIZE, SHADOWMAP_SIZE, LIGHT_VIEW_NEAR_Z, LIGHT_VIEW_FAR_Z);
 	XMStoreFloat4x4(&m_LightData.LightViewProj, XMMatrixTranspose(lightView * lightProj));
 
 	//if (m_TimeBased)
