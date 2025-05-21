@@ -31,23 +31,11 @@ bool ShadowMapRenderer::Init(int shadowMapSize, int numCascades)
         return false;
 
     bool loadShaders = true;
+	// シェーダーの読み込み
+	if (!LoadShaders());
+        return false;
 
-    // 静的モデル用シャドウシェーダー
-    loadShaders &= m_shaderManager.HasShadowShaderSet(ShaderSetID::StaticModel);
-    if (loadShaders)
-        m_staticModelShaderSet = m_shaderManager.GetShadowShaderSet(ShaderSetID::StaticModel);
-
-    // スキニングメッシュ用シャドウシェーダー
-    loadShaders &= m_shaderManager.HasShadowShaderSet(ShaderSetID::SkinnedModel);
-    if (loadShaders)
-        m_skinnedModelShaderSet = m_shaderManager.GetShadowShaderSet(ShaderSetID::SkinnedModel);
-
-    // インスタンスモデル（草、木など）
-    loadShaders &= m_shaderManager.HasShadowShaderSet(ShaderSetID::Instanced_Tree);
-    if (loadShaders)
-        m_instancedModelShaderSet = m_shaderManager.GetShadowShaderSet(ShaderSetID::Instanced_Tree);
-
-    return loadShaders;
+    return true;
 }
 
 void ShadowMapRenderer::Shutdown() 
@@ -62,6 +50,9 @@ void ShadowMapRenderer::BeginShadowPass(const DirectionalLight* light)
 
     m_csm.UpdateCascades(m_lightDir, m_camera.GetNearZ(), m_camera.GetFarZ());
     m_csm.UnbindShadowSRVs();
+
+    if (m_shaderHotReload)
+		LoadShaders();
 }
 
 void ShadowMapRenderer::RenderCSMForLight(DirectionalLight* light, int lightIndex, const SimpleArray<IGameObject*>& sceneObjects)
@@ -219,34 +210,25 @@ void ShadowMapRenderer::RenderInstancedMesh(const InstancedRenderData& mesh)
     m_context->DrawIndexedInstanced(mesh.indexCount, visibleCount, mesh.startIndexLocation, 0, 0);
 }
 
-bool ShadowMapRenderer::IsAABBInsideLightFrustum(const BOUNDING_BOX& worldAABB, const XMMATRIX& lightViewProj)
+bool ShadowMapRenderer::LoadShaders(void)
 {
-    // AABBの8つの頂点を取得
-    XMVECTOR corners[8];
-    worldAABB.GetCorners(corners);
+	bool loadSuccessful = true;
+    // 静的モデル用シャドウシェーダー
+    loadSuccessful &= m_shaderManager.HasShadowShaderSet(ShaderSetID::StaticModel);
+    if (loadSuccessful)
+        m_staticModelShaderSet = m_shaderManager.GetShadowShaderSet(ShaderSetID::StaticModel);
 
-    for (int i = 0; i < 8; ++i)
-    {
-        // ライトの視点空間へ変換
-        XMVECTOR clipPos = XMVector3Transform(corners[i], lightViewProj);
+    // スキニングメッシュ用シャドウシェーダー
+    loadSuccessful &= m_shaderManager.HasShadowShaderSet(ShaderSetID::SkinnedModel);
+    if (loadSuccessful)
+        m_skinnedModelShaderSet = m_shaderManager.GetShadowShaderSet(ShaderSetID::SkinnedModel);
 
-        // 正規化デバイス座標(NDC)に変換
-        XMVECTOR ndcPos = clipPos / XMVectorGetW(clipPos);
+    // インスタンスモデル（草、木など）
+    loadSuccessful &= m_shaderManager.HasShadowShaderSet(ShaderSetID::Instanced_Tree);
+    if (loadSuccessful)
+        m_instancedModelShaderSet = m_shaderManager.GetShadowShaderSet(ShaderSetID::Instanced_Tree);
 
-        float x = XMVectorGetX(ndcPos);
-        float y = XMVectorGetY(ndcPos);
-        float z = XMVectorGetZ(ndcPos);
-
-        // ひとつでも視野内に入っていれば採用
-        if (x >= -1.0f && x <= 1.0f &&
-            y >= -1.0f && y <= 1.0f &&
-            z >= 0.0f && z <= 1.0f)
-        {
-            return true;
-        }
-    }
-
-    return false;
+    return loadSuccessful;
 }
 
 void ShadowMapRenderer::EndShadowPass()

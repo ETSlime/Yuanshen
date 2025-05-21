@@ -29,6 +29,10 @@
 //=============================================================================
 Player::Player()
 {
+#ifdef _DEBUG
+	DebugProc::get_instance().Register(this);
+#endif // DEBUG
+
 	//sigewinne = new Sigewinne();
 
 	//klee =  new Klee();
@@ -43,7 +47,7 @@ Player::Player()
 	transform.pos = PLAYER_INIT_POS;
 	lumine->SetTransform(transform);
 	m_playerGO = lumine;
-	//m_playerGO->SetDrawWorldAABB(true);
+	m_playerGO->SetDrawWorldAABB(m_drawBoundingBox);
 
 	m_light = new DirectionalLight();
 	m_light->SetEnable(true);
@@ -247,6 +251,17 @@ void Player::HandlePlayerMove(Transform& transform)
 	}
 #endif // DEBUG
 
+}
+
+void Player::RenderImGui(void)
+{
+	if (ImGui::Checkbox("Draw Player Bounding Box", &m_drawBoundingBox))
+	{
+		if (m_playerGO)
+		{
+			m_playerGO->SetDrawWorldAABB(m_drawBoundingBox);
+		}
+	}
 }
 
 Transform Player::GetTransform(void) const

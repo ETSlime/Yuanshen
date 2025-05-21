@@ -69,6 +69,24 @@ void CascadedShadowMap::Initialize(int shadowMapSize, int numCascades)
 
     InitCascadeCBuffer();
 
+#ifdef _DEBUG
+    D3D11_TEXTURE2D_DESC texDesc = {};
+    texDesc.Width = static_cast<float>(shadowMapSize);
+    texDesc.Height = static_cast<float>(shadowMapSize);
+    texDesc.MipLevels = 1;
+    texDesc.ArraySize = 1;
+    texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    texDesc.SampleDesc.Count = 1;
+    texDesc.Usage = D3D11_USAGE_DEFAULT;
+    texDesc.BindFlags = D3D11_BIND_RENDER_TARGET;
+
+    HRESULT hr = m_device->CreateTexture2D(&texDesc, nullptr, &m_dummyRTTexture);
+    if (SUCCEEDED(hr)) {
+        hr = m_device->CreateRenderTargetView(m_dummyRTTexture, nullptr, &m_dummyRTV);
+        m_dummyRTTexture->Release();
+    }
+#endif // _DEBUG
+
 
 #if DEBUG_CASCADE_BOUND
     for (int cascadeIndex = 0; cascadeIndex < m_config.numCascades; ++cascadeIndex)
@@ -94,6 +112,8 @@ void CascadedShadowMap::Shutdown()
             SafeRelease(&m_shadowMaps[lightIdx][cascadeIdx]);
         }
     }
+
+    SafeRelease(&m_dummyRTV);
 }
 
 void CascadedShadowMap::SetViewport(void) 
@@ -317,8 +337,17 @@ void CascadedShadowMap::UnbindShadowSRVs(void)
 
 void CascadedShadowMap::BeginCascadeRender(int lightIndex, int cascadeIndex)
 {
+    // 現在のRTV/DSVを保存
     m_context->OMGetRenderTargets(1, &m_savedRTV, &m_savedDSV);
+
+#ifdef _DEBUG
+    // dummy RTVをバインドして、警告を回避する
+    ID3D11RenderTargetView* rtvs[] = { m_dummyRTV };
+    m_context->OMSetRenderTargets(1, rtvs, m_dsvs[lightIndex][cascadeIndex]);
+#else
     m_context->OMSetRenderTargets(0, nullptr, m_dsvs[lightIndex][cascadeIndex]);
+#endif // _DEBUG
+
     m_currentCascadeIndex = cascadeIndex;
 
     // DSVをクリア

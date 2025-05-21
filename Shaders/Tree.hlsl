@@ -2,10 +2,11 @@
 // 定数バッファ
 //*****************************************************************************
 
-#define LIGHT_MAX_NUM   5
-#define LIGHT_MAX_NUM_CASCADE 4
-#define SCREEN_WIDTH    1920
-#define SHADOWMAP_SIZE  2048
+#define LIGHT_MAX_NUM           5
+#define LIGHT_MAX_NUM_CASCADE   4
+#define SCREEN_WIDTH            1920
+#define SHADOWMAP_SIZE          2048
+#define ALPHA_THRESHOLD         0.5f // カットアウトの閾値（これ以下は影にならない）
 
 struct WorldMatrixBuffer
 {
@@ -108,7 +109,7 @@ struct VS_INPUT
 {
     float3 Position : POSITION; // 頂点位置
     float3 Normal : NORMAL; // 法線
-    float2 TexCoord : TEXCOORD; // テクスチャ座標
+    float2 TexCoord : TEXCOORD0; // テクスチャ座標
     float Weight : TEXCOORD1; // 風影響重み
     float3 Tangent : TANGENT;
 
@@ -123,7 +124,7 @@ struct VS_INPUT
 struct VS_OUTPUT
 {
     float4 Position : SV_POSITION;  // 出力位置 (クリップ空間)
-    float2 TexCoord : TEXCOORD; // テクスチャ座標
+    float2 TexCoord : TEXCOORD0; // テクスチャ座標
     float4 ShadowCoord[LIGHT_MAX_NUM_CASCADE] : TEXCOORD1; // 影計算用座標
     float3 Normal : NORMAL;         // 出力法線
     float3 Tangent : TANGENT;
@@ -137,13 +138,12 @@ Texture2D g_diffuseTexture : register(t0);
 Texture2D g_ShadowMap[LIGHT_MAX_NUM] : register(t1);
 Texture2D g_NormalMap : register(t9);
 Texture2D g_BumpMap : register(t10);
-Texture2D g_OpacityMap : register(t11);
+Texture2D g_OpacityMap : register(t11); // alpha用マスクテクスチャ
 Texture2D g_ReflectMap : register(t12);
 Texture2D g_TranslucencyMap : register(t13);
 SamplerState g_SamplerState : register(s0); // サンプラーステート
 SamplerComparisonState g_ShadowSampler : register(s1);
 SamplerState g_SamplerStateOpacity : register(s2);
-
 
 float3 RotateByQuaternion(float3 v, float4 q)
 {
@@ -231,11 +231,11 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     
     color = g_diffuseTexture.Sample(g_SamplerState, input.TexCoord);
     
-    float opacity = 1.0;
+    float alpha = 1.0;
     if (Material.opacityMapSampling)
     {
-        float opacity = GetOpacity(input.TexCoord);
-        clip(opacity - 0.5);
+        float alpha = GetOpacity(input.TexCoord);
+        clip(alpha - ALPHA_THRESHOLD);
     }
 
     if (Light.Enable == 0)
@@ -324,7 +324,7 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
         
         color = outColor;
         if (Material.opacityMapSampling)
-            color.a = opacity;
+            color.a = alpha;
         else
             color.a = Material.Diffuse.a;
     }
@@ -333,13 +333,14 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
 }
 
 
+
 //----------------------------------
 // シャドウデプスパス (HLSL)
 //----------------------------------
 
-//*****************************************************************************
-// 定数バッファ
-//*****************************************************************************
+//=============================================================================
+// 頂点シェーダ
+//=============================================================================
 VS_OUTPUT VSShadow(VS_INPUT input)
 {
     VS_OUTPUT output;
@@ -356,8 +357,22 @@ VS_OUTPUT VSShadow(VS_INPUT input)
 
     // 影計算用のライト空間変換
     output.Position = mul(float4(finalPosition, 1.0f), g_CascadeData.lightViewProj);
+    // テクスチャ座標
+    output.TexCoord = input.TexCoord; 
     return output;
 }
-//=============================================================================
-// 頂点シェーダ
-//=============================================================================
+
+float4 PSShadowAlphaTest(VS_OUTPUT input) : SV_Target
+{
+    // UV座標（必要であればVSで渡す）
+    float2 uv = input.TexCoord;
+
+    // テクスチャからアルファ値取得
+    float alpha = GetOpacity(uv);
+
+    // アルファテスト：透過部分は破棄
+    clip(alpha - ALPHA_THRESHOLD);
+
+    // 深度のみ出力（通常は値は使わない）
+    return float4(0, 0, 0, 0);
+}

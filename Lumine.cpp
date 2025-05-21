@@ -49,9 +49,6 @@ Lumine::Lumine()
 	CollisionManager::get_instance().RegisterDynamicCollider(&m_weapon.GetCollider());
 	
 	//weapon.SetDrawWorldAABB(false);
-	//this->SetDrawWorldAABB(false);
-	//weapon.GetSkinnedMeshModel()->SetDrawBoundingBox(false);
-	//this->GetSkinnedMeshModel()->SetDrawBoundingBox(false);
 
 	AddAnimation("data/MODEL/character/Lumine/", "Idle.fbx", AnimClipName::ANIM_STANDING);
 	AddAnimation("data/MODEL/character/Lumine/", "Looking Around.fbx", AnimClipName::ANIM_IDLE);

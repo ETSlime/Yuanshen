@@ -54,7 +54,7 @@ private:
     // インスタンス化されたモデルの影を描画する
     void RenderInstancedMesh(const InstancedRenderData& mesh);
 
-    bool IsAABBInsideLightFrustum(const BOUNDING_BOX& worldAABB, const XMMATRIX& lightViewProj);
+	bool LoadShaders(void);
 
 
     virtual void RenderImGui(void) override;
@@ -71,6 +71,7 @@ private:
     bool m_enableStaticShadow = true;
     bool m_enableSkinnedShadow = true;
     bool m_enableInstancedShadow = true;
+	bool m_shaderHotReload = true;
 
     Camera& m_camera = Camera::get_instance();
 

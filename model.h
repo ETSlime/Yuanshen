@@ -133,6 +133,7 @@ struct StaticMeshPart
 {
 	ID3D11Buffer* VertexBuffer = nullptr;
 	ID3D11Buffer* IndexBuffer = nullptr;
+	ID3D11ShaderResourceView* OpacityTexture = nullptr;
 	UINT IndexNum = 0;
 	UINT StartIndex = 0;
 };

@@ -64,17 +64,9 @@ bool Environment::Initialize(void)
     if (FAILED(hr))
         return false;
 
-    bool loadShaders = true;
-
-    loadShaders &= ShaderManager::get_instance().HasShaderSet(ShaderSetID::Instanced_Grass);
-    if (loadShaders)
-        m_grassShaderSet = ShaderManager::get_instance().GetShaderSet(ShaderSetID::Instanced_Grass);
-    loadShaders &= ShaderManager::get_instance().HasShaderSet(ShaderSetID::Instanced_Tree);
-    if (loadShaders)
-        m_treeShaderSet = ShaderManager::get_instance().GetShaderSet(ShaderSetID::Instanced_Tree);
-
-    if (!loadShaders)
-        return false;
+	// シェーダーの読み込み
+	if (!LoadAllShaders())
+		return false;
 
 #if DRAW_BOUNDING_BOX
     m_debugBoundingBoxRenderer.Initialize();
@@ -284,6 +276,9 @@ void Environment::Update(void)
 
 void Environment::Draw(void)
 {
+	if (m_shaderHotReload)
+		LoadAllShaders();
+
     for (UINT i = 0; i < m_environmentObjects.getSize(); i++)
 	{
 		EnvironmentObject* obj = m_environmentObjects[i];
@@ -299,6 +294,8 @@ void Environment::Draw(void)
 
 void Environment::RenderEnvironmentObj(EnvironmentObject* obj)
 {
+    if (m_shaderHotReload)
+        LoadShadersForEachObj(obj);
 
     UINT strides[2] = { sizeof(InstanceVertex), sizeof(InstanceData) }; // 頂点 & インスタンスストライド
     UINT offsets[2] = { 0, 0 }; // オフセット初期化
@@ -559,12 +556,12 @@ bool Environment::LoadEnvironmentObj(EnvironmentObject* obj)
     obj->modelGO->SetVertexBuffer(obj->vertexBuffer);
     obj->modelGO->SetIndexBuffer(obj->indexBuffer);
 
-    LoadShaders(obj);
+    LoadShadersForEachObj(obj);
 
     return true;
 }
 
-void Environment::LoadShaders(EnvironmentObject* obj)
+void Environment::LoadShadersForEachObj(EnvironmentObject* obj)
 {
 	if (obj->attributes.affectedByWind)
 	{
@@ -576,6 +573,20 @@ void Environment::LoadShaders(EnvironmentObject* obj)
         obj->vertexShader = m_treeShaderSet.vs;
         obj->pixelShader = m_treeShaderSet.ps;
 	}
+}
+
+bool Environment::LoadAllShaders(void)
+{
+	bool loadSuccessful = true;
+
+    loadSuccessful &= ShaderManager::get_instance().HasShaderSet(ShaderSetID::Instanced_Grass);
+    if (loadSuccessful)
+        m_grassShaderSet = ShaderManager::get_instance().GetShaderSet(ShaderSetID::Instanced_Grass);
+    loadSuccessful &= ShaderManager::get_instance().HasShaderSet(ShaderSetID::Instanced_Tree);
+    if (loadSuccessful)
+        m_treeShaderSet = ShaderManager::get_instance().GetShaderSet(ShaderSetID::Instanced_Tree);
+
+    return loadSuccessful;
 }
 
 OctreeNode* Environment::GenerateOctree(const SimpleArray<Triangle*>* triangles, BOUNDING_BOX boundingBox)
@@ -598,20 +609,23 @@ OctreeNode* Environment::GenerateOctree(const SimpleArray<Triangle*>* triangles,
 void Environment::RenderDebugInfo(void)
 {
 #if DRAW_BOUNDING_BOX
-    for (UINT i = 0; i < m_environmentObjects.getSize(); i++)
+    if (m_drawBoundingBox)
     {
-        EnvironmentObject* obj = m_environmentObjects[i];
-
-        SimpleArray<Collider>* colliders = obj->modelGO->GetInstancedColliderArray();
-        if (!colliders) continue;
-
-        for (UINT j = 0; j < colliders->getSize(); j++)
+        for (UINT i = 0; i < m_environmentObjects.getSize(); i++)
         {
-            const BOUNDING_BOX& box = (*colliders)[j].aabb;
+            EnvironmentObject* obj = m_environmentObjects[i];
 
-            XMFLOAT4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
+            SimpleArray<Collider>* colliders = obj->modelGO->GetInstancedColliderArray();
+            if (!colliders) continue;
 
-            m_debugBoundingBoxRenderer.DrawBox(box, m_camera.GetViewProjMtx(), color);
+            for (UINT j = 0; j < colliders->getSize(); j++)
+            {
+                const BOUNDING_BOX& box = (*colliders)[j].aabb;
+
+                XMFLOAT4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+                m_debugBoundingBoxRenderer.DrawBox(box, m_camera.GetViewProjMtx(), color);
+            }
         }
     }
 #endif

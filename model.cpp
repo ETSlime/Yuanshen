@@ -908,7 +908,7 @@ void Model::BuildMeshParts(void)
 		part.IndexBuffer = sharedIB;
 		part.IndexNum = modelData->SubsetArray[i].IndexNum;
 		part.StartIndex = modelData->SubsetArray[i].StartIndex;
-
+		part.OpacityTexture = modelData->SubsetArray[i].opacityTexture;
 		m_meshParts.push_back(part);
 	}
 }

@@ -42,7 +42,7 @@ struct PlayerAttributes
 };
 
 
-class Player
+class Player : public IDebugUI
 {
 public:
 	Player();
@@ -56,6 +56,10 @@ private:
 
 	void UpdateActionQueue(void);
 	void HandlePlayerMove(Transform& transform);
+
+	virtual void RenderImGui(void) override;
+	virtual const char* GetPanelName(void) const override { return "Player"; };
+
 	Attributes m_attributes;
 	PlayerAttributes m_playerAttr;
 	Sigewinne* sigewinne;
@@ -64,6 +68,8 @@ private:
 
 	Hilichurl* hilichurl;
 	Mitachurl* mitachurl;
+
+	bool m_drawBoundingBox = true;
 
 	GameObject<SkinnedMeshModelInstance>* m_playerGO;
 

@@ -73,6 +73,7 @@ inline void CollectShadowMeshFromModel<ModelInstance>(
         data.instanceBuffer = modelInstance.instanceAttribute.instanceBuffer;
         data.instanceCount = modelInstance.instanceAttribute.instanceCount;
         data.enableAlphaTest = modelInstance.enableAlphaTest;
+        data.opacityMapSRV = part.OpacityTexture;
 		data.allInstanceData = modelInstance.instanceAttribute.instanceData;
 		data.visibleInstances = modelInstance.instanceAttribute.visibleInstanceDataArray;
 		data.visibleInstanceDraw = modelInstance.instanceAttribute.visibleInstanceDraw;
@@ -103,6 +104,7 @@ inline void CollectShadowMeshFromModel<SkinnedMeshModelInstance>(
         data.worldMatrix = modelInstance.transform.mtxWorld;
         data.pBoneMatrices = boneMatrices;
         data.enableAlphaTest = modelInstance.enableAlphaTest;
+        data.opacityMapSRV = part.OpacityTexture;
         out.push_back(std::move(data));
     }
 }

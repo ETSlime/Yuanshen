@@ -189,8 +189,12 @@ public:
 
     void Update(void);
     void Draw(void);
+
+    // フィールドモデルのインスタンスを生成
     bool GenerateRandomInstances(EnvironmentObjectType type, const Model* fieldModel, int clusterCount = 45);
     bool GenerateInstanceByParams(const InstanceParams& params, const SkinnedMeshModel* fieldModel, BOUNDING_BOX fieldBBox);
+
+	void SetDrawBoundingBox(bool draw) { m_drawBoundingBox = draw; }
 
 private:
 
@@ -212,7 +216,8 @@ private:
     float CalculateWeight(float vertexY, float minY, float maxY);
     float RayIntersectTriangle(const XMFLOAT3& rayOrigin, const XMFLOAT3& rayDir, const Triangle* tri);
     bool LoadEnvironmentObj(EnvironmentObject* obj);
-    void LoadShaders(EnvironmentObject* obj);
+    void LoadShadersForEachObj(EnvironmentObject* obj);
+	bool LoadAllShaders(void);
 
     OctreeNode* GenerateOctree(const SimpleArray<Triangle*>* triangles, BOUNDING_BOX boundingBox);
 
@@ -220,17 +225,18 @@ private:
 
     SimpleArray<EnvironmentObject*> m_environmentObjects;
 
+    float m_time;
+    ShaderSet m_grassShaderSet;
+    ShaderSet m_treeShaderSet;
+    bool m_shaderHotReload = true;
+
+    ID3D11Buffer* m_perFrameBuffer;
+    ID3D11ShaderResourceView* noiseTextureSRV;
+
     ID3D11Device* m_device;
     ID3D11DeviceContext* m_context;
 
-    ID3D11Buffer* m_perFrameBuffer;
-
-    ID3D11ShaderResourceView* noiseTextureSRV;
-
-    ShaderSet m_grassShaderSet;
-    ShaderSet m_treeShaderSet;
-
-    float m_time;
+	bool m_drawBoundingBox = true;
 
     DebugBoundingBoxRenderer m_debugBoundingBoxRenderer;
     Camera& m_camera = Camera::get_instance();

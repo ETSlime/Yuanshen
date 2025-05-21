@@ -175,6 +175,9 @@ private:
 	ID3D11RenderTargetView* m_savedRTV = nullptr; 
     ID3D11DepthStencilView* m_savedDSV = nullptr;
 
+    ID3D11Texture2D* m_dummyRTTexture = nullptr;
+    ID3D11RenderTargetView* m_dummyRTV = nullptr;
+
     ID3D11Device* m_device = nullptr;
     ID3D11DeviceContext* m_context = nullptr;
 

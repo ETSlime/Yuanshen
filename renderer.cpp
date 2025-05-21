@@ -391,6 +391,7 @@ void Renderer::SetRenderSkinnedMeshModel(void)
 
 	ResetRenderTarget();
 
+	m_SkinnedModelShaderSet = m_ShaderManager.GetShaderSet(ShaderSetID::SkinnedModel);
 	m_ImmediateContext->VSSetShader(m_SkinnedModelShaderSet.vs, nullptr, 0);
 	m_ImmediateContext->PSSetShader(m_SkinnedModelShaderSet.ps, nullptr, 0);
 	m_ShaderResourceBinder.BindConstantBuffer(ShaderStage::VS, SLOT_CB_BONE_MATRIX_ARRAY, m_BoneMatrixBuffer);
@@ -411,6 +412,7 @@ void Renderer::SetRenderVFX(void)
 
 	SetCullingMode(CULL_MODE_NONE);
 
+	m_VFXShaderSet = m_ShaderManager.GetShaderSet(ShaderSetID::VFX);
 	m_ImmediateContext->VSSetShader(m_VFXShaderSet.vs, NULL, 0);
 	m_ImmediateContext->PSSetShader(m_VFXShaderSet.ps, NULL, 0);
 }
@@ -419,6 +421,7 @@ void Renderer::SetRenderUI(void)
 {
 	m_RenderMode = RenderMode::UI;
 
+	m_UIShaderSet = m_ShaderManager.GetShaderSet(ShaderSetID::UI);
 	m_ImmediateContext->VSSetShader(m_UIShaderSet.vs, NULL, 0);
 	m_ImmediateContext->PSSetShader(m_UIShaderSet.ps, NULL, 0);
 }
@@ -449,6 +452,7 @@ void Renderer::SetRenderObject(void)
 
 	ResetRenderTarget();
 
+	m_StaticModelShaderSet = m_ShaderManager.GetShaderSet(ShaderSetID::StaticModel);
 	m_ImmediateContext->VSSetShader(m_StaticModelShaderSet.vs, NULL, 0);
 	m_ImmediateContext->PSSetShader(m_StaticModelShaderSet.ps, NULL, 0);
 }

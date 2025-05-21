@@ -28,7 +28,7 @@
 // ç\ë¢ëÃíËã`
 //*****************************************************************************
 
-class Ground
+class Ground :public IDebugUI
 {
 public:
 	Ground();
@@ -36,10 +36,18 @@ public:
 	void Update(void);
 	void Draw(void);
 	void CollectStaticShadowMeshes(SimpleArray<StaticRenderData>& outMeshes);
+
 private:
-	SimpleArray<GameObject<SkinnedMeshModelInstance>*> skinnedMeshGroundGO;
-	SimpleArray<GameObject<ModelInstance>*>	groundGO;
-	Town* town = nullptr;
-	Environment* environment = nullptr;
-	Renderer& renderer = Renderer::get_instance();
+
+	virtual void RenderImGui(void) override;
+	virtual const char* GetPanelName(void) const override { return "Map Model Manager"; };
+
+	SimpleArray<GameObject<SkinnedMeshModelInstance>*> m_skinnedMeshGroundGO;
+	SimpleArray<GameObject<ModelInstance>*>	m_groundGO;
+
+	bool m_drawBoundingBox = true;
+
+	Town* m_town = nullptr;
+	Environment* m_environment = nullptr;
+	Renderer& m_renderer = Renderer::get_instance();
 };

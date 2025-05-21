@@ -151,7 +151,7 @@ bool ShaderLoader::CompileShaderFromFileLegacy(const char* fileName, const char*
     return true;
 }
 
-bool ShaderLoader::CompileShaderFromFile(const char* fileName, const char* entryPoint, const char* target, ID3DBlob** blobOut, ID3DBlob** errorBlob)
+bool ShaderLoader::CompileShaderFromFile(const char* fileName, const char* entryPoint, const char* target, ID3DBlob** blobOut)
 {
     // ファイルをバイナリで開く
     FILE* file = nullptr;
@@ -186,6 +186,7 @@ bool ShaderLoader::CompileShaderFromFile(const char* fileName, const char* entry
     flags |= D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
 
+    ID3DBlob* pErrorBlob = nullptr;
     // D3DCompile を使用してシェーダーをコンパイル
     HRESULT hr = D3DCompile(
         buffer, size,
@@ -194,8 +195,12 @@ bool ShaderLoader::CompileShaderFromFile(const char* fileName, const char* entry
         nullptr,
         entryPoint, target,
         flags, 0,
-        blobOut, errorBlob
+        blobOut, &pErrorBlob
     );
+
+    char* error = nullptr;
+    if (!SUCCEEDED(hr))
+        error = (char*)pErrorBlob->GetBufferPointer();
 
     delete[] buffer;
     return SUCCEEDED(hr);
@@ -373,7 +378,6 @@ bool ShaderLoader::CompileAndCreateGeometryShader(
     ID3D11GeometryShader** outGS)
 {
     ID3DBlob* gsBlob = nullptr;
-
     // HLSL ファイルをコンパイル（GS モデルで）
     if (!CompileShaderFromFile(path, entry, SHADER_MODEL_GS, &gsBlob))
         return false;
@@ -405,7 +409,6 @@ bool ShaderLoader::CompileAndCreateComputeShader(
     ID3D11ComputeShader** outCS)
 {
     ID3DBlob* blob = nullptr;
-
     // .hlsl から CS をコンパイル
     if (!CompileShaderFromFile(path, entry, SHADER_MODEL_CS, &blob))
         return false;

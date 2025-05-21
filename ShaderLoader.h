@@ -177,7 +177,7 @@ public:
     // D3DX11CompileFromFile をそのまま使う（非推奨・キャッシュあり）
     static bool CompileShaderFromFileLegacy(const char* fileName, const char* entryPoint, const char* target, ID3DBlob** blobOut);
     // 内部で fread → D3DCompile（最新版・キャッシュ対策済み）
-    static bool CompileShaderFromFile(const char* fileName, const char* entryPoint, const char* target, ID3DBlob** blobOut, ID3DBlob** errorBlob = nullptr);
+    static bool CompileShaderFromFile(const char* fileName, const char* entryPoint, const char* target, ID3DBlob** blobOut);
 
     // 空のピクセルシェーダーを読み込む関数
     static bool LoadEmptyPixelShader(ID3D11Device* device, ID3D11PixelShader** outPixelShader, const char* fileName, const char* entryPoint);

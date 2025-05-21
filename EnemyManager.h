@@ -15,19 +15,28 @@
 //*****************************************************************************
 // プロトタイプ宣言
 //*****************************************************************************
-class EnemyManager : public SingletonBase<EnemyManager>
+class EnemyManager : public SingletonBase<EnemyManager>, public IDebugUI
 {
 public:
 	EnemyManager();
+
 	void Init(const Player* player = nullptr);
-	void SpawnEnemy(EnemyType enemType, Transform trans, EnemyState initState);
 	void Draw(void);
-	void DrawUI(EnemyUIType type);
 	void Update(void);
+	void DrawUI(EnemyUIType type);
+
+	// 敵キャラの生成
+	void SpawnEnemy(EnemyType enemType, Transform trans, EnemyState initState); 
+
 	const DoubleLinkedList<Enemy*>* GetEnemy() { return &m_enemyList; }
-	Renderer& m_renderer = Renderer::get_instance();
+
 private:
 
+	virtual void RenderImGui(void) override;
+	virtual const char* GetPanelName(void) const override { return "Enemy Manager"; };
+
 	DoubleLinkedList<Enemy*> m_enemyList;
+	Renderer& m_renderer = Renderer::get_instance();
 	const Player* m_player;
+	bool m_drawBoundingBox = true;
 };

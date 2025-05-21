@@ -182,6 +182,7 @@ void VertexShaderPolygon( in  float3 inPosition		: POSITION0,
                           in  float3 inTangent      : TANGENT,
 
 						  out float4 outPosition	: SV_POSITION,
+                          out float3 outViewPos     : POSITIONT1,
 						  out float3 outNormal		: NORMAL0,
 						  out float2 outTexCoord	: TEXCOORD0,
 						  out float4 outDiffuse		: COLOR0,
@@ -202,9 +203,10 @@ void VertexShaderPolygon( in  float3 inPosition		: POSITION0,
 	outTexCoord = inTexCoord;
 
     outWorldPos = mul(float4(inPosition, 1.0f), WorldBuffer.world);
+    outViewPos = mul(outWorldPos, View).xyz;
     for (int i = 0; i < LIGHT_MAX_NUM; ++i)
     {
-        outshadowCoord[i] = mul(outWorldPos, Light.LightViewProj[i]);
+        outshadowCoord[i] = mul(outWorldPos, g_CascadeArray[i].lightViewProj);
     }
 
 	outDiffuse = inDiffuse;
@@ -346,10 +348,22 @@ float3 GetBumpNormal(float2 uv, float3 normal, float3 tangent)
     return normalize(mul(bumpNormal, TBN));
 }
 
+int GetCascadeIndex(float viewDepth, float4 splits)
+{
+    if (viewDepth < splits.x)
+        return 0;
+    if (viewDepth < splits.y)
+        return 1;
+    if (viewDepth < splits.z)
+        return 2;
+    return 3;
+}
+
 //=============================================================================
 // ピクセルシェーダ
 //=============================================================================
 void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
+                         in  float3 inViewPos       : POSITIONT1,
 						 in  float3 inNormal		: NORMAL0,
 						 in  float2 inTexCoord		: TEXCOORD0,
 						 in  float4 inDiffuse		: COLOR0,
@@ -436,12 +450,25 @@ void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
 				{
 					tempColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
 				}
+                
+                
                 float shadowFactor = 1.0f;
                 if (Light.Flags[i].Type == 1)
                 {
-                    float2 shadowTexCoord = float2(inShadowCoord[i].x, -inShadowCoord[i].y) / inShadowCoord[i].w * 0.5f + 0.5f;
-                    float currentDepth = inShadowCoord[i].z / inShadowCoord[i].w;
-                    currentDepth -= 0.005f;
+                    // ビュースペース深度を取得（通常は viewPos.z）
+                    float viewDepth = inViewPos.z;
+                    
+                    // カスケードインデックスの決定
+                    int cascadeIdx = GetCascadeIndex(viewDepth, g_CascadeSplits);
+                    
+                    // シャドウ座標の取得
+                    float4 shadowCoord = inShadowCoord[cascadeIdx];
+                    float2 shadowUV = shadowCoord.xy / shadowCoord.w * 0.5f + 0.5f;
+                    shadowUV.y = 1.0f - shadowUV.y; // Y反転
+
+                    float currentDepth = shadowCoord.z / shadowCoord.w;
+                    currentDepth -= 0.005f; // バイアス
+
       //              if (shadowTexCoord.x >= 0.0f && shadowTexCoord.y >= 0.0f &&
 						//shadowTexCoord.x <= 1.0f && shadowTexCoord.y <= 1.0f &&
 						//currentDepth >= 0.0f && currentDepth <= 1.0f)
@@ -451,21 +478,48 @@ void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
                     //tempColor = float4(currentDepth, currentDepth, currentDepth, 1.0f);
                     //float shadowMapValue = g_ShadowMap[2].Sample(g_SamplerState, shadowTexCoord).r;
                    // tempColor = float4(shadowMapValue, shadowMapValue, shadowMapValue, 1.0f);
-                    int kernelSize = 1;
+                    
                     float2 shadowMapDimensions = float2(SHADOWMAP_SIZE, SHADOWMAP_SIZE);
-                    float shadow = 0.0;
                     float2 texelSize = 1.0 / shadowMapDimensions;
+                    float shadow = 0.0;
                     float totalWeight = 0.0;
-                    for (int x = -kernelSize; x <= kernelSize; x++)
+                    int kernelSize = 1;
+                    
+                    if (shadowUV.x >= 0.0f && shadowUV.y >= 0.0f &&
+                        shadowUV.x <= 1.0f && shadowUV.y <= 1.0f &&
+                        currentDepth >= 0.0f && currentDepth <= 1.0f)
                     {
-                        for (int y = -kernelSize; y <= kernelSize; y++)
+                        for (int x = -kernelSize; x <= kernelSize; x++)
                         {
-                            float weight = exp(-(x * x + y * y) / (2.0 * kernelSize * kernelSize)); // gaussian weight
-                            shadow += g_ShadowMap[i].SampleCmpLevelZero(g_ShadowSampler, shadowTexCoord + float2(x, y) * texelSize, currentDepth) * weight;
-                            totalWeight += weight;
+                            for (int y = -kernelSize; y <= kernelSize; y++)
+                            {
+                                float2 offset = float2(x, y) * texelSize;
+                                
+                                float weight = exp(-(x * x + y * y) / (2.0 * kernelSize * kernelSize)); // gaussian weight
+                                float sampled = 0.0f;
+                                if (cascadeIdx == 0)
+                                    sampled = g_ShadowMap[0].SampleCmpLevelZero(g_ShadowSampler, shadowUV + offset, currentDepth);
+                                else if (cascadeIdx == 1)
+                                    sampled = g_ShadowMap[1].SampleCmpLevelZero(g_ShadowSampler, shadowUV + offset, currentDepth);
+                                else if (cascadeIdx == 2)
+                                    sampled = g_ShadowMap[2].SampleCmpLevelZero(g_ShadowSampler, shadowUV + offset, currentDepth);
+                                else
+                                    sampled = g_ShadowMap[3].SampleCmpLevelZero(g_ShadowSampler, shadowUV + offset, currentDepth);
+
+                                shadow += sampled * weight;
+                                totalWeight += weight;
+                            }
                         }
+                        //tempColor = float4(1.0f, 0.0f, 0.0f, 1.0f);
                     }
-                    shadowFactor = shadow / totalWeight;
+                    else
+                    {
+                        shadow = 1;
+                        totalWeight = 1;
+                    }
+
+ 
+                    shadowFactor = shadow / totalWeight + 0.2f;
                 }
 
                 tempColor *= shadowFactor;
@@ -535,17 +589,6 @@ void PixelShaderPolygon( in  float4 inPosition		: SV_POSITION,
 	//		outDiffuse.g = 0.0f;			
 	//	}
 	//}
-}
-
-int GetCascadeIndex(float viewDepth, float4 splits)
-{
-    if (viewDepth < splits.x)
-        return 0;
-    if (viewDepth < splits.y)
-        return 1;
-    if (viewDepth < splits.z)
-        return 2;
-    return 3;
 }
 
 
@@ -654,6 +697,8 @@ void SkinnedMeshPixelShader(PixelInputType input,
                 {
                     tempColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
                 }
+                
+                
                 float shadowFactor = 1.0f;
                 if (Light.Flags[i].Type == 1) // DirectionalLight
                 {

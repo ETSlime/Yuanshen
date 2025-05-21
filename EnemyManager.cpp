@@ -14,6 +14,10 @@ EnemyManager::EnemyManager()
 
 void EnemyManager::Init(const Player* player)
 {
+#ifdef _DEBUG
+	DebugProc::get_instance().Register(this);
+#endif // DEBUG
+
 	m_player = player;
 	Transform trans;
 	trans.pos = XMFLOAT3(12937.0f, -2110.0f, -19485.0f);
@@ -35,11 +39,11 @@ void EnemyManager::Init(const Player* player)
 
 	SpawnEnemy(EnemyType::Hilichurl, trans, EnemyState::HILI_DANCE);
 
-	//trans.pos = XMFLOAT3(12759.5f, -2384.0f, -19177.56f);
-	//SpawnEnemy(EnemyType::Hilichurl, trans, EnemyState::HILI_DANCE);
+	trans.pos = XMFLOAT3(12759.5f, -2110.0f, -19177.56f);
+	SpawnEnemy(EnemyType::Hilichurl, trans, EnemyState::HILI_DANCE);
 
-	//trans.pos = XMFLOAT3(12404.5f, -2384.0f, -19177.56f);
-	//SpawnEnemy(EnemyType::Hilichurl, trans, EnemyState::HILI_DANCE);
+	trans.pos = XMFLOAT3(12404.5f, -2110.0f, -19177.56f);
+	SpawnEnemy(EnemyType::Hilichurl, trans, EnemyState::HILI_DANCE);
 
 	//trans.pos = XMFLOAT3(12227.0f, -2384.0f, -19485.0f);
 	//SpawnEnemy(EnemyType::Hilichurl, trans, EnemyState::HILI_DANCE);
@@ -71,7 +75,21 @@ void EnemyManager::SpawnEnemy(EnemyType enemyType, Transform trans, EnemyState i
 		enemy->SetRandomMove(false);
 
 	enemy->SetPlayer(m_player);
+	enemy->SetDrawWorldAABB(m_drawBoundingBox);
 	m_enemyList.push_back(enemy);
+}
+
+void EnemyManager::RenderImGui(void)
+{
+	if (ImGui::Checkbox("Draw Enemy Bounding Box", &m_drawBoundingBox))
+	{
+		Node<Enemy*>* cur = m_enemyList.getHead();
+		while (cur != nullptr)
+		{
+			cur->data->SetDrawWorldAABB(m_drawBoundingBox);
+			cur = cur->next;
+		}
+	}
 }
 
 void EnemyManager::Draw(void)
