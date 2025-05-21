@@ -1,386 +1,381 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Core">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
-    </Filter>
-    <Filter Include="Scene">
-      <UniqueIdentifier>{3eac93eb-de79-49a7-810d-a3a92d6beb35}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Utility">
-      <UniqueIdentifier>{2771f852-382a-4a45-ab34-47eddcd659b4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Model">
-      <UniqueIdentifier>{e9a4996a-aebe-425c-843a-723683fbd303}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Scene\Character">
-      <UniqueIdentifier>{90884193-4b23-43c7-a008-95b735a7cd13}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Effects">
-      <UniqueIdentifier>{524dabcd-655b-4a85-b996-09befb6f6664}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Collision">
       <UniqueIdentifier>{a35d5d1b-9c05-4943-b89d-be5650f58a08}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="UI">
-      <UniqueIdentifier>{97cbc160-e6ee-4476-806f-4e5b26816bdc}</UniqueIdentifier>
     </Filter>
     <Filter Include="AI">
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
     </Filter>
+    <Filter Include="Core">
+      <UniqueIdentifier>{ace56d0e-4e63-409e-9330-3ed72e1c0ad8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Effects">
+      <UniqueIdentifier>{ebf3736a-4484-4ea8-85db-b72fbdcfc005}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Model">
+      <UniqueIdentifier>{d28b5549-f71e-4c36-931d-94c90fbbb57c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene">
+      <UniqueIdentifier>{c48cf7ad-3cdb-4186-ae07-5105779ff1f6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="UI">
+      <UniqueIdentifier>{cfb1cf51-a2f2-4e4c-900a-8d9b8db16716}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Utility">
+      <UniqueIdentifier>{760bf498-6b82-4d9f-9fe0-1fd679a59bc0}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Core\Graphics">
-      <UniqueIdentifier>{da8c932e-60c0-4589-a6ca-ecdeb2a8de66}</UniqueIdentifier>
+      <UniqueIdentifier>{6878f306-c04d-4031-922b-91056de63838}</UniqueIdentifier>
     </Filter>
     <Filter Include="Core\Shader">
-      <UniqueIdentifier>{aabcdc5e-72b0-46fe-92f1-c64d79b13c5e}</UniqueIdentifier>
+      <UniqueIdentifier>{edc26051-bc90-4ffa-943f-111098b64513}</UniqueIdentifier>
     </Filter>
     <Filter Include="UI\imgui">
-      <UniqueIdentifier>{26948633-d174-4089-82ad-5a97e2887e84}</UniqueIdentifier>
+      <UniqueIdentifier>{d2731b9e-4a38-4379-908b-ad8bee52fddd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene\Character">
+      <UniqueIdentifier>{460cb7ef-9a3d-474b-aa85-35a097e1f1a2}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AnimStateMachine.h">
+    <ClInclude Include="AI\AnimStateMachine.h">
       <Filter>AI</Filter>
     </ClInclude>
-    <ClInclude Include="BehaviorTree.h">
+    <ClInclude Include="AI\BehaviorTree.h">
       <Filter>AI</Filter>
     </ClInclude>
-    <ClInclude Include="Camera.h">
+    <ClInclude Include="Collision\AABBUtils.h">
+      <Filter>Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="Collision\CollisionManager.h">
+      <Filter>Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="Collision\OctreeNode.h">
+      <Filter>Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Graphics\CascadedShadowMap.h">
+      <Filter>Core\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Graphics\Renderer.h">
+      <Filter>Core\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Graphics\ShadowMapRenderer.h">
+      <Filter>Core\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Graphics\ShadowMeshCollector.h">
+      <Filter>Core\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Graphics\ShadowMeshCollector.hpp">
+      <Filter>Core\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Shader\ShaderLoader.h">
+      <Filter>Core\Shader</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Shader\ShaderManager.h">
+      <Filter>Core\Shader</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Shader\ShaderReloader.h">
+      <Filter>Core\Shader</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Shader\ShaderResourceBinder.h">
+      <Filter>Core\Shader</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Camera.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="Light.h">
+    <ClInclude Include="Core\CursorManager.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="LightManager.h">
+    <ClInclude Include="Core\GameSystem.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="TextureMgr.h">
+    <ClInclude Include="Core\Light.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="Timer.h">
+    <ClInclude Include="Core\LightManager.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="Model.h">
+    <ClInclude Include="Core\TextureMgr.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Timer.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Effects\EffectSystem.h">
+      <Filter>Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="Effects\FireBallEffectRenderer.h">
+      <Filter>Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="Effects\IEffectRenderer.h">
+      <Filter>Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="Effects\ParticleEffectRendererBase.h">
+      <Filter>Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="Effects\ParticleStructs.h">
+      <Filter>Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="Effects\Skybox.h">
+      <Filter>Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="Effects\SmokeEffectRenderer.h">
+      <Filter>Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="Effects\SwordTrail.h">
+      <Filter>Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\FBXLoader.h">
       <Filter>Model</Filter>
     </ClInclude>
-    <ClInclude Include="FBXLoader.h">
+    <ClInclude Include="Model\Model.h">
       <Filter>Model</Filter>
     </ClInclude>
-    <ClInclude Include="SkinnedMeshModel.h">
+    <ClInclude Include="Model\ModelCacheLoader.h">
       <Filter>Model</Filter>
     </ClInclude>
-    <ClInclude Include="DoubleLinkedList.h">
+    <ClInclude Include="Model\SkinnedMeshModel.h">
+      <Filter>Model</Filter>
+    </ClInclude>
+    <ClInclude Include="Utility\DebugBoundingBoxRenderer.h">
       <Filter>Utility</Filter>
     </ClInclude>
-    <ClInclude Include="HashMap.h">
+    <ClInclude Include="Utility\Debugproc.h">
       <Filter>Utility</Filter>
     </ClInclude>
-    <ClInclude Include="SimpleArray.h">
+    <ClInclude Include="Utility\DoubleLinkedList.h">
       <Filter>Utility</Filter>
     </ClInclude>
-    <ClInclude Include="SimpleQueue.h">
+    <ClInclude Include="Utility\InputManager.h">
       <Filter>Utility</Filter>
     </ClInclude>
-    <ClInclude Include="GameObject.h">
+    <ClInclude Include="Utility\SimpleArray.h">
+      <Filter>Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="Utility\SimpleQueue.h">
+      <Filter>Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="Utility\SingletonBase.h">
+      <Filter>Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\imgui\imconfig.h">
+      <Filter>UI\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\imgui\imgui.h">
+      <Filter>UI\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\imgui\imgui_impl_dx11.h">
+      <Filter>UI\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\imgui\imgui_impl_win32.h">
+      <Filter>UI\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\imgui\imgui_internal.h">
+      <Filter>UI\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\imgui\imstb_rectpack.h">
+      <Filter>UI\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\imgui\imstb_textedit.h">
+      <Filter>UI\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\imgui\imstb_truetype.h">
+      <Filter>UI\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\PauseModal.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\UIElement.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\UIManager.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\UIOverlayRenderer.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\UISpriteRenderer.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Scene\Enemy.h">
       <Filter>Scene</Filter>
     </ClInclude>
-    <ClInclude Include="Enemy.h">
+    <ClInclude Include="Scene\EnemyManager.h">
       <Filter>Scene</Filter>
     </ClInclude>
-    <ClInclude Include="EnemyManager.h">
+    <ClInclude Include="Scene\Environment.h">
       <Filter>Scene</Filter>
     </ClInclude>
-    <ClInclude Include="Environment.h">
+    <ClInclude Include="Scene\GameObject.h">
       <Filter>Scene</Filter>
     </ClInclude>
-    <ClInclude Include="Town.h">
+    <ClInclude Include="Scene\Ground.h">
       <Filter>Scene</Filter>
     </ClInclude>
-    <ClInclude Include="Lumine.h">
+    <ClInclude Include="Scene\Player.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Scene\Scene.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Scene\Town.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Scene\Character\Hilichurl.h">
       <Filter>Scene\Character</Filter>
     </ClInclude>
-    <ClInclude Include="Player.h">
-      <Filter>Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="Hilichurl.h">
+    <ClInclude Include="Scene\Character\Lumine.h">
       <Filter>Scene\Character</Filter>
     </ClInclude>
-    <ClInclude Include="Ground.h">
-      <Filter>Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="SwordTrail.h">
-      <Filter>Effects</Filter>
-    </ClInclude>
-    <ClInclude Include="Skybox.h">
-      <Filter>Effects</Filter>
-    </ClInclude>
-    <ClInclude Include="CollisionManager.h">
-      <Filter>Collision</Filter>
-    </ClInclude>
-    <ClInclude Include="OctreeNode.h">
-      <Filter>Collision</Filter>
-    </ClInclude>
-    <ClInclude Include="InputManager.h">
-      <Filter>Utility</Filter>
-    </ClInclude>
-    <ClInclude Include="Debugproc.h">
-      <Filter>Utility</Filter>
-    </ClInclude>
-    <ClInclude Include="main.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="DebugBoundingBoxRenderer.h">
-      <Filter>Utility</Filter>
-    </ClInclude>
-    <ClInclude Include="AABBUtils.h">
-      <Filter>Collision</Filter>
-    </ClInclude>
-    <ClInclude Include="CascadedShadowMap.h">
-      <Filter>Core\Graphics</Filter>
-    </ClInclude>
-    <ClInclude Include="Renderer.h">
-      <Filter>Core\Graphics</Filter>
-    </ClInclude>
-    <ClInclude Include="ShadowMapRenderer.h">
-      <Filter>Core\Graphics</Filter>
-    </ClInclude>
-    <ClInclude Include="ShaderLoader.h">
-      <Filter>Core\Shader</Filter>
-    </ClInclude>
-    <ClInclude Include="ShaderManager.h">
-      <Filter>Core\Shader</Filter>
-    </ClInclude>
-    <ClInclude Include="ShaderReloader.h">
-      <Filter>Core\Shader</Filter>
-    </ClInclude>
-    <ClInclude Include="ShadowMeshCollector.h">
-      <Filter>Core\Graphics</Filter>
-    </ClInclude>
-    <ClInclude Include="ShadowMeshCollector.hpp">
-      <Filter>Core\Graphics</Filter>
-    </ClInclude>
-    <ClInclude Include="Scene.h">
-      <Filter>Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="UIElement.h">
-      <Filter>UI</Filter>
-    </ClInclude>
-    <ClInclude Include="UIManager.h">
-      <Filter>UI</Filter>
-    </ClInclude>
-    <ClInclude Include="UIOverlayRenderer.h">
-      <Filter>UI</Filter>
-    </ClInclude>
-    <ClInclude Include="UISpriteRenderer.h">
-      <Filter>UI</Filter>
-    </ClInclude>
-    <ClInclude Include="PauseModal.h">
-      <Filter>UI</Filter>
-    </ClInclude>
-    <ClInclude Include="GameSystem.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="CursorManager.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="imgui\imconfig.h">
-      <Filter>UI\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="imgui\imgui.h">
-      <Filter>UI\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="imgui\imgui_impl_dx11.h">
-      <Filter>UI\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="imgui\imgui_impl_win32.h">
-      <Filter>UI\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="imgui\imgui_internal.h">
-      <Filter>UI\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="imgui\imstb_rectpack.h">
-      <Filter>UI\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="imgui\imstb_textedit.h">
-      <Filter>UI\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="imgui\imstb_truetype.h">
-      <Filter>UI\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="ModelCacheLoader.h">
-      <Filter>Model</Filter>
-    </ClInclude>
-    <ClInclude Include="ShaderResourceBinder.h">
-      <Filter>Core\Shader</Filter>
-    </ClInclude>
-    <ClInclude Include="IEffectRenderer.h">
-      <Filter>Effects</Filter>
-    </ClInclude>
-    <ClInclude Include="EffectSystem.h">
-      <Filter>Effects</Filter>
-    </ClInclude>
-    <ClInclude Include="SmokeEffectRenderer.h">
-      <Filter>Effects</Filter>
-    </ClInclude>
-    <ClInclude Include="ParticleEffectRendererBase.h">
-      <Filter>Effects</Filter>
-    </ClInclude>
-    <ClInclude Include="FireBallEffectRenderer.h">
-      <Filter>Effects</Filter>
-    </ClInclude>
-    <ClInclude Include="ParticleStructs.h">
-      <Filter>Effects</Filter>
-    </ClInclude>
-    <ClInclude Include="SingletonBase.h">
+    <ClInclude Include="main.h" />
+    <ClInclude Include="Utility\HashMap.h">
       <Filter>Utility</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="Camera.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="Light.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="TextureMgr.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="LightManager.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="Model.cpp">
-      <Filter>Model</Filter>
-    </ClCompile>
-    <ClCompile Include="FBXLoader.cpp">
-      <Filter>Model</Filter>
-    </ClCompile>
-    <ClCompile Include="SkinnedMeshModel.cpp">
-      <Filter>Model</Filter>
-    </ClCompile>
-    <ClCompile Include="Town.cpp">
-      <Filter>Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="Enemy.cpp">
-      <Filter>Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="EnemyManager.cpp">
-      <Filter>Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="Environment.cpp">
-      <Filter>Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="GameObject.cpp">
-      <Filter>Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="Ground.cpp">
-      <Filter>Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="Hilichurl.cpp">
-      <Filter>Scene\Character</Filter>
-    </ClCompile>
-    <ClCompile Include="Lumine.cpp">
-      <Filter>Scene\Character</Filter>
-    </ClCompile>
-    <ClCompile Include="Player.cpp">
-      <Filter>Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="SwordTrail.cpp">
-      <Filter>Effects</Filter>
-    </ClCompile>
-    <ClCompile Include="Skybox.cpp">
-      <Filter>Effects</Filter>
-    </ClCompile>
-    <ClCompile Include="CollisionManager.cpp">
-      <Filter>Collision</Filter>
-    </ClCompile>
-    <ClCompile Include="InputManager.cpp">
-      <Filter>Utility</Filter>
-    </ClCompile>
-    <ClCompile Include="Debugproc.cpp">
-      <Filter>Utility</Filter>
-    </ClCompile>
-    <ClCompile Include="AnimStateMachine.cpp">
+    <ClCompile Include="AI\AnimStateMachine.cpp">
       <Filter>AI</Filter>
     </ClCompile>
-    <ClCompile Include="AABBUtils.cpp">
+    <ClCompile Include="Collision\AABBUtils.cpp">
       <Filter>Collision</Filter>
     </ClCompile>
-    <ClCompile Include="CascadedShadowMap.cpp">
+    <ClCompile Include="Collision\CollisionManager.cpp">
+      <Filter>Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Graphics\CascadedShadowMap.cpp">
       <Filter>Core\Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="Renderer.cpp">
+    <ClCompile Include="Core\Graphics\Renderer.cpp">
       <Filter>Core\Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="ShadowMapRenderer.cpp">
+    <ClCompile Include="Core\Graphics\ShadowMapRenderer.cpp">
       <Filter>Core\Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="ShaderLoader.cpp">
+    <ClCompile Include="Core\Shader\ShaderLoader.cpp">
       <Filter>Core\Shader</Filter>
     </ClCompile>
-    <ClCompile Include="ShaderReloader.cpp">
+    <ClCompile Include="Core\Shader\ShaderManager.cpp">
       <Filter>Core\Shader</Filter>
     </ClCompile>
-    <ClCompile Include="ShaderManager.cpp">
+    <ClCompile Include="Core\Shader\ShaderReloader.cpp">
       <Filter>Core\Shader</Filter>
     </ClCompile>
-    <ClCompile Include="UIManager.cpp">
-      <Filter>UI</Filter>
+    <ClCompile Include="Core\Shader\ShaderResourceBinder.cpp">
+      <Filter>Core\Shader</Filter>
     </ClCompile>
-    <ClCompile Include="UIOverlayRenderer.cpp">
-      <Filter>UI</Filter>
-    </ClCompile>
-    <ClCompile Include="UISpriteRenderer.cpp">
-      <Filter>UI</Filter>
-    </ClCompile>
-    <ClCompile Include="GameSystem.cpp">
+    <ClCompile Include="Core\Camera.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="CursorManager.cpp">
+    <ClCompile Include="Core\CursorManager.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="imgui\imgui.cpp">
-      <Filter>UI\imgui</Filter>
+    <ClCompile Include="Core\GameSystem.cpp">
+      <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="imgui\imgui_draw.cpp">
-      <Filter>UI\imgui</Filter>
+    <ClCompile Include="Core\Light.cpp">
+      <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="imgui\imgui_impl_dx11.cpp">
-      <Filter>UI\imgui</Filter>
+    <ClCompile Include="Core\LightManager.cpp">
+      <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="imgui\imgui_impl_win32.cpp">
-      <Filter>UI\imgui</Filter>
+    <ClCompile Include="Core\TextureMgr.cpp">
+      <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="imgui\imgui_tables.cpp">
-      <Filter>UI\imgui</Filter>
+    <ClCompile Include="Effects\EffectSystem.cpp">
+      <Filter>Effects</Filter>
     </ClCompile>
-    <ClCompile Include="imgui\imgui_widgets.cpp">
-      <Filter>UI\imgui</Filter>
+    <ClCompile Include="Effects\FireBallEffectRenderer.cpp">
+      <Filter>Effects</Filter>
     </ClCompile>
-    <ClCompile Include="DebugBoundingBoxRenderer.cpp">
-      <Filter>Utility</Filter>
+    <ClCompile Include="Effects\ParticleEffectRendererBase.cpp">
+      <Filter>Effects</Filter>
     </ClCompile>
-    <ClCompile Include="ModelCacheLoader.cpp">
+    <ClCompile Include="Effects\Skybox.cpp">
+      <Filter>Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="Effects\SmokeEffectRenderer.cpp">
+      <Filter>Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="Effects\SwordTrail.cpp">
+      <Filter>Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\FBXLoader.cpp">
       <Filter>Model</Filter>
     </ClCompile>
-    <ClCompile Include="ShaderResourceBinder.cpp">
-      <Filter>Core\Shader</Filter>
+    <ClCompile Include="Model\Model.cpp">
+      <Filter>Model</Filter>
     </ClCompile>
-    <ClCompile Include="EffectSystem.cpp">
-      <Filter>Effects</Filter>
+    <ClCompile Include="Model\ModelCacheLoader.cpp">
+      <Filter>Model</Filter>
     </ClCompile>
-    <ClCompile Include="SmokeEffectRenderer.cpp">
-      <Filter>Effects</Filter>
+    <ClCompile Include="Model\SkinnedMeshModel.cpp">
+      <Filter>Model</Filter>
     </ClCompile>
-    <ClCompile Include="ParticleEffectRendererBase.cpp">
-      <Filter>Effects</Filter>
+    <ClCompile Include="Utility\DebugBoundingBoxRenderer.cpp">
+      <Filter>Utility</Filter>
     </ClCompile>
-    <ClCompile Include="FireBallEffectRenderer.cpp">
-      <Filter>Effects</Filter>
+    <ClCompile Include="Utility\Debugproc.cpp">
+      <Filter>Utility</Filter>
     </ClCompile>
+    <ClCompile Include="Utility\InputManager.cpp">
+      <Filter>Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\imgui\imgui.cpp">
+      <Filter>UI\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\imgui\imgui_draw.cpp">
+      <Filter>UI\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\imgui\imgui_impl_dx11.cpp">
+      <Filter>UI\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\imgui\imgui_impl_win32.cpp">
+      <Filter>UI\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\imgui\imgui_tables.cpp">
+      <Filter>UI\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\imgui\imgui_widgets.cpp">
+      <Filter>UI\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\UIManager.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\UIOverlayRenderer.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\UISpriteRenderer.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene\Enemy.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene\EnemyManager.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene\Environment.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene\GameObject.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene\Ground.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene\Player.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene\Town.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene\Character\Hilichurl.cpp">
+      <Filter>Scene\Character</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene\Character\Lumine.cpp">
+      <Filter>Scene\Character</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
 </Project>

@@ -3,22 +3,26 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# Visual Studio cache
+.vs/
+
 # User-specific files
 *.rsuser
 *.suo
 *.user
 *.userosscache
 *.sln.docstates
-*.bin
 
 # Prerequisites
 *.d
 
 # Compiled Object files
+x64/
+Debug/
+Release/
 *.slo
 *.lo
 *.o
-*.bin
 
 # Precompiled Headers
 *.gch
@@ -109,7 +113,6 @@ StyleCopReport.xml
 *_h.h
 *.ilk
 *.meta
-*.obj
 *.iobj
 *.pch
 *.pdb
